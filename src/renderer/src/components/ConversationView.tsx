@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect, useState } from 'react'
 
 interface ConversationMessage {
   type: string
@@ -23,11 +23,16 @@ interface ConversationViewProps {
   query: string
 }
 
+type ExportFormat = 'markdown' | 'json' | 'text'
+
 export default function ConversationView({
   conversation,
   query
 }: ConversationViewProps): JSX.Element {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exportStatus, setExportStatus] = useState<string | null>(null)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
 
   // Scroll to first match when query changes
   useEffect(() => {
@@ -36,6 +41,38 @@ export default function ConversationView({
       highlight?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   }, [query, conversation.id])
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent): void {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleExport = async (format: ExportFormat): Promise<void> => {
+    setShowExportMenu(false)
+    setExportStatus('Exporting...')
+
+    try {
+      const result = await window.electronAPI.exportConversation(conversation.id, format)
+      if (result.success) {
+        setExportStatus('Exported!')
+        setTimeout(() => setExportStatus(null), 2000)
+      } else if (result.canceled) {
+        setExportStatus(null)
+      } else {
+        setExportStatus('Export failed')
+        setTimeout(() => setExportStatus(null), 3000)
+      }
+    } catch {
+      setExportStatus('Export failed')
+      setTimeout(() => setExportStatus(null), 3000)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -48,9 +85,57 @@ export default function ConversationView({
               {conversation.sessionId}
             </p>
           </div>
-          <div className="text-right text-xs text-neutral-500">
-            <div>{formatFullDate(conversation.timestamp)}</div>
-            <div className="mt-1">{conversation.messageCount} messages</div>
+          <div className="flex items-center gap-4">
+            {/* Export Button */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                  />
+                </svg>
+                {exportStatus || 'Export'}
+              </button>
+
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-40 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg z-10">
+                  <button
+                    onClick={() => handleExport('markdown')}
+                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700 rounded-t-md"
+                  >
+                    Markdown (.md)
+                  </button>
+                  <button
+                    onClick={() => handleExport('json')}
+                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700"
+                  >
+                    JSON (.json)
+                  </button>
+                  <button
+                    onClick={() => handleExport('text')}
+                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700 rounded-b-md"
+                  >
+                    Plain Text (.txt)
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="text-right text-xs text-neutral-500">
+              <div>{formatFullDate(conversation.timestamp)}</div>
+              <div className="mt-1">{conversation.messageCount} messages</div>
+            </div>
           </div>
         </div>
       </div>

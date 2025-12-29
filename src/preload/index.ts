@@ -27,12 +27,22 @@ export interface Conversation {
   messageCount: number
 }
 
+export type ExportFormat = 'markdown' | 'json' | 'text'
+
+export interface ExportResult {
+  success: boolean
+  filePath?: string
+  canceled?: boolean
+  error?: string
+}
+
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
   getConversation: (id: string) => Promise<Conversation | null>
   getProjects: () => Promise<string[]>
   getStats: () => Promise<{ conversations: number; projects: number }>
   rebuildIndex: () => Promise<boolean>
+  exportConversation: (id: string, format: ExportFormat) => Promise<ExportResult>
 }
 
 const api: ElectronAPI = {
@@ -40,7 +50,8 @@ const api: ElectronAPI = {
   getConversation: (id) => ipcRenderer.invoke('get-conversation', id),
   getProjects: () => ipcRenderer.invoke('get-projects'),
   getStats: () => ipcRenderer.invoke('get-stats'),
-  rebuildIndex: () => ipcRenderer.invoke('rebuild-index')
+  rebuildIndex: () => ipcRenderer.invoke('rebuild-index'),
+  exportConversation: (id, format) => ipcRenderer.invoke('export-conversation', id, format)
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

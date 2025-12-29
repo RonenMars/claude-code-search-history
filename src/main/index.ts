@@ -1,4 +1,5 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ConversationScanner } from './services/scanner'
@@ -84,6 +85,117 @@ function setupIpcHandlers(): void {
     await initializeSearch()
     return true
   })
+
+  ipcMain.handle(
+    'export-conversation',
+    async (_event, id: string, format: 'markdown' | 'json' | 'text') => {
+      if (!scanner || !mainWindow) return { success: false, error: 'Not initialized' }
+
+      const conversation = await scanner.getConversation(id)
+      if (!conversation) return { success: false, error: 'Conversation not found' }
+
+      const extensions: Record<string, string> = {
+        markdown: 'md',
+        json: 'json',
+        text: 'txt'
+      }
+
+      const sessionPrefix = conversation.sessionId?.slice(0, 8) || Date.now().toString()
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export Conversation',
+        defaultPath: `conversation-${sessionPrefix}.${extensions[format]}`,
+        filters: [
+          { name: format.charAt(0).toUpperCase() + format.slice(1), extensions: [extensions[format]] }
+        ]
+      })
+
+      if (canceled || !filePath) return { success: false, canceled: true }
+
+      let content: string
+      if (format === 'json') {
+        content = JSON.stringify(conversation, null, 2)
+      } else if (format === 'markdown') {
+        content = formatAsMarkdown(conversation)
+      } else {
+        content = formatAsText(conversation)
+      }
+
+      try {
+        await writeFile(filePath, content, 'utf-8')
+        return { success: true, filePath }
+      } catch (error) {
+        return { success: false, error: String(error) }
+      }
+    }
+  )
+}
+
+interface ConversationForExport {
+  projectName: string
+  sessionId: string
+  timestamp: string
+  messageCount: number
+  messages: Array<{ type: string; content: string; timestamp: string }>
+}
+
+function formatAsMarkdown(conversation: ConversationForExport): string {
+  const timestamp = conversation.timestamp
+    ? new Date(conversation.timestamp).toLocaleString()
+    : 'Unknown'
+
+  const lines: string[] = [
+    `# Conversation Export`,
+    '',
+    `**Project:** ${conversation.projectName || 'Unknown'}`,
+    `**Session:** ${conversation.sessionId || 'Unknown'}`,
+    `**Date:** ${timestamp}`,
+    `**Messages:** ${conversation.messageCount || 0}`,
+    '',
+    '---',
+    ''
+  ]
+
+  for (const message of conversation.messages || []) {
+    const role = message.type === 'user' ? '## You' : '## Claude'
+    const time = message.timestamp ? ` *(${new Date(message.timestamp).toLocaleTimeString()})*` : ''
+    lines.push(`${role}${time}`)
+    lines.push('')
+    lines.push(message.content || '')
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+function formatAsText(conversation: ConversationForExport): string {
+  const timestamp = conversation.timestamp
+    ? new Date(conversation.timestamp).toLocaleString()
+    : 'Unknown'
+
+  const lines: string[] = [
+    'CONVERSATION EXPORT',
+    '===================',
+    '',
+    `Project: ${conversation.projectName || 'Unknown'}`,
+    `Session: ${conversation.sessionId || 'Unknown'}`,
+    `Date: ${timestamp}`,
+    `Messages: ${conversation.messageCount || 0}`,
+    '',
+    '---',
+    ''
+  ]
+
+  for (const message of conversation.messages || []) {
+    const role = message.type === 'user' ? '[You]' : '[Claude]'
+    const time = message.timestamp ? ` (${new Date(message.timestamp).toLocaleTimeString()})` : ''
+    lines.push(`${role}${time}`)
+    lines.push(message.content || '')
+    lines.push('')
+    lines.push('---')
+    lines.push('')
+  }
+
+  return lines.join('\n')
 }
 
 app.whenReady().then(async () => {

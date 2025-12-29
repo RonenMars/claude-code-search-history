@@ -12,18 +12,49 @@ A native macOS Electron application for searching through all your Claude Code c
 
 ## Installation
 
+### Development Mode
+
 ```bash
 # Install dependencies
 npm install
 
 # Run in development mode
 npm run dev
+```
 
-# Build for production
-npm run build
+### Install as macOS Application
 
-# Package for macOS
+To build and install as a standalone macOS app:
+
+```bash
+# Build and package the app
 npm run package
+```
+
+This creates a DMG installer at `dist/claude-code-search-history-1.0.0.dmg`.
+
+To install:
+1. Double-click the DMG file
+2. Drag "Claude Code Search" to your Applications folder
+3. Launch from Applications or Spotlight
+
+**Alternative: Direct .app install (no DMG)**
+
+```bash
+npm run build
+npx electron-builder --mac --dir
+```
+
+This creates an unpacked `.app` in `dist/mac-arm64/` (Apple Silicon) or `dist/mac/` (Intel) that you can drag directly to Applications.
+
+### Other Platforms
+
+```bash
+# Windows
+npm run package:win
+
+# Linux
+npm run package:linux
 ```
 
 ## How It Works
