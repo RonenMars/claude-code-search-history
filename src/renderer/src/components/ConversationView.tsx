@@ -158,6 +158,7 @@ interface MessageBubbleProps {
 
 function MessageBubble({ message, query }: MessageBubbleProps): JSX.Element {
   const isUser = message.type === 'user'
+  const [copied, setCopied] = useState(false)
 
   const highlightedContent = useMemo(() => {
     const content = message.content
@@ -183,6 +184,48 @@ function MessageBubble({ message, query }: MessageBubbleProps): JSX.Element {
           {message.timestamp && (
             <span className="text-xs text-neutral-500">{formatTime(message.timestamp)}</span>
           )}
+          <button
+            type="button"
+            aria-label={copied ? 'Copied' : 'Copy message'}
+            title={copied ? 'Copied!' : 'Copy message'}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(message.content)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1500)
+              } catch {
+                // no-op; clipboard may be unavailable
+              }
+            }}
+            className={`ml-auto inline-flex items-center justify-center rounded-md border transition-colors ${
+              isUser
+                ? 'border-claude-orange/30 text-claude-orange hover:bg-claude-orange/20'
+                : 'border-neutral-700 text-neutral-400 hover:bg-neutral-700'
+            } px-2 py-1`}
+          >
+            {copied ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="w-3.5 h-3.5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="w-3.5 h-3.5"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+              </svg>
+            )}
+          </button>
         </div>
         <div
           className="text-sm whitespace-pre-wrap break-words prose prose-invert prose-sm max-w-none"
