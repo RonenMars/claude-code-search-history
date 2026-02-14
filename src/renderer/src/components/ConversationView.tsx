@@ -1,5 +1,6 @@
-import { useMemo, useRef, useEffect, useState, useCallback, forwardRef } from 'react'
+import { useRef, useEffect, useState, useCallback, forwardRef } from 'react'
 import MessageNavigation from './MessageNavigation'
+import MessageContent from './MessageContent'
 
 
 
@@ -246,12 +247,6 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(
     const [showInfo, setShowInfo] = useState(false)
     const infoRef = useRef<HTMLDivElement>(null)
 
-    const highlightedContent = useMemo(() => {
-      const content = message.content
-      if (!query) return escapeHtml(content)
-      return highlightText(content, query)
-    }, [message.content, query])
-
     const hasMetadata = message.metadata && Object.keys(message.metadata).length > 0
 
     useEffect(() => {
@@ -275,8 +270,8 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(
       <div ref={ref} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
         <div
           className={`max-w-[85%] rounded-lg px-4 py-3 transition-all ${isUser
-              ? 'bg-claude-orange/20 text-neutral-200 border border-claude-orange/30'
-              : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
+            ? 'bg-claude-orange/20 text-neutral-200 border border-claude-orange/30'
+            : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
             } ${isCurrentMessage ? 'ring-2 ring-claude-orange/50' : ''}`}
         >
           <div className="flex items-center gap-2 mb-2">
@@ -340,11 +335,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(
               </button>
             </div>
           </div>
-          {/* Content is escaped via escapeHtml before any HTML injection; highlight wraps escaped text in safe spans */}
-          <div
-            className="text-sm whitespace-pre-wrap break-words prose prose-invert prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: highlightedContent }}
-          />
+          <MessageContent content={message.content} query={query} />
         </div>
       </div>
     )
@@ -387,30 +378,6 @@ function Row({ label, value }: { label: string; value: string | number }): JSX.E
   )
 }
 
-function highlightText(text: string, query: string): string {
-  if (!query) return escapeHtml(text)
-
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const regex = new RegExp(`(${escapedQuery})`, 'gi')
-  const parts = text.split(regex)
-
-  return parts
-    .map((part) =>
-      part.toLowerCase() === query.toLowerCase()
-        ? `<span class="highlight">${escapeHtml(part)}</span>`
-        : escapeHtml(part)
-    )
-    .join('')
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
 
 function formatFullDate(timestamp: string): string {
   return new Date(timestamp).toLocaleString([], {

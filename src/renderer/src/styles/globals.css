@@ -65,3 +65,93 @@ body {
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Message Content Styles */
+.message-content {
+  line-height: 1.6;
+}
+
+/* Inline code */
+.inline-code {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #c4b5fd;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.875em;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+/* JSON Syntax Highlighting */
+.json-key {
+  color: #8b5cf6; /* Purple for keys */
+  font-weight: 500;
+}
+
+.json-string {
+  color: #34d399; /* Green for strings */
+}
+
+.json-number {
+  color: #60a5fa; /* Blue for numbers */
+}
+
+.json-boolean {
+  color: #f59e0b; /* Amber for booleans */
+  font-weight: 600;
+}
+
+.json-null {
+  color: #ef4444; /* Red for null */
+  font-style: italic;
+}
+
+/* Code Syntax Highlighting */
+.syntax-keyword {
+  color: #c084fc; /* Purple for keywords */
+  font-weight: 600;
+}
+
+.syntax-string {
+  color: #6ee7b7; /* Emerald for strings */
+}
+
+.syntax-number {
+  color: #93c5fd; /* Light blue for numbers */
+}
+
+.syntax-boolean {
+  color: #fbbf24; /* Amber for booleans */
+  font-weight: 600;
+}
+
+.syntax-comment {
+  color: #6b7280; /* Gray for comments */
+  font-style: italic;
+}
+
+.syntax-function {
+  color: #60a5fa; /* Blue for functions */
+}
+
+/* Code block styling */
+.code-block-wrapper pre {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.json-block-wrapper pre {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Formatted text links */
+.formatted-text a {
+  transition: color 0.2s ease;
+}
+
+.formatted-text a:hover {
+  text-decoration-thickness: 2px;
+}
