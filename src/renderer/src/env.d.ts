@@ -3,6 +3,9 @@
 interface SearchResult {
   id: string
   projectName: string
+  projectPath: string
+  sessionId: string
+  sessionName: string
   preview: string
   timestamp: string
   messageCount: number
@@ -21,6 +24,7 @@ interface Conversation {
   projectPath: string
   projectName: string
   sessionId: string
+  sessionName: string
   messages: ConversationMessage[]
   fullText: string
   timestamp: string
@@ -33,6 +37,8 @@ interface ElectronAPI {
   getProjects: () => Promise<string[]>
   getStats: () => Promise<{ conversations: number; projects: number }>
   rebuildIndex: () => Promise<boolean>
+  onIndexReady: (callback: () => void) => void
+  exportConversation: (id: string, format: 'markdown' | 'json' | 'text') => Promise<{ success: boolean; canceled?: boolean }>
 }
 
 interface Window {

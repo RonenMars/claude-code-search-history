@@ -208,8 +208,12 @@ app.whenReady().then(async () => {
   setupIpcHandlers()
   createWindow()
 
-  // Initialize search in background
-  initializeSearch().catch(console.error)
+  // Initialize search in background, notify renderer when ready
+  initializeSearch()
+    .then(() => {
+      mainWindow?.webContents.send('index-ready')
+    })
+    .catch(console.error)
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

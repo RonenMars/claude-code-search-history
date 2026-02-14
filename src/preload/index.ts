@@ -3,16 +3,31 @@ import { contextBridge, ipcRenderer } from 'electron'
 export interface SearchResult {
   id: string
   projectName: string
+  projectPath: string
+  sessionId: string
   preview: string
   timestamp: string
   messageCount: number
   score: number
 }
 
+export interface MessageMetadata {
+  model?: string
+  stopReason?: string | null
+  inputTokens?: number
+  outputTokens?: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
+  gitBranch?: string
+  version?: string
+  toolUses?: string[]
+}
+
 export interface ConversationMessage {
   type: 'user' | 'assistant' | 'system'
   content: string
   timestamp: string
+  metadata?: MessageMetadata
 }
 
 export interface Conversation {
@@ -43,6 +58,7 @@ export interface ElectronAPI {
   getStats: () => Promise<{ conversations: number; projects: number }>
   rebuildIndex: () => Promise<boolean>
   exportConversation: (id: string, format: ExportFormat) => Promise<ExportResult>
+  onIndexReady: (callback: () => void) => void
 }
 
 const api: ElectronAPI = {
@@ -51,7 +67,8 @@ const api: ElectronAPI = {
   getProjects: () => ipcRenderer.invoke('get-projects'),
   getStats: () => ipcRenderer.invoke('get-stats'),
   rebuildIndex: () => ipcRenderer.invoke('rebuild-index'),
-  exportConversation: (id, format) => ipcRenderer.invoke('export-conversation', id, format)
+  exportConversation: (id, format) => ipcRenderer.invoke('export-conversation', id, format),
+  onIndexReady: (callback) => ipcRenderer.on('index-ready', callback)
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

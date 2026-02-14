@@ -3,6 +3,9 @@ import { useMemo } from 'react'
 interface SearchResult {
   id: string
   projectName: string
+  projectPath: string
+  sessionId: string
+  sessionName: string
   preview: string
   timestamp: string
   messageCount: number
@@ -54,20 +57,27 @@ interface ResultItemProps {
 
 function ResultItem({ result, isSelected, onSelect, query }: ResultItemProps): JSX.Element {
   const highlightedPreview = useMemo(() => {
-    if (!query) return result.preview
+    if (!query) return escapeHtml(result.preview)
     return highlightText(result.preview, query)
   }, [result.preview, query])
+
+  const highlightedSessionId = useMemo(() => {
+    const short = result.sessionId?.slice(0, 8) || ''
+    if (!query || !short) return escapeHtml(short)
+    return highlightText(short, query)
+  }, [result.sessionId, query])
 
   const formattedDate = useMemo(() => {
     return formatDate(result.timestamp)
   }, [result.timestamp])
 
+  // Note: highlightText uses escapeHtml on all parts before wrapping matches
+  // in <span class="highlight">, so the content is safe from XSS.
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left p-4 transition-colors hover:bg-neutral-800/50 ${
-        isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
-      }`}
+      className={`w-full text-left p-4 transition-colors hover:bg-neutral-800/50 ${isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
+        }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
         <span className="text-xs font-medium text-claude-orange truncate max-w-[200px]">
@@ -75,6 +85,15 @@ function ResultItem({ result, isSelected, onSelect, query }: ResultItemProps): J
         </span>
         <span className="text-xs text-neutral-500 whitespace-nowrap">{formattedDate}</span>
       </div>
+      {result.sessionName && (
+        <p className="text-xs text-neutral-400 mb-1 truncate">{result.sessionName}</p>
+      )}
+      {result.sessionId && (
+        <p
+          className="text-[10px] font-mono text-neutral-500 mb-1 truncate"
+          dangerouslySetInnerHTML={{ __html: highlightedSessionId }}
+        />
+      )}
       <p
         className="text-sm text-neutral-300 line-clamp-2"
         dangerouslySetInnerHTML={{ __html: highlightedPreview }}

@@ -4,6 +4,9 @@ import type { Conversation } from './scanner'
 export interface SearchResult {
   id: string
   projectName: string
+  projectPath: string
+  sessionId: string
+  sessionName: string
   preview: string
   timestamp: string
   messageCount: number
@@ -13,6 +16,9 @@ export interface SearchResult {
 interface IndexedDocument {
   id: string
   projectName: string
+  projectPath: string
+  sessionId: string
+  sessionName: string
   content: string
   timestamp: string
   messageCount: number
@@ -26,8 +32,8 @@ export class SearchIndexer {
     this.index = new FlexSearch.Document<IndexedDocument>({
       document: {
         id: 'id',
-        index: ['content', 'projectName'],
-        store: ['id', 'projectName', 'timestamp', 'messageCount']
+        index: ['content', 'projectName', 'sessionId', 'sessionName'],
+        store: ['id', 'projectName', 'projectPath', 'sessionId', 'sessionName', 'timestamp', 'messageCount']
       },
       tokenize: 'forward',
       resolution: 9,
@@ -42,6 +48,9 @@ export class SearchIndexer {
       const doc: IndexedDocument = {
         id: conv.id,
         projectName: conv.projectName,
+        projectPath: conv.projectPath,
+        sessionId: conv.sessionId,
+        sessionName: conv.sessionName,
         content: conv.fullText,
         timestamp: conv.timestamp,
         messageCount: conv.messageCount
@@ -78,8 +87,8 @@ export class SearchIndexer {
         const doc = this.documents.get(String(id))
         if (!doc) continue
 
-        // Apply project filter
-        if (projectFilter && !doc.projectName.includes(projectFilter)) {
+        // Apply project filter on the full path
+        if (projectFilter && doc.projectPath !== projectFilter) {
           continue
         }
 
@@ -88,6 +97,9 @@ export class SearchIndexer {
         searchResults.push({
           id: doc.id,
           projectName: doc.projectName,
+          projectPath: doc.projectPath,
+          sessionId: doc.sessionId,
+          sessionName: doc.sessionName,
           preview,
           timestamp: doc.timestamp,
           messageCount: doc.messageCount,
@@ -107,7 +119,7 @@ export class SearchIndexer {
     let docs = Array.from(this.documents.values())
 
     if (projectFilter) {
-      docs = docs.filter((d) => d.projectName.includes(projectFilter))
+      docs = docs.filter((d) => d.projectPath === projectFilter)
     }
 
     // Sort by timestamp descending
@@ -118,6 +130,9 @@ export class SearchIndexer {
     return docs.slice(0, limit).map((doc) => ({
       id: doc.id,
       projectName: doc.projectName,
+      projectPath: doc.projectPath,
+      sessionId: doc.sessionId,
+      sessionName: doc.sessionName,
       preview: this.truncateText(doc.content, 200),
       timestamp: doc.timestamp,
       messageCount: doc.messageCount,

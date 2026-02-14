@@ -3,17 +3,22 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 interface SearchResult {
   id: string
   projectName: string
+  projectPath: string
+  sessionId: string
+  sessionName: string
   preview: string
   timestamp: string
   messageCount: number
   score: number
 }
 
+
 interface UseSearchReturn {
   query: string
   setQuery: (query: string) => void
   results: SearchResult[]
   searching: boolean
+  refresh: () => void
 }
 
 export function useSearch(projectFilter?: string): UseSearchReturn {
@@ -64,10 +69,15 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
     performSearch(query)
   }, [projectFilter])
 
+  const refresh = useCallback(() => {
+    performSearch(query)
+  }, [performSearch, query])
+
   return {
     query,
     setQuery,
     results,
-    searching
+    searching,
+    refresh
   }
 }

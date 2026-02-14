@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import SearchBar from './components/SearchBar'
 import ResultsList from './components/ResultsList'
 import ConversationView from './components/ConversationView'
 import FilterPanel from './components/FilterPanel'
+import type { SortOption, DateRangeOption } from './components/FilterPanel'
 import { useSearch } from './hooks/useSearch'
 
 interface Conversation {
@@ -11,23 +12,29 @@ interface Conversation {
   projectPath: string
   projectName: string
   sessionId: string
+  sessionName: string
   messages: { type: string; content: string; timestamp: string }[]
   fullText: string
   timestamp: string
   messageCount: number
 }
 
+
 export default function App(): JSX.Element {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [selectedProject, setSelectedProject] = useState<string>('')
+  const [sortBy, setSortBy] = useState<SortOption>('recent')
+  const [dateRange, setDateRange] = useState<DateRangeOption>('all')
   const [projects, setProjects] = useState<string[]>([])
   const [stats, setStats] = useState({ conversations: 0, projects: 0 })
   const [isLoading, setIsLoading] = useState(true)
 
-  const { query, setQuery, results, searching } = useSearch(selectedProject)
+  const { query, setQuery, results, searching, refresh } = useSearch(selectedProject)
+
+  const [indexVersion, setIndexVersion] = useState(0)
 
   useEffect(() => {
-    const init = async (): Promise<void> => {
+    const loadData = async (): Promise<void> => {
       try {
         const [projectList, statsData] = await Promise.all([
           window.electronAPI.getProjects(),
@@ -42,8 +49,69 @@ export default function App(): JSX.Element {
       }
     }
 
-    init()
+    loadData()
+
+    // Re-fetch when the main process finishes building the index
+    window.electronAPI.onIndexReady(() => {
+      loadData()
+      setIndexVersion((v) => v + 1)
+    })
   }, [])
+
+  // Re-search when index becomes ready
+  useEffect(() => {
+    if (indexVersion > 0) {
+      refresh()
+    }
+  }, [indexVersion, refresh])
+
+  // Filter and sort results
+  const sortedResults = useMemo(() => {
+    // First, filter by date range
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+    let filtered = results.filter((result) => {
+      if (dateRange === 'all') return true
+      const resultDate = new Date(result.timestamp)
+
+      switch (dateRange) {
+        case 'today':
+          return resultDate >= today
+        case 'week':
+          return resultDate >= weekAgo
+        case 'month':
+          return resultDate >= monthAgo
+        default:
+          return true
+      }
+    })
+
+    // Then, sort
+    const sorted = [...filtered]
+    switch (sortBy) {
+      case 'recent':
+        sorted.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        break
+      case 'oldest':
+        sorted.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        break
+      case 'most-messages':
+        sorted.sort((a, b) => b.messageCount - a.messageCount)
+        break
+      case 'least-messages':
+        sorted.sort((a, b) => a.messageCount - b.messageCount)
+        break
+      case 'alphabetical':
+        sorted.sort((a, b) => a.projectName.localeCompare(b.projectName))
+        break
+    }
+
+    return sorted
+  }, [results, sortBy, dateRange])
+
 
   const handleSelectResult = useCallback(async (id: string) => {
     try {
@@ -115,7 +183,19 @@ export default function App(): JSX.Element {
               projects={projects}
               selectedProject={selectedProject}
               onProjectChange={setSelectedProject}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
             />
+          </div>
+
+          {/* Results Counter */}
+          <div className="px-4 py-2 border-b border-neutral-800">
+            <div className="text-xs text-neutral-500">
+              Showing <span className="font-medium text-neutral-400">{sortedResults.length}</span> of{' '}
+              <span className="font-medium text-neutral-400">{results.length}</span> conversations
+            </div>
           </div>
 
           {/* Results */}
@@ -126,7 +206,7 @@ export default function App(): JSX.Element {
               </div>
             ) : (
               <ResultsList
-                results={results}
+                results={sortedResults}
                 selectedId={selectedConversation?.id || null}
                 onSelect={handleSelectResult}
                 query={query}

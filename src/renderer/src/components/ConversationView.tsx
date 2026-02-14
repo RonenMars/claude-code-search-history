@@ -1,9 +1,25 @@
-import { useMemo, useRef, useEffect, useState } from 'react'
+import { useMemo, useRef, useEffect, useState, useCallback, forwardRef } from 'react'
+import MessageNavigation from './MessageNavigation'
+
+
+
+interface MessageMetadata {
+  model?: string
+  stopReason?: string | null
+  inputTokens?: number
+  outputTokens?: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
+  gitBranch?: string
+  version?: string
+  toolUses?: string[]
+}
 
 interface ConversationMessage {
   type: string
   content: string
   timestamp: string
+  metadata?: MessageMetadata
 }
 
 interface Conversation {
@@ -12,6 +28,7 @@ interface Conversation {
   projectPath: string
   projectName: string
   sessionId: string
+  sessionName: string
   messages: ConversationMessage[]
   fullText: string
   timestamp: string
@@ -33,6 +50,53 @@ export default function ConversationView({
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [exportStatus, setExportStatus] = useState<string | null>(null)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  // Message navigation state
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
+  const messageRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  // Initialize message refs array
+  useEffect(() => {
+    messageRefs.current = messageRefs.current.slice(0, conversation.messages.length)
+  }, [conversation.messages.length])
+
+  // Scroll to specific message
+  const scrollToMessage = useCallback((index: number) => {
+    const messageElement = messageRefs.current[index]
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setCurrentMessageIndex(index)
+    }
+  }, [])
+
+  // Navigation handlers
+  const handleNavigate = useCallback((index: number) => {
+    scrollToMessage(index)
+  }, [scrollToMessage])
+
+  const handleJumpToFirst = useCallback(() => {
+    scrollToMessage(0)
+  }, [scrollToMessage])
+
+  const handleJumpToLast = useCallback(() => {
+    scrollToMessage(conversation.messages.length - 1)
+  }, [scrollToMessage, conversation.messages.length])
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'ArrowUp' && currentMessageIndex > 0) {
+        e.preventDefault()
+        scrollToMessage(currentMessageIndex - 1)
+      } else if (e.key === 'ArrowDown' && currentMessageIndex < conversation.messages.length - 1) {
+        e.preventDefault()
+        scrollToMessage(currentMessageIndex + 1)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentMessageIndex, conversation.messages.length, scrollToMessage])
+
 
   // Scroll to first match when query changes
   useEffect(() => {
@@ -81,6 +145,9 @@ export default function ConversationView({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-medium text-claude-orange">{conversation.projectName}</h2>
+            {conversation.sessionName && (
+              <p className="text-xs text-neutral-400 mt-1">{conversation.sessionName}</p>
+            )}
             <p className="text-xs text-neutral-500 mt-1 font-mono truncate max-w-xl">
               {conversation.sessionId}
             </p>
@@ -132,6 +199,15 @@ export default function ConversationView({
               )}
             </div>
 
+            {/* Message Navigation */}
+            <MessageNavigation
+              currentIndex={currentMessageIndex}
+              totalMessages={conversation.messages.length}
+              onNavigate={handleNavigate}
+              onJumpToFirst={handleJumpToFirst}
+              onJumpToLast={handleJumpToLast}
+            />
+
             <div className="text-right text-xs text-neutral-500">
               <div>{formatFullDate(conversation.timestamp)}</div>
               <div className="mt-1">{conversation.messageCount} messages</div>
@@ -143,7 +219,13 @@ export default function ConversationView({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {conversation.messages.map((message, index) => (
-          <MessageBubble key={index} message={message} query={query} />
+          <MessageBubble
+            key={index}
+            message={message}
+            query={query}
+            ref={(el) => (messageRefs.current[index] = el)}
+            isCurrentMessage={index === currentMessageIndex}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -154,84 +236,153 @@ export default function ConversationView({
 interface MessageBubbleProps {
   message: ConversationMessage
   query: string
+  isCurrentMessage?: boolean
 }
 
-function MessageBubble({ message, query }: MessageBubbleProps): JSX.Element {
-  const isUser = message.type === 'user'
-  const [copied, setCopied] = useState(false)
+const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(
+  ({ message, query, isCurrentMessage = false }, ref) => {
+    const isUser = message.type === 'user'
+    const [copied, setCopied] = useState(false)
+    const [showInfo, setShowInfo] = useState(false)
+    const infoRef = useRef<HTMLDivElement>(null)
 
-  const highlightedContent = useMemo(() => {
-    const content = message.content
-    if (!query) return escapeHtml(content)
-    return highlightText(content, query)
-  }, [message.content, query])
+    const highlightedContent = useMemo(() => {
+      const content = message.content
+      if (!query) return escapeHtml(content)
+      return highlightText(content, query)
+    }, [message.content, query])
+
+    const hasMetadata = message.metadata && Object.keys(message.metadata).length > 0
+
+    useEffect(() => {
+      if (!showInfo) return
+      function handleClick(e: MouseEvent): void {
+        if (infoRef.current && !infoRef.current.contains(e.target as Node)) {
+          setShowInfo(false)
+        }
+      }
+      document.addEventListener('mousedown', handleClick)
+      return () => document.removeEventListener('mousedown', handleClick)
+    }, [showInfo])
+
+
+    const btnClass = `inline-flex items-center justify-center rounded-md border transition-colors ${isUser
+      ? 'border-claude-orange/30 text-claude-orange hover:bg-claude-orange/20'
+      : 'border-neutral-700 text-neutral-400 hover:bg-neutral-700'
+      } px-2 py-1`
+
+    return (
+      <div ref={ref} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div
+          className={`max-w-[85%] rounded-lg px-4 py-3 transition-all ${isUser
+              ? 'bg-claude-orange/20 text-neutral-200 border border-claude-orange/30'
+              : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
+            } ${isCurrentMessage ? 'ring-2 ring-claude-orange/50' : ''}`}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className={`text-xs font-medium ${isUser ? 'text-claude-orange' : 'text-neutral-400'}`}
+            >
+              {isUser ? 'You' : 'Claude'}
+            </span>
+            {message.timestamp && (
+              <span className="text-xs text-neutral-500">{formatTime(message.timestamp)}</span>
+            )}
+            {message.metadata?.toolUses && message.metadata.toolUses.length > 0 && (
+              <span className="text-[10px] font-mono text-neutral-500 bg-neutral-900 px-1.5 py-0.5 rounded">
+                {message.metadata.toolUses.join(', ')}
+              </span>
+            )}
+            <div className="ml-auto flex items-center gap-1">
+              {hasMetadata && (
+                <div className="relative" ref={infoRef}>
+                  <button
+                    type="button"
+                    aria-label="Message info"
+                    onClick={() => setShowInfo(!showInfo)}
+                    className={btnClass}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
+                      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                      <path strokeLinecap="round" strokeWidth="2" d="M12 16v-4m0-4h.01" />
+                    </svg>
+                  </button>
+                  {showInfo && message.metadata && (
+                    <MetadataTooltip metadata={message.metadata} isUser={isUser} />
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                aria-label={copied ? 'Copied' : 'Copy message'}
+                title={copied ? 'Copied!' : 'Copy message'}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(message.content)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 1500)
+                  } catch {
+                    // no-op
+                  }
+                }}
+                className={btnClass}
+              >
+                {copied ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                    <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+          {/* Content is escaped via escapeHtml before any HTML injection; highlight wraps escaped text in safe spans */}
+          <div
+            className="text-sm whitespace-pre-wrap break-words prose prose-invert prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: highlightedContent }}
+          />
+        </div>
+      </div>
+    )
+  }
+)
+
+
+function MetadataTooltip({ metadata, isUser }: { metadata: MessageMetadata; isUser: boolean }): JSX.Element {
+  const totalTokens = (metadata.inputTokens || 0) + (metadata.outputTokens || 0)
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] rounded-lg px-4 py-3 ${
-          isUser
-            ? 'bg-claude-orange/20 text-neutral-200 border border-claude-orange/30'
-            : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
-        }`}
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <span
-            className={`text-xs font-medium ${isUser ? 'text-claude-orange' : 'text-neutral-400'}`}
-          >
-            {isUser ? 'You' : 'Claude'}
-          </span>
-          {message.timestamp && (
-            <span className="text-xs text-neutral-500">{formatTime(message.timestamp)}</span>
-          )}
-          <button
-            type="button"
-            aria-label={copied ? 'Copied' : 'Copy message'}
-            title={copied ? 'Copied!' : 'Copy message'}
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(message.content)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 1500)
-              } catch {
-                // no-op; clipboard may be unavailable
-              }
-            }}
-            className={`ml-auto inline-flex items-center justify-center rounded-md border transition-colors ${
-              isUser
-                ? 'border-claude-orange/30 text-claude-orange hover:bg-claude-orange/20'
-                : 'border-neutral-700 text-neutral-400 hover:bg-neutral-700'
-            } px-2 py-1`}
-          >
-            {copied ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                className="w-3.5 h-3.5"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                className="w-3.5 h-3.5"
-              >
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
-                <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
-              </svg>
-            )}
-          </button>
-        </div>
-        <div
-          className="text-sm whitespace-pre-wrap break-words prose prose-invert prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: highlightedContent }}
-        />
+    <div className={`absolute ${isUser ? 'right-0' : 'left-0'} bottom-full mb-2 w-64 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl z-20 p-3 text-xs`}>
+      <div className="space-y-1.5 text-neutral-300">
+        {metadata.model && <Row label="Model" value={metadata.model} />}
+        {metadata.gitBranch && <Row label="Branch" value={metadata.gitBranch} />}
+        {metadata.stopReason !== undefined && <Row label="Stop" value={metadata.stopReason ?? 'streaming'} />}
+        {metadata.version && <Row label="Version" value={metadata.version} />}
+        {metadata.toolUses && metadata.toolUses.length > 0 && <Row label="Tools" value={metadata.toolUses.join(', ')} />}
+        {totalTokens > 0 && (
+          <>
+            <div className="border-t border-neutral-700 my-1.5" />
+            <div className="text-neutral-400 font-medium mb-1">Tokens</div>
+            {metadata.inputTokens !== undefined && <Row label="Input" value={metadata.inputTokens.toLocaleString()} />}
+            {metadata.outputTokens !== undefined && <Row label="Output" value={metadata.outputTokens.toLocaleString()} />}
+            {metadata.cacheReadTokens !== undefined && metadata.cacheReadTokens > 0 && <Row label="Cache read" value={metadata.cacheReadTokens.toLocaleString()} />}
+            {metadata.cacheCreationTokens !== undefined && metadata.cacheCreationTokens > 0 && <Row label="Cache create" value={metadata.cacheCreationTokens.toLocaleString()} />}
+          </>
+        )}
       </div>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string | number }): JSX.Element {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-neutral-500">{label}</span>
+      <span className="font-mono truncate text-right">{value}</span>
     </div>
   )
 }
