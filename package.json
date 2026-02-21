@@ -16,7 +16,10 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
-    "flexsearch": "^0.7.43"
+    "@tanstack/react-virtual": "^3.13.18",
+    "flexsearch": "^0.7.43",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -3,6 +3,7 @@ import { join } from 'path'
 import { homedir } from 'os'
 import { createReadStream } from 'fs'
 import { createInterface } from 'readline'
+import type { ToolResult, ToolUseBlock } from '../../shared/types'
 
 export interface MessageMetadata {
   model?: string
@@ -14,6 +15,8 @@ export interface MessageMetadata {
   gitBranch?: string
   version?: string
   toolUses?: string[]
+  toolUseBlocks?: ToolUseBlock[]
+  toolResults?: ToolResult[]
 }
 
 export interface ConversationMessage {
@@ -21,6 +24,8 @@ export interface ConversationMessage {
   content: string
   timestamp: string
   metadata?: MessageMetadata
+  lineNumber?: number
+  isToolResult?: boolean
 }
 
 export interface Conversation {
@@ -146,13 +151,18 @@ export class ConversationScanner {
     let cwd = ''
     const textParts: string[] = []
 
+    // Track pending tool_use blocks from assistant messages to match with results
+    const pendingToolUses = new Map<string, ToolUseBlock>()
+
     const fileStream = createReadStream(filePath)
     const rl = createInterface({
       input: fileStream,
       crlfDelay: Infinity
     })
 
+    let lineNumber = 0
     for await (const line of rl) {
+      lineNumber++
       if (!line.trim()) continue
 
       try {
@@ -177,8 +187,29 @@ export class ConversationScanner {
         }
 
         if (entry.type === 'user' || entry.type === 'assistant') {
+          if (entry.isMeta) continue
+
+          // Extract tool_use blocks from assistant messages
+          const toolUseBlocks = this.extractToolUseBlocks(entry.message?.content)
+          for (const block of toolUseBlocks) {
+            pendingToolUses.set(block.id, block)
+          }
+
+          // Check if this user message is purely a tool result
+          const hasToolUseResult = entry.type === 'user' && entry.toolUseResult
+          const isToolResultMessage = hasToolUseResult && this.isOnlyToolResult(entry.message?.content)
+
+          // Classify the tool result if present
+          let toolResults: ToolResult[] | undefined
+          if (hasToolUseResult) {
+            const classified = this.classifyToolResult(entry.toolUseResult, entry.message?.content, pendingToolUses)
+            if (classified) {
+              toolResults = [classified]
+            }
+          }
+
           const content = this.extractContent(entry.message?.content)
-          if (content && !entry.isMeta) {
+          if (content || isToolResultMessage) {
             const metadata: MessageMetadata = {}
 
             if (entry.message?.model) metadata.model = entry.message.model
@@ -194,16 +225,20 @@ export class ConversationScanner {
               if (usage.cache_creation_input_tokens) metadata.cacheCreationTokens = usage.cache_creation_input_tokens
             }
 
-            const toolUses = this.extractToolUseNames(entry.message?.content)
-            if (toolUses.length > 0) metadata.toolUses = toolUses
+            const toolUseNames = this.extractToolUseNames(entry.message?.content)
+            if (toolUseNames.length > 0) metadata.toolUses = toolUseNames
+            if (toolUseBlocks.length > 0) metadata.toolUseBlocks = toolUseBlocks
+            if (toolResults) metadata.toolResults = toolResults
 
             messages.push({
               type: entry.type,
-              content,
+              content: content || '',
               timestamp: entry.timestamp || '',
-              metadata: Object.keys(metadata).length > 0 ? metadata : undefined
+              metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+              lineNumber,
+              isToolResult: isToolResultMessage || undefined
             })
-            textParts.push(content)
+            if (content) textParts.push(content)
           }
         }
       } catch {
@@ -262,6 +297,169 @@ export class ConversationScanner {
       .map((item) => item.name as string)
   }
 
+  private extractToolUseBlocks(content: unknown): ToolUseBlock[] {
+    if (!Array.isArray(content)) return []
+    return content
+      .filter((item) => item?.type === 'tool_use' && item?.name && item?.id)
+      .map((item) => ({
+        id: item.id as string,
+        name: item.name as string,
+        input: (item.input as Record<string, unknown>) || {}
+      }))
+  }
+
+  /**
+   * Check if a user message content array consists entirely of tool_result blocks
+   * (no human text).
+   */
+  private isOnlyToolResult(content: unknown): boolean {
+    if (!Array.isArray(content)) return false
+    return content.length > 0 && content.every(
+      (item) => item?.type === 'tool_result'
+    )
+  }
+
+  /**
+   * Classify a toolUseResult object into a typed ToolResult based on its fields.
+   * Skip originalFile and Read content to avoid memory bloat.
+   */
+  private classifyToolResult(
+    raw: Record<string, unknown>,
+    messageContent: unknown,
+    _pendingToolUses: Map<string, ToolUseBlock>
+  ): ToolResult | null {
+    if (!raw || typeof raw !== 'object') return null
+
+    // Edit: has structuredPatch + oldString + filePath
+    if (raw.structuredPatch && raw.oldString !== undefined && raw.filePath) {
+      return {
+        type: 'edit',
+        filePath: raw.filePath as string,
+        oldString: raw.oldString as string,
+        newString: raw.newString as string,
+        structuredPatch: raw.structuredPatch as EditStructuredPatch[],
+        userModified: (raw.userModified as boolean) || false,
+        replaceAll: (raw.replaceAll as boolean) || false
+      }
+    }
+
+    // Write: type === 'create' + filePath
+    if (raw.type === 'create' && raw.filePath) {
+      return {
+        type: 'write',
+        filePath: raw.filePath as string
+      }
+    }
+
+    // Read: type === 'text' + file.filePath
+    if (raw.type === 'text' && raw.file && typeof raw.file === 'object') {
+      const file = raw.file as Record<string, unknown>
+      if (file.filePath) {
+        return {
+          type: 'read',
+          filePath: file.filePath as string
+        }
+      }
+    }
+
+    // Bash: has stdout field
+    if ('stdout' in raw && 'stderr' in raw) {
+      return {
+        type: 'bash',
+        stdout: raw.stdout as string,
+        stderr: raw.stderr as string,
+        interrupted: (raw.interrupted as boolean) || false
+      }
+    }
+
+    // Grep: has mode + content + filenames + numLines
+    if ('mode' in raw && 'numLines' in raw && 'filenames' in raw) {
+      return {
+        type: 'grep',
+        mode: raw.mode as string,
+        filenames: raw.filenames as string[],
+        content: raw.content as string,
+        numFiles: (raw.numFiles as number) || 0,
+        numLines: (raw.numLines as number) || 0
+      }
+    }
+
+    // Glob: has filenames + numFiles (but no mode/numLines)
+    if ('filenames' in raw && 'numFiles' in raw && !('mode' in raw)) {
+      return {
+        type: 'glob',
+        filenames: raw.filenames as string[],
+        numFiles: (raw.numFiles as number) || 0,
+        truncated: (raw.truncated as boolean) || false
+      }
+    }
+
+    // Task agent: has status + prompt + agentId
+    if ('status' in raw && 'prompt' in raw && 'agentId' in raw) {
+      return {
+        type: 'taskAgent',
+        status: raw.status as string,
+        prompt: raw.prompt as string,
+        agentId: raw.agentId as string
+      }
+    }
+
+    // TaskCreate: has task object with id + subject
+    if ('task' in raw && typeof raw.task === 'object' && raw.task !== null) {
+      const task = raw.task as Record<string, unknown>
+      if (task.id && task.subject) {
+        return {
+          type: 'taskCreate',
+          taskId: task.id as string,
+          subject: task.subject as string
+        }
+      }
+    }
+
+    // TaskUpdate: has success + taskId + updatedFields
+    if ('taskId' in raw && 'updatedFields' in raw) {
+      return {
+        type: 'taskUpdate',
+        taskId: raw.taskId as string,
+        updatedFields: raw.updatedFields as string[],
+        statusChange: raw.statusChange as { from: string; to: string } | undefined
+      }
+    }
+
+    // Generic message (e.g., EnterPlanMode)
+    if ('message' in raw && Object.keys(raw).length === 1) {
+      // Determine tool name from the content's tool_use_id
+      let toolName = 'unknown'
+      if (Array.isArray(messageContent)) {
+        const toolResultItem = messageContent.find((i: Record<string, unknown>) => i?.type === 'tool_result')
+        if (toolResultItem?.tool_use_id) {
+          const pending = _pendingToolUses.get(toolResultItem.tool_use_id as string)
+          if (pending) toolName = pending.name
+        }
+      }
+      return {
+        type: 'generic',
+        toolName,
+        data: raw
+      }
+    }
+
+    // Fallback: Generic with best-effort tool name
+    let toolName = 'unknown'
+    if (Array.isArray(messageContent)) {
+      const toolResultItem = messageContent.find((i: Record<string, unknown>) => i?.type === 'tool_result')
+      if (toolResultItem?.tool_use_id) {
+        const pending = _pendingToolUses.get(toolResultItem.tool_use_id as string)
+        if (pending) toolName = pending.name
+      }
+    }
+    return {
+      type: 'generic',
+      toolName,
+      data: raw
+    }
+  }
+
   // System tags injected by Claude Code hooks, IDE integrations, and the runtime.
   // Single regex with backreference ensures matched open/close pairs in one pass.
   private static SYSTEM_TAG_RE = new RegExp(
@@ -318,4 +516,13 @@ export class ConversationScanner {
   getProjects(): string[] {
     return Array.from(this.projects).sort()
   }
+}
+
+// Type alias for structured patch (used in classification)
+type EditStructuredPatch = {
+  oldStart: number
+  oldLines: number
+  newStart: number
+  newLines: number
+  lines: string[]
 }

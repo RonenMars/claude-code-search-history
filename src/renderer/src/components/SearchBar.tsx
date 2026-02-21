@@ -15,7 +15,7 @@ export default function SearchBar({ value, onChange, isSearching }: SearchBarPro
 
     // Global keyboard shortcut
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
         e.preventDefault()
         inputRef.current?.focus()
         inputRef.current?.select()
@@ -73,7 +73,7 @@ export default function SearchBar({ value, onChange, isSearching }: SearchBarPro
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search conversations... (⌘F)"
+        placeholder="Search conversations... (⌘⇧F)"
         className="w-full pl-10 pr-4 py-2.5 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-claude-orange focus:ring-1 focus:ring-claude-orange transition-colors"
       />
       {value && (

@@ -1,105 +1,211 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback, type ReactNode } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import type { Components } from 'react-markdown'
 
 interface MessageContentProps {
     content: string
     query?: string
 }
 
-interface CodeBlock {
-    language: string
-    code: string
-    startIndex: number
-    endIndex: number
-}
-
 export default function MessageContent({ content, query }: MessageContentProps): JSX.Element {
-    const processedContent = useMemo(() => {
-        return parseContent(content, query)
-    }, [content, query])
-
-    return <div className="message-content">{processedContent}</div>
-}
-
-function parseContent(content: string, query?: string): JSX.Element {
-    // Try to detect if the entire content is JSON
     const trimmed = content.trim()
+
+    // Standalone JSON gets its own dedicated renderer
     if (isJSON(trimmed)) {
-        return <JSONBlock content={trimmed} />
+        return (
+            <div className="message-content">
+                <JSONBlock content={trimmed} />
+            </div>
+        )
     }
 
-    // Check for markdown code blocks
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
-    const blocks: CodeBlock[] = []
-    let match: RegExpExecArray | null
-
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-        blocks.push({
-            language: match[1] || 'text',
-            code: match[2],
-            startIndex: match.index,
-            endIndex: match.index + match[0].length
-        })
-    }
-
-    // If we have code blocks, split content and render appropriately
-    if (blocks.length > 0) {
-        return <MarkdownContent content={content} blocks={blocks} query={query} />
-    }
-
-    // Check if content looks like code (has indentation patterns, braces, etc.)
-    if (looksLikeCode(content)) {
-        const detectedLang = detectLanguage(content)
-        return <CodeBlock language={detectedLang} code={content} />
-    }
-
-    // Default: render as formatted text with query highlighting
-    return <FormattedText content={content} query={query} />
+    return (
+        <div className="message-content">
+            <MarkdownRenderer content={content} query={query} />
+        </div>
+    )
 }
 
-function MarkdownContent({
-    content,
-    blocks,
-    query
-}: {
-    content: string
-    blocks: CodeBlock[]
-    query?: string
-}): JSX.Element {
-    const elements: JSX.Element[] = []
-    let lastIndex = 0
+// ─── Markdown Renderer ───────────────────────────────────────────────
 
-    blocks.forEach((block, idx) => {
-        // Add text before this code block
-        if (block.startIndex > lastIndex) {
-            const textBefore = content.substring(lastIndex, block.startIndex)
-            elements.push(
-                <FormattedText key={`text-${idx}`} content={textBefore} query={query} />
+function MarkdownRenderer({ content, query }: { content: string; query?: string }): JSX.Element {
+    // Wrap children with query highlighting (pure React, no DOM mutation)
+    const hl = useCallback(
+        (children: ReactNode): ReactNode => (query ? highlightChildren(children, query) : children),
+        [query]
+    )
+
+    const components = useMemo<Components>(() => ({
+        // Code blocks & inline code
+        code({ className, children }) {
+            const match = /language-(\w+)/.exec(className || '')
+            const codeString = String(children).replace(/\n$/, '')
+
+            if (match) {
+                return <CodeBlock language={match[1]} code={codeString} />
+            }
+
+            if (codeString.includes('\n')) {
+                return <CodeBlock language="text" code={codeString} />
+            }
+
+            // Inline code — no highlighting inside code spans
+            return <code className="inline-code">{children}</code>
+        },
+
+        pre({ children }) {
+            return <>{children}</>
+        },
+
+        // Tables
+        table({ children }) {
+            return (
+                <div className="my-3 overflow-x-auto rounded-lg border border-neutral-700">
+                    <table className="md-table">{children}</table>
+                </div>
+            )
+        },
+        thead({ children }) {
+            return <thead className="bg-neutral-800/80">{children}</thead>
+        },
+        th({ children }) {
+            return (
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-300 border-b border-neutral-700">
+                    {hl(children)}
+                </th>
+            )
+        },
+        td({ children }) {
+            return (
+                <td className="px-3 py-2 text-xs text-neutral-300 border-b border-neutral-800">
+                    {hl(children)}
+                </td>
+            )
+        },
+
+        // Headings
+        h1({ children }) {
+            return <h1 className="text-xl font-bold text-neutral-100 mt-4 mb-2 border-b border-neutral-700 pb-1">{hl(children)}</h1>
+        },
+        h2({ children }) {
+            return <h2 className="text-lg font-semibold text-neutral-100 mt-4 mb-2">{hl(children)}</h2>
+        },
+        h3({ children }) {
+            return <h3 className="text-base font-semibold text-neutral-200 mt-3 mb-1">{hl(children)}</h3>
+        },
+        h4({ children }) {
+            return <h4 className="text-sm font-semibold text-neutral-200 mt-2 mb-1">{hl(children)}</h4>
+        },
+
+        // Paragraphs
+        p({ children }) {
+            return <p className="my-1.5 leading-relaxed">{hl(children)}</p>
+        },
+
+        // Lists
+        ul({ children }) {
+            return <ul className="my-1.5 ml-5 list-disc space-y-0.5">{children}</ul>
+        },
+        ol({ children }) {
+            return <ol className="my-1.5 ml-5 list-decimal space-y-0.5">{children}</ol>
+        },
+        li({ children }) {
+            return <li className="leading-relaxed">{hl(children)}</li>
+        },
+
+        // Blockquotes
+        blockquote({ children }) {
+            return (
+                <blockquote className="my-2 border-l-3 border-claude-orange/50 pl-3 text-neutral-400 italic">
+                    {children}
+                </blockquote>
+            )
+        },
+
+        // Links
+        a({ href, children }) {
+            return (
+                <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                >
+                    {hl(children)}
+                </a>
+            )
+        },
+
+        // Horizontal rule
+        hr() {
+            return <hr className="my-3 border-neutral-700" />
+        },
+
+        // Strong / em
+        strong({ children }) {
+            return <strong className="font-semibold text-neutral-100">{hl(children)}</strong>
+        },
+        em({ children }) {
+            return <em className="italic text-neutral-200">{hl(children)}</em>
+        },
+    }), [hl])
+
+    return (
+        <div className="md-content">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+                {content}
+            </ReactMarkdown>
+        </div>
+    )
+}
+
+// ─── Search Highlighting (pure React) ────────────────────────────────
+
+/**
+ * Recursively walk React children. When a raw string is found, split it on
+ * the query and wrap matches in <span class="highlight">.
+ * Non-string children (elements) are returned as-is — their own component
+ * overrides handle highlighting at their level.
+ */
+function highlightChildren(children: ReactNode, query: string): ReactNode {
+    if (!query) return children
+
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(`(${escaped})`, 'gi')
+
+    const walk = (node: ReactNode): ReactNode => {
+        if (typeof node === 'string') {
+            const parts = node.split(regex)
+            if (parts.length === 1) return node
+            return parts.map((part, i) =>
+                regex.test(part) ? (
+                    <span key={i} className="highlight">{part}</span>
+                ) : (
+                    part
+                )
             )
         }
-
-        // Add the code block
-        elements.push(
-            <CodeBlock key={`code-${idx}`} language={block.language} code={block.code} />
-        )
-
-        lastIndex = block.endIndex
-    })
-
-    // Add remaining text
-    if (lastIndex < content.length) {
-        const textAfter = content.substring(lastIndex)
-        elements.push(
-            <FormattedText key={`text-final`} content={textAfter} query={query} />
-        )
+        // Leave non-string children untouched (elements handle their own hl())
+        return node
     }
 
-    return <div className="space-y-3">{elements}</div>
+    if (Array.isArray(children)) {
+        return children.map((child, i) => {
+            const result = walk(child)
+            // Only wrap in a keyed fragment if the walk produced an array
+            return Array.isArray(result) ? <span key={i}>{result}</span> : result
+        })
+    }
+    return walk(children)
 }
+
+// ─── Code Block ──────────────────────────────────────────────────────
 
 function CodeBlock({ language, code }: { language: string; code: string }): JSX.Element {
     const [copied, setCopied] = useState(false)
 
-    const handleCopy = async (): Promise<void> => {
+    const handleCopy = useCallback(async () => {
         try {
             await navigator.clipboard.writeText(code)
             setCopied(true)
@@ -107,7 +213,7 @@ function CodeBlock({ language, code }: { language: string; code: string }): JSX.
         } catch {
             // Ignore copy errors
         }
-    }
+    }, [code])
 
     const highlighted = useMemo(() => highlightCode(code, language), [code, language])
 
@@ -132,6 +238,8 @@ function CodeBlock({ language, code }: { language: string; code: string }): JSX.
     )
 }
 
+// ─── JSON Block ──────────────────────────────────────────────────────
+
 function JSONBlock({ content }: { content: string }): JSX.Element {
     const [copied, setCopied] = useState(false)
     const [collapsed, setCollapsed] = useState(false)
@@ -147,7 +255,7 @@ function JSONBlock({ content }: { content: string }): JSX.Element {
 
     const highlighted = useMemo(() => highlightJSON(formatted), [formatted])
 
-    const handleCopy = async (): Promise<void> => {
+    const handleCopy = useCallback(async () => {
         try {
             await navigator.clipboard.writeText(formatted)
             setCopied(true)
@@ -155,7 +263,7 @@ function JSONBlock({ content }: { content: string }): JSX.Element {
         } catch {
             // Ignore
         }
-    }
+    }, [formatted])
 
     return (
         <div className="json-block-wrapper group relative my-3">
@@ -188,47 +296,8 @@ function JSONBlock({ content }: { content: string }): JSX.Element {
     )
 }
 
-function FormattedText({ content, query }: { content: string; query?: string }): JSX.Element {
-    const formatted = useMemo(() => {
-        let html = escapeHtml(content)
+// ─── Helpers ─────────────────────────────────────────────────────────
 
-        // Apply query highlighting if present
-        if (query) {
-            const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-            const regex = new RegExp(`(${escapedQuery})`, 'gi')
-            html = html.replace(
-                regex,
-                (match) => `<span class="highlight">${match}</span>`
-            )
-        }
-
-        // Convert URLs to links
-        html = html.replace(
-            /(https?:\/\/[^\s<]+)/g,
-            '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>'
-        )
-
-        // Convert markdown-style bold
-        html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-neutral-100">$1</strong>')
-
-        // Convert markdown-style italic
-        html = html.replace(/\*(.*?)\*/g, '<em class="italic text-neutral-200">$1</em>')
-
-        // Convert markdown-style inline code
-        html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-
-        return html
-    }, [content, query])
-
-    return (
-        <div
-            className="formatted-text whitespace-pre-wrap break-words leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: formatted }}
-        />
-    )
-}
-
-// Helper functions
 function isJSON(str: string): boolean {
     if (!str.startsWith('{') && !str.startsWith('[')) return false
     try {
@@ -237,33 +306,6 @@ function isJSON(str: string): boolean {
     } catch {
         return false
     }
-}
-
-function looksLikeCode(content: string): boolean {
-    const codeIndicators = [
-        /^(function|const|let|var|class|import|export|interface|type)\s/m,
-        /[{}\[\]();]/,
-        /^\s{2,}/m, // Indentation
-        /=>/,
-        /:.*[{;]$/m
-    ]
-
-    let matches = 0
-    for (const pattern of codeIndicators) {
-        if (pattern.test(content)) matches++
-    }
-
-    return matches >= 2
-}
-
-function detectLanguage(content: string): string {
-    if (/^(import|export|const|let|var|function|class)/.test(content)) {
-        if (content.includes('interface') || content.includes(': ')) return 'typescript'
-        return 'javascript'
-    }
-    if (/^(def|class|import|from)/.test(content)) return 'python'
-    if (/^(package|func|type|var)/.test(content)) return 'go'
-    return 'text'
 }
 
 function escapeHtml(text: string): string {
@@ -290,15 +332,51 @@ function highlightJSON(json: string): string {
 function highlightCode(code: string, language: string): string {
     const escaped = escapeHtml(code)
 
-    // Basic syntax highlighting for common languages
     if (language === 'javascript' || language === 'typescript' || language === 'jsx' || language === 'tsx') {
         return escaped
-            .replace(/\b(const|let|var|function|class|if|else|return|import|export|from|default|async|await|interface|type|extends|implements)\b/g, '<span class="syntax-keyword">$1</span>')
+            .replace(
+                /\b(const|let|var|function|class|if|else|return|import|export|from|default|async|await|interface|type|extends|implements|new|this|throw|try|catch|finally|for|while|do|switch|case|break|continue|of|in|yield)\b/g,
+                '<span class="syntax-keyword">$1</span>'
+            )
             .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-boolean">$1</span>')
-            .replace(/'([^']*)'/g, '<span class="syntax-string">\'$1\'</span>')
+            .replace(/'([^']*)'/g, "<span class=\"syntax-string\">'$1'</span>")
             .replace(/"([^"]*)"/g, '<span class="syntax-string">"$1"</span>')
             .replace(/`([^`]*)`/g, '<span class="syntax-string">`$1`</span>')
             .replace(/\/\/(.*?)$/gm, '<span class="syntax-comment">//$1</span>')
+    }
+
+    if (language === 'python') {
+        return escaped
+            .replace(
+                /\b(def|class|import|from|return|if|elif|else|for|while|try|except|finally|with|as|yield|lambda|pass|break|continue|raise|and|or|not|in|is|None|True|False|self|async|await)\b/g,
+                '<span class="syntax-keyword">$1</span>'
+            )
+            .replace(/'([^']*)'/g, "<span class=\"syntax-string\">'$1'</span>")
+            .replace(/"([^"]*)"/g, '<span class="syntax-string">"$1"</span>')
+            .replace(/#(.*?)$/gm, '<span class="syntax-comment">#$1</span>')
+    }
+
+    if (language === 'go') {
+        return escaped
+            .replace(
+                /\b(func|package|import|var|const|type|struct|interface|map|chan|go|defer|return|if|else|for|range|switch|case|default|break|continue|select|fallthrough)\b/g,
+                '<span class="syntax-keyword">$1</span>'
+            )
+            .replace(/\b(true|false|nil)\b/g, '<span class="syntax-boolean">$1</span>')
+            .replace(/"([^"]*)"/g, '<span class="syntax-string">"$1"</span>')
+            .replace(/`([^`]*)`/g, '<span class="syntax-string">`$1`</span>')
+            .replace(/\/\/(.*?)$/gm, '<span class="syntax-comment">//$1</span>')
+    }
+
+    if (language === 'bash' || language === 'sh' || language === 'shell' || language === 'zsh') {
+        return escaped
+            .replace(
+                /\b(if|then|else|elif|fi|for|while|do|done|case|esac|function|return|exit|export|local|readonly|declare|typeset|unset|shift|source)\b/g,
+                '<span class="syntax-keyword">$1</span>'
+            )
+            .replace(/"([^"]*)"/g, '<span class="syntax-string">"$1"</span>')
+            .replace(/'([^']*)'/g, "<span class=\"syntax-string\">'$1'</span>")
+            .replace(/#(.*?)$/gm, '<span class="syntax-comment">#$1</span>')
     }
 
     if (language === 'json') {

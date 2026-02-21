@@ -1,4 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { ToolResult, ToolUseBlock } from '../shared/types'
+
+export type { ToolResult, ToolUseBlock }
 
 export interface SearchResult {
   id: string
@@ -21,6 +24,8 @@ export interface MessageMetadata {
   gitBranch?: string
   version?: string
   toolUses?: string[]
+  toolUseBlocks?: ToolUseBlock[]
+  toolResults?: ToolResult[]
 }
 
 export interface ConversationMessage {
@@ -28,6 +33,7 @@ export interface ConversationMessage {
   content: string
   timestamp: string
   metadata?: MessageMetadata
+  isToolResult?: boolean
 }
 
 export interface Conversation {
@@ -36,6 +42,7 @@ export interface Conversation {
   projectPath: string
   projectName: string
   sessionId: string
+  sessionName: string
   messages: ConversationMessage[]
   fullText: string
   timestamp: string

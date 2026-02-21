@@ -1,5 +1,19 @@
 /// <reference types="vite/client" />
 
+interface MessageMetadata {
+  model?: string
+  stopReason?: string | null
+  inputTokens?: number
+  outputTokens?: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
+  gitBranch?: string
+  version?: string
+  toolUses?: string[]
+  toolUseBlocks?: import('../../shared/types').ToolUseBlock[]
+  toolResults?: import('../../shared/types').ToolResult[]
+}
+
 interface SearchResult {
   id: string
   projectName: string
@@ -16,6 +30,9 @@ interface ConversationMessage {
   type: 'user' | 'assistant' | 'system'
   content: string
   timestamp: string
+  metadata?: MessageMetadata
+  lineNumber?: number
+  isToolResult?: boolean
 }
 
 interface Conversation {
@@ -38,7 +55,7 @@ interface ElectronAPI {
   getStats: () => Promise<{ conversations: number; projects: number }>
   rebuildIndex: () => Promise<boolean>
   onIndexReady: (callback: () => void) => void
-  exportConversation: (id: string, format: 'markdown' | 'json' | 'text') => Promise<{ success: boolean; canceled?: boolean }>
+  exportConversation: (id: string, format: 'markdown' | 'json' | 'text') => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>
 }
 
 interface Window {
