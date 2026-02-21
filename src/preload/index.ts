@@ -1,62 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ToolResult, ToolUseBlock } from '../shared/types'
+import type {
+  SearchResult,
+  Conversation,
+  ExportFormat,
+  ExportResult,
+  UserPreferences
+} from '../shared/types'
 
-export type { ToolResult, ToolUseBlock }
-
-export interface SearchResult {
-  id: string
-  projectName: string
-  projectPath: string
-  sessionId: string
-  preview: string
-  timestamp: string
-  messageCount: number
-  score: number
-}
-
-export interface MessageMetadata {
-  model?: string
-  stopReason?: string | null
-  inputTokens?: number
-  outputTokens?: number
-  cacheReadTokens?: number
-  cacheCreationTokens?: number
-  gitBranch?: string
-  version?: string
-  toolUses?: string[]
-  toolUseBlocks?: ToolUseBlock[]
-  toolResults?: ToolResult[]
-}
-
-export interface ConversationMessage {
-  type: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: string
-  metadata?: MessageMetadata
-  isToolResult?: boolean
-}
-
-export interface Conversation {
-  id: string
-  filePath: string
-  projectPath: string
-  projectName: string
-  sessionId: string
-  sessionName: string
-  messages: ConversationMessage[]
-  fullText: string
-  timestamp: string
-  messageCount: number
-}
-
-export type ExportFormat = 'markdown' | 'json' | 'text'
-
-export interface ExportResult {
-  success: boolean
-  filePath?: string
-  canceled?: boolean
-  error?: string
-}
+export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences }
 
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
@@ -65,7 +16,10 @@ export interface ElectronAPI {
   getStats: () => Promise<{ conversations: number; projects: number }>
   rebuildIndex: () => Promise<boolean>
   exportConversation: (id: string, format: ExportFormat) => Promise<ExportResult>
+  getPreferences: () => Promise<Partial<UserPreferences>>
+  setPreferences: (prefs: Partial<UserPreferences>) => Promise<boolean>
   onIndexReady: (callback: () => void) => void
+  onScanProgress: (callback: (progress: { scanned: number; total: number }) => void) => (() => void)
 }
 
 const api: ElectronAPI = {
@@ -75,7 +29,16 @@ const api: ElectronAPI = {
   getStats: () => ipcRenderer.invoke('get-stats'),
   rebuildIndex: () => ipcRenderer.invoke('rebuild-index'),
   exportConversation: (id, format) => ipcRenderer.invoke('export-conversation', id, format),
-  onIndexReady: (callback) => ipcRenderer.on('index-ready', callback)
+  getPreferences: () => ipcRenderer.invoke('get-preferences'),
+  setPreferences: (prefs) => ipcRenderer.invoke('set-preferences', prefs),
+  onIndexReady: (callback) => ipcRenderer.once('index-ready', callback),
+  onScanProgress: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: { scanned: number; total: number }): void => {
+      callback(progress)
+    }
+    ipcRenderer.on('scan-progress', handler)
+    return () => ipcRenderer.removeListener('scan-progress', handler)
+  }
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)
