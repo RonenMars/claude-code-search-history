@@ -199,7 +199,7 @@ export default function App(): JSX.Element {
           </div>
 
           {/* Results */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center h-32">
                 <div className="text-neutral-500 animate-pulse">Loading conversations...</div>

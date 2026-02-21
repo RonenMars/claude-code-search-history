@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 
 interface SearchResult {
   id: string
@@ -25,6 +26,15 @@ export default function ResultsList({
   onSelect,
   query
 }: ResultsListProps): JSX.Element {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: results.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 100,
+    overscan: 3
+  })
+
   if (results.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
@@ -33,17 +43,34 @@ export default function ResultsList({
     )
   }
 
+  const virtualItems = virtualizer.getVirtualItems()
+
   return (
-    <div className="divide-y divide-neutral-800">
-      {results.map((result) => (
-        <ResultItem
-          key={result.id}
-          result={result}
-          isSelected={result.id === selectedId}
-          onSelect={() => onSelect(result.id)}
-          query={query}
-        />
-      ))}
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto">
+      <div
+        className="relative w-full"
+        style={{ height: virtualizer.getTotalSize() }}
+      >
+        <div
+          className="absolute top-0 left-0 w-full"
+          style={{ transform: `translateY(${virtualItems[0]?.start ?? 0}px)` }}
+        >
+          {virtualItems.map((virtualRow) => (
+            <div
+              key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+            >
+              <ResultItem
+                result={results[virtualRow.index]}
+                isSelected={results[virtualRow.index].id === selectedId}
+                onSelect={() => onSelect(results[virtualRow.index].id)}
+                query={query}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -71,12 +98,10 @@ function ResultItem({ result, isSelected, onSelect, query }: ResultItemProps): J
     return formatDate(result.timestamp)
   }, [result.timestamp])
 
-  // Note: highlightText uses escapeHtml on all parts before wrapping matches
-  // in <span class="highlight">, so the content is safe from XSS.
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left p-4 transition-colors hover:bg-neutral-800/50 ${isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
+      className={`w-full text-left p-4 transition-colors hover:bg-neutral-800/50 border-b border-neutral-800 ${isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
         }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
@@ -120,9 +145,12 @@ function highlightText(text: string, query: string): string {
 }
 
 function escapeHtml(text: string): string {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
 
 function formatDate(timestamp: string): string {
