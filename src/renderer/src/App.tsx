@@ -1,23 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import SearchBar from './components/SearchBar'
 import ResultsList from './components/ResultsList'
 import ConversationView from './components/ConversationView'
 import FilterPanel from './components/FilterPanel'
-import type { SortOption, DateRangeOption } from './components/FilterPanel'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useSearch } from './hooks/useSearch'
-
-interface Conversation {
-  id: string
-  filePath: string
-  projectPath: string
-  projectName: string
-  sessionId: string
-  sessionName: string
-  messages: { type: string; content: string; timestamp: string }[]
-  fullText: string
-  timestamp: string
-  messageCount: number
-}
+import type { Conversation, SortOption, DateRangeOption } from '../../shared/types'
 
 
 export default function App(): JSX.Element {
@@ -28,20 +16,26 @@ export default function App(): JSX.Element {
   const [projects, setProjects] = useState<string[]>([])
   const [stats, setStats] = useState({ conversations: 0, projects: 0 })
   const [isLoading, setIsLoading] = useState(true)
+  const [scanProgress, setScanProgress] = useState<{ scanned: number; total: number } | null>(null)
+  const prefsDebounceRef = useRef<NodeJS.Timeout>()
 
   const { query, setQuery, results, searching, refresh } = useSearch(selectedProject)
-
-  const [indexVersion, setIndexVersion] = useState(0)
 
   useEffect(() => {
     const loadData = async (): Promise<void> => {
       try {
-        const [projectList, statsData] = await Promise.all([
+        const [projectList, statsData, prefs] = await Promise.all([
           window.electronAPI.getProjects(),
-          window.electronAPI.getStats()
+          window.electronAPI.getStats(),
+          window.electronAPI.getPreferences()
         ])
         setProjects(projectList)
         setStats(statsData)
+
+        // Restore saved preferences
+        if (prefs.sortBy) setSortBy(prefs.sortBy)
+        if (prefs.dateRange) setDateRange(prefs.dateRange)
+        if (prefs.selectedProject) setSelectedProject(prefs.selectedProject)
       } catch (err) {
         console.error('Failed to initialize:', err)
       } finally {
@@ -51,19 +45,19 @@ export default function App(): JSX.Element {
 
     loadData()
 
-    // Re-fetch when the main process finishes building the index
+    // Listen for index ready (fires once)
     window.electronAPI.onIndexReady(() => {
       loadData()
-      setIndexVersion((v) => v + 1)
-    })
-  }, [])
-
-  // Re-search when index becomes ready
-  useEffect(() => {
-    if (indexVersion > 0) {
       refresh()
-    }
-  }, [indexVersion, refresh])
+    })
+
+    // Listen for scan progress
+    const cleanupProgress = window.electronAPI.onScanProgress((progress) => {
+      setScanProgress(progress)
+    })
+
+    return cleanupProgress
+  }, [])
 
   // Filter and sort results
   const sortedResults = useMemo(() => {
@@ -112,6 +106,21 @@ export default function App(): JSX.Element {
     return sorted
   }, [results, sortBy, dateRange])
 
+  // Persist preferences on change (debounced)
+  useEffect(() => {
+    if (prefsDebounceRef.current) {
+      clearTimeout(prefsDebounceRef.current)
+    }
+    prefsDebounceRef.current = setTimeout(() => {
+      window.electronAPI.setPreferences({ sortBy, dateRange, selectedProject })
+    }, 500)
+
+    return () => {
+      if (prefsDebounceRef.current) {
+        clearTimeout(prefsDebounceRef.current)
+      }
+    }
+  }, [sortBy, dateRange, selectedProject])
 
   const handleSelectResult = useCallback(async (id: string) => {
     try {
@@ -202,7 +211,21 @@ export default function App(): JSX.Element {
           <div className="flex-1 overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center h-32">
-                <div className="text-neutral-500 animate-pulse">Loading conversations...</div>
+                <div className="text-center">
+                  <div className="text-neutral-500 animate-pulse mb-2">
+                    {scanProgress
+                      ? `Scanning... ${scanProgress.scanned}/${scanProgress.total} conversations`
+                      : 'Loading conversations...'}
+                  </div>
+                  {scanProgress && scanProgress.total > 0 && (
+                    <div className="w-48 mx-auto h-1 bg-neutral-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-claude-orange transition-all duration-300"
+                        style={{ width: `${(scanProgress.scanned / scanProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <ResultsList
@@ -218,7 +241,9 @@ export default function App(): JSX.Element {
         {/* Conversation view */}
         <div className="flex-1 overflow-hidden">
           {selectedConversation ? (
-            <ConversationView conversation={selectedConversation} query={query} />
+            <ErrorBoundary>
+              <ConversationView conversation={selectedConversation} query={query} />
+            </ErrorBoundary>
           ) : (
             <div className="flex items-center justify-center h-full text-neutral-500">
               <div className="text-center">

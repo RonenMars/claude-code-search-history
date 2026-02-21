@@ -1,5 +1,4 @@
-export type SortOption = 'recent' | 'oldest' | 'most-messages' | 'least-messages' | 'alphabetical'
-export type DateRangeOption = 'all' | 'today' | 'week' | 'month'
+import type { SortOption, DateRangeOption } from '../../../shared/types'
 
 interface FilterPanelProps {
   projects: string[]

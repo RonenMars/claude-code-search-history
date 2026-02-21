@@ -4,52 +4,13 @@ import MessageNavigation from './MessageNavigation'
 import MessageContent from './MessageContent'
 import ToolResultCard from './ToolResultCard'
 import ToolInvocationBadge from './ToolInvocationBadge'
-import type { ToolResult, ToolUseBlock } from '../../../shared/types'
+import type { ToolResult, ToolUseBlock, Conversation, ConversationMessage, MessageMetadata, ExportFormat } from '../../../shared/types'
 
-
-
-interface MessageMetadata {
-  model?: string
-  stopReason?: string | null
-  inputTokens?: number
-  outputTokens?: number
-  cacheReadTokens?: number
-  cacheCreationTokens?: number
-  gitBranch?: string
-  version?: string
-  toolUses?: string[]
-  toolUseBlocks?: ToolUseBlock[]
-  toolResults?: ToolResult[]
-}
-
-interface ConversationMessage {
-  type: string
-  content: string
-  timestamp: string
-  metadata?: MessageMetadata
-  lineNumber?: number
-  isToolResult?: boolean
-}
-
-interface Conversation {
-  id: string
-  filePath: string
-  projectPath: string
-  projectName: string
-  sessionId: string
-  sessionName: string
-  messages: ConversationMessage[]
-  fullText: string
-  timestamp: string
-  messageCount: number
-}
 
 interface ConversationViewProps {
   conversation: Conversation
   query: string
 }
-
-type ExportFormat = 'markdown' | 'json' | 'text'
 
 export default function ConversationView({
   conversation,
