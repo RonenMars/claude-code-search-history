@@ -1,17 +1,5 @@
 import FlexSearch from 'flexsearch'
-import type { Conversation } from './scanner'
-
-export interface SearchResult {
-  id: string
-  projectName: string
-  projectPath: string
-  sessionId: string
-  sessionName: string
-  preview: string
-  timestamp: string
-  messageCount: number
-  score: number
-}
+import type { ConversationMeta, SearchResult } from '../../shared/types'
 
 interface IndexedDocument {
   id: string
@@ -22,6 +10,7 @@ interface IndexedDocument {
   content: string
   timestamp: string
   messageCount: number
+  preview: string
 }
 
 export class SearchIndexer {
@@ -41,22 +30,23 @@ export class SearchIndexer {
     })
   }
 
-  async buildIndex(conversations: Conversation[]): Promise<void> {
+  async buildIndex(metas: ConversationMeta[]): Promise<void> {
     this.documents.clear()
 
-    for (const conv of conversations) {
+    for (const meta of metas) {
       const doc: IndexedDocument = {
-        id: conv.id,
-        projectName: conv.projectName,
-        projectPath: conv.projectPath,
-        sessionId: conv.sessionId,
-        sessionName: conv.sessionName,
-        content: conv.fullText,
-        timestamp: conv.timestamp,
-        messageCount: conv.messageCount
+        id: meta.id,
+        projectName: meta.projectName,
+        projectPath: meta.projectPath,
+        sessionId: meta.sessionId,
+        sessionName: meta.sessionName,
+        content: meta.contentSnippet,
+        timestamp: meta.timestamp,
+        messageCount: meta.messageCount,
+        preview: meta.preview
       }
 
-      this.documents.set(conv.id, doc)
+      this.documents.set(meta.id, doc)
       this.index.add(doc)
     }
   }
@@ -133,7 +123,7 @@ export class SearchIndexer {
       projectPath: doc.projectPath,
       sessionId: doc.sessionId,
       sessionName: doc.sessionName,
-      preview: this.truncateText(doc.content, 200),
+      preview: doc.preview || this.truncateText(doc.content, 200),
       timestamp: doc.timestamp,
       messageCount: doc.messageCount,
       score: 1
