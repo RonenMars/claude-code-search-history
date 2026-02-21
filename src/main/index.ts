@@ -1,13 +1,33 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { writeFile } from 'fs/promises'
+import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ConversationScanner } from './services/scanner'
 import { SearchIndexer } from './services/indexer'
+import type { Conversation } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let scanner: ConversationScanner | null = null
 let indexer: SearchIndexer | null = null
+
+function getPrefsPath(): string {
+  return join(app.getPath('userData'), 'preferences.json')
+}
+
+async function loadPreferences(): Promise<Record<string, unknown>> {
+  try {
+    const data = await readFile(getPrefsPath(), 'utf-8')
+    return JSON.parse(data)
+  } catch {
+    return {}
+  }
+}
+
+async function savePreferences(prefs: Record<string, unknown>): Promise<void> {
+  const dir = app.getPath('userData')
+  await mkdir(dir, { recursive: true })
+  await writeFile(getPrefsPath(), JSON.stringify(prefs, null, 2), 'utf-8')
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -46,12 +66,16 @@ async function initializeSearch(): Promise<void> {
   scanner = new ConversationScanner()
   indexer = new SearchIndexer()
 
+  scanner.setProgressCallback((scanned, total) => {
+    mainWindow?.webContents.send('scan-progress', { scanned, total })
+  })
+
   console.log('Scanning for conversations...')
-  const conversations = await scanner.scanAll()
-  console.log(`Found ${conversations.length} conversations`)
+  const metas = await scanner.scanAllMeta()
+  console.log(`Found ${metas.length} conversations`)
 
   console.log('Building search index...')
-  await indexer.buildIndex(conversations)
+  await indexer.buildIndex(metas)
   console.log('Search index ready')
 }
 
@@ -128,17 +152,18 @@ function setupIpcHandlers(): void {
       }
     }
   )
+
+  ipcMain.handle('get-preferences', async () => {
+    return loadPreferences()
+  })
+
+  ipcMain.handle('set-preferences', async (_event, prefs: Record<string, unknown>) => {
+    await savePreferences(prefs)
+    return true
+  })
 }
 
-interface ConversationForExport {
-  projectName: string
-  sessionId: string
-  timestamp: string
-  messageCount: number
-  messages: Array<{ type: string; content: string; timestamp: string }>
-}
-
-function formatAsMarkdown(conversation: ConversationForExport): string {
+function formatAsMarkdown(conversation: Conversation): string {
   const timestamp = conversation.timestamp
     ? new Date(conversation.timestamp).toLocaleString()
     : 'Unknown'
@@ -167,7 +192,7 @@ function formatAsMarkdown(conversation: ConversationForExport): string {
   return lines.join('\n')
 }
 
-function formatAsText(conversation: ConversationForExport): string {
+function formatAsText(conversation: Conversation): string {
   const timestamp = conversation.timestamp
     ? new Date(conversation.timestamp).toLocaleString()
     : 'Unknown'
