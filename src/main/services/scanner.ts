@@ -3,115 +3,165 @@ import { join } from 'path'
 import { homedir } from 'os'
 import { createReadStream } from 'fs'
 import { createInterface } from 'readline'
-import type { ToolResult, ToolUseBlock } from '../../shared/types'
-
-export interface MessageMetadata {
-  model?: string
-  stopReason?: string | null
-  inputTokens?: number
-  outputTokens?: number
-  cacheReadTokens?: number
-  cacheCreationTokens?: number
-  gitBranch?: string
-  version?: string
-  toolUses?: string[]
-  toolUseBlocks?: ToolUseBlock[]
-  toolResults?: ToolResult[]
-}
-
-export interface ConversationMessage {
-  type: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: string
-  metadata?: MessageMetadata
-  lineNumber?: number
-  isToolResult?: boolean
-}
-
-export interface Conversation {
-  id: string
-  filePath: string
-  projectPath: string
-  projectName: string
-  sessionId: string
-  sessionName: string
-  messages: ConversationMessage[]
-  fullText: string
-  timestamp: string
-  messageCount: number
-}
-
-export interface ConversationPreview {
-  id: string
-  projectName: string
-  preview: string
-  timestamp: string
-  messageCount: number
-}
+import type { ConversationMeta, Conversation, ConversationMessage, MessageMetadata, ToolResult, ToolUseBlock, StructuredPatchHunk } from '../../shared/types'
 
 export class ConversationScanner {
   private claudeDir: string
   private projectsDir: string
-  private conversationsCache: Map<string, Conversation> = new Map()
+  private metadataCache: Map<string, ConversationMeta> = new Map()
+  private conversationLRU: Map<string, Conversation> = new Map()
+  private readonly LRU_MAX = 5
   private projects: Set<string> = new Set()
+  private onProgress?: (scanned: number, total: number) => void
 
   constructor() {
     this.claudeDir = join(homedir(), '.claude')
     this.projectsDir = join(this.claudeDir, 'projects')
   }
 
-  async scanAll(): Promise<Conversation[]> {
-    const conversations: Conversation[] = []
-    this.conversationsCache.clear()
+  setProgressCallback(cb: (scanned: number, total: number) => void): void {
+    this.onProgress = cb
+  }
+
+  private addToLRU(id: string, conversation: Conversation): void {
+    this.conversationLRU.delete(id)
+    this.conversationLRU.set(id, conversation)
+    if (this.conversationLRU.size > this.LRU_MAX) {
+      const oldest = this.conversationLRU.keys().next().value
+      if (oldest) this.conversationLRU.delete(oldest)
+    }
+  }
+
+  async scanAllMeta(): Promise<ConversationMeta[]> {
+    const metas: ConversationMeta[] = []
+    this.metadataCache.clear()
+    this.conversationLRU.clear()
     this.projects.clear()
 
     try {
       const projectDirs = await readdir(this.projectsDir)
+      const fileTasks: { filePath: string; fallbackName: string }[] = []
 
       for (const projectDir of projectDirs) {
         if (projectDir.startsWith('.')) continue
-
         const projectPath = join(this.projectsDir, projectDir)
         const stats = await stat(projectPath)
         if (!stats.isDirectory()) continue
 
         const fallbackName = this.decodeProjectName(projectDir)
+        const jsonlFiles = await this.findJsonlFiles(projectPath)
 
-        try {
-          const jsonlFiles = await this.findJsonlFiles(projectPath)
-
-          for (const filePath of jsonlFiles) {
-            const fileStats = await stat(filePath)
-
-            // Skip empty files
-            if (fileStats.size === 0) continue
-
-            try {
-              const conversation = await this.parseConversation(filePath, fallbackName)
-              if (conversation && conversation.messages.length > 0) {
-                this.projects.add(conversation.projectPath)
-                conversations.push(conversation)
-                this.conversationsCache.set(conversation.id, conversation)
-              }
-            } catch (err) {
-              // Skip files that can't be parsed
-              console.error(`Error parsing ${filePath}:`, err)
-            }
-          }
-        } catch (err) {
-          console.error(`Error reading project dir ${projectPath}:`, err)
+        for (const filePath of jsonlFiles) {
+          const fileStats = await stat(filePath)
+          if (fileStats.size === 0) continue
+          fileTasks.push({ filePath, fallbackName })
         }
+      }
+
+      const BATCH_SIZE = 10
+      let scanned = 0
+      const total = fileTasks.length
+
+      for (let i = 0; i < fileTasks.length; i += BATCH_SIZE) {
+        const batch = fileTasks.slice(i, i + BATCH_SIZE)
+        const results = await Promise.all(
+          batch.map(({ filePath, fallbackName }) =>
+            this.parseConversationMeta(filePath, fallbackName).catch((err) => {
+              console.error(`Error parsing ${filePath}:`, err)
+              return null
+            })
+          )
+        )
+
+        for (const meta of results) {
+          if (meta && meta.messageCount > 0) {
+            this.projects.add(meta.projectPath)
+            metas.push(meta)
+            this.metadataCache.set(meta.id, meta)
+          }
+        }
+
+        scanned += batch.length
+        this.onProgress?.(scanned, total)
       }
     } catch (err) {
       console.error('Error scanning claude projects:', err)
     }
 
-    // Sort by timestamp descending
-    conversations.sort((a, b) =>
+    metas.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )
 
-    return conversations
+    return metas
+  }
+
+  private async parseConversationMeta(filePath: string, fallbackProjectName: string): Promise<ConversationMeta | null> {
+    let sessionId = ''
+    let sessionName = ''
+    let latestTimestamp = ''
+    let cwd = ''
+    let messageCount = 0
+    const previewParts: string[] = []
+    const snippetParts: string[] = []
+    let snippetLength = 0
+    const SNIPPET_MAX = 5000
+    const PREVIEW_MAX = 200
+
+    const fileStream = createReadStream(filePath)
+    const rl = createInterface({ input: fileStream, crlfDelay: Infinity })
+
+    for await (const line of rl) {
+      if (!line.trim()) continue
+
+      try {
+        const entry = JSON.parse(line)
+
+        if (entry.cwd && !cwd) cwd = entry.cwd
+        if (entry.sessionId && !sessionId) sessionId = entry.sessionId
+        if (entry.slug && !sessionName) sessionName = entry.slug
+        if (entry.timestamp && (!latestTimestamp || entry.timestamp > latestTimestamp)) {
+          latestTimestamp = entry.timestamp
+        }
+
+        if ((entry.type === 'user' || entry.type === 'assistant') && !entry.isMeta) {
+          const content = this.extractContent(entry.message?.content)
+          if (content) {
+            messageCount++
+            if (previewParts.join(' ').length < PREVIEW_MAX) {
+              previewParts.push(content)
+            }
+            if (snippetLength < SNIPPET_MAX) {
+              const remaining = SNIPPET_MAX - snippetLength
+              const chunk = content.length > remaining ? content.slice(0, remaining) : content
+              snippetParts.push(chunk)
+              snippetLength += chunk.length
+            }
+          } else if (entry.toolUseResult || this.isOnlyToolResult(entry.message?.content)) {
+            messageCount++
+          }
+        }
+      } catch {
+        // Skip malformed JSON lines
+      }
+    }
+
+    if (messageCount === 0) return null
+
+    const projectPath = cwd || fallbackProjectName
+    const preview = previewParts.join(' ').slice(0, PREVIEW_MAX)
+
+    return {
+      id: filePath,
+      filePath,
+      projectPath,
+      projectName: this.getShortProjectName(projectPath),
+      sessionId: sessionId || filePath.split('/').pop()?.replace('.jsonl', '') || '',
+      sessionName: sessionName || '',
+      timestamp: latestTimestamp || new Date().toISOString(),
+      messageCount,
+      preview,
+      contentSnippet: snippetParts.join(' ')
+    }
   }
 
   private async findJsonlFiles(dir: string): Promise<string[]> {
@@ -337,7 +387,7 @@ export class ConversationScanner {
         filePath: raw.filePath as string,
         oldString: raw.oldString as string,
         newString: raw.newString as string,
-        structuredPatch: raw.structuredPatch as EditStructuredPatch[],
+        structuredPatch: raw.structuredPatch as StructuredPatchHunk[],
         userModified: (raw.userModified as boolean) || false,
         replaceAll: (raw.replaceAll as boolean) || false
       }
@@ -507,22 +557,28 @@ export class ConversationScanner {
   }
 
   async getConversation(id: string): Promise<Conversation | null> {
-    if (this.conversationsCache.has(id)) {
-      return this.conversationsCache.get(id) || null
+    const cached = this.conversationLRU.get(id)
+    if (cached) {
+      this.addToLRU(id, cached)
+      return cached
     }
-    return null
+
+    const meta = this.metadataCache.get(id)
+    if (!meta) return null
+
+    try {
+      const conversation = await this.parseConversation(meta.filePath, meta.projectName)
+      if (conversation) {
+        this.addToLRU(id, conversation)
+      }
+      return conversation
+    } catch (err) {
+      console.error(`Error re-parsing conversation ${id}:`, err)
+      return null
+    }
   }
 
   getProjects(): string[] {
     return Array.from(this.projects).sort()
   }
-}
-
-// Type alias for structured patch (used in classification)
-type EditStructuredPatch = {
-  oldStart: number
-  oldLines: number
-  newStart: number
-  newLines: number
-  lines: string[]
 }
