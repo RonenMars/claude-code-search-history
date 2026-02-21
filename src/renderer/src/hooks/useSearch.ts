@@ -1,17 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-
-interface SearchResult {
-  id: string
-  projectName: string
-  projectPath: string
-  sessionId: string
-  sessionName: string
-  preview: string
-  timestamp: string
-  messageCount: number
-  score: number
-}
-
+import type { SearchResult } from '../../../shared/types'
 
 interface UseSearchReturn {
   query: string
@@ -46,13 +34,12 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
     [projectFilter]
   )
 
+  // Single debounced effect handles both query and projectFilter changes
   useEffect(() => {
-    // Clear previous timeout
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
     }
 
-    // Debounce search
     debounceRef.current = setTimeout(() => {
       performSearch(query)
     }, 150)
@@ -63,11 +50,6 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
       }
     }
   }, [query, performSearch])
-
-  // Re-search when project filter changes
-  useEffect(() => {
-    performSearch(query)
-  }, [projectFilter])
 
   const refresh = useCallback(() => {
     performSearch(query)
