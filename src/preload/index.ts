@@ -4,10 +4,12 @@ import type {
   Conversation,
   ExportFormat,
   ExportResult,
-  UserPreferences
+  UserPreferences,
+  PtySpawnOptions,
+  PtyStatus
 } from '../shared/types'
 
-export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences }
+export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus }
 
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
@@ -20,6 +22,15 @@ export interface ElectronAPI {
   setPreferences: (prefs: Partial<UserPreferences>) => Promise<boolean>
   onIndexReady: (callback: () => void) => void
   onScanProgress: (callback: (progress: { scanned: number; total: number }) => void) => (() => void)
+  // PTY
+  ptySpawn: (options: PtySpawnOptions) => Promise<{ success: boolean; error?: string }>
+  ptyInput: (data: string) => void
+  ptyResize: (cols: number, rows: number) => void
+  ptyKill: () => Promise<boolean>
+  ptyStatus: () => Promise<PtyStatus>
+  onPtyData: (callback: (data: string) => void) => () => void
+  onPtyExit: (callback: (code: number) => void) => () => void
+  selectDirectory: () => Promise<string | null>
 }
 
 const api: ElectronAPI = {
@@ -38,7 +49,28 @@ const api: ElectronAPI = {
     }
     ipcRenderer.on('scan-progress', handler)
     return () => ipcRenderer.removeListener('scan-progress', handler)
-  }
+  },
+  // PTY
+  ptySpawn: (options) => ipcRenderer.invoke('pty-spawn', options),
+  ptyInput: (data) => ipcRenderer.send('pty-input', data),
+  ptyResize: (cols, rows) => ipcRenderer.send('pty-resize', cols, rows),
+  ptyKill: () => ipcRenderer.invoke('pty-kill'),
+  ptyStatus: () => ipcRenderer.invoke('pty-status'),
+  onPtyData: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: string): void => {
+      callback(data)
+    }
+    ipcRenderer.on('pty-data', handler)
+    return () => ipcRenderer.removeListener('pty-data', handler)
+  },
+  onPtyExit: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, code: number): void => {
+      callback(code)
+    }
+    ipcRenderer.on('pty-exit', handler)
+    return () => ipcRenderer.removeListener('pty-exit', handler)
+  },
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)
