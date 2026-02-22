@@ -151,7 +151,7 @@ function TypingIndicator(): JSX.Element {
   return (
     <span className="flex items-center gap-1 text-[10px] font-medium text-claude-orange">
       <span className="flex gap-0.5">
-        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:0ms]" />
+        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce" />
         <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:150ms]" />
         <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:300ms]" />
       </span>
