@@ -101,6 +101,7 @@ export class ConversationScanner {
     let latestTimestamp = ''
     let cwd = ''
     let messageCount = 0
+    let lastMessageSender: 'user' | 'assistant' = 'user'
     const previewParts: string[] = []
     const snippetParts: string[] = []
     let snippetLength = 0
@@ -127,6 +128,9 @@ export class ConversationScanner {
           const content = this.extractContent(entry.message?.content)
           if (content) {
             messageCount++
+            if (entry.type === 'user' || entry.type === 'assistant') {
+              lastMessageSender = entry.type
+            }
             if (previewParts.join(' ').length < PREVIEW_MAX) {
               previewParts.push(content)
             }
@@ -138,6 +142,9 @@ export class ConversationScanner {
             }
           } else if (entry.toolUseResult || this.isOnlyToolResult(entry.message?.content)) {
             messageCount++
+            if (entry.type === 'user' || entry.type === 'assistant') {
+              lastMessageSender = entry.type
+            }
           }
         }
       } catch {
@@ -160,7 +167,8 @@ export class ConversationScanner {
       timestamp: latestTimestamp || new Date().toISOString(),
       messageCount,
       preview,
-      contentSnippet: snippetParts.join(' ')
+      contentSnippet: snippetParts.join(' '),
+      lastMessageSender,
     }
   }
 
