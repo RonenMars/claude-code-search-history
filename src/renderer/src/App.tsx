@@ -24,6 +24,8 @@ export default function App(): JSX.Element {
   const [chatCwd, setChatCwd] = useState<string | null>(null)
   const [chatResumeSessionId, setChatResumeSessionId] = useState<string | undefined>(undefined)
   const [chatKey, setChatKey] = useState(0) // increment to force remount
+  const [isClaudeTyping, setIsClaudeTyping] = useState(false)
+  const claudeTypingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const { query, setQuery, results, searching, refresh } = useSearch(selectedProject)
 
@@ -231,6 +233,30 @@ export default function App(): JSX.Element {
     }
   }, [chatCwd, returnToHistory])
 
+  useEffect(() => {
+    if (!chatCwd) {
+      setIsClaudeTyping(false)
+      return
+    }
+
+    const cleanup = window.electronAPI.onPtyData(() => {
+      setIsClaudeTyping(true)
+      if (claudeTypingTimerRef.current) clearTimeout(claudeTypingTimerRef.current)
+      claudeTypingTimerRef.current = setTimeout(() => {
+        setIsClaudeTyping(false)
+      }, 1500)
+    })
+
+    return () => {
+      cleanup()
+      if (claudeTypingTimerRef.current) {
+        clearTimeout(claudeTypingTimerRef.current)
+        claudeTypingTimerRef.current = null
+      }
+      setIsClaudeTyping(false)
+    }
+  }, [chatCwd])
+
   return (
     <div className="flex flex-col h-screen bg-claude-darker">
       {/* Title bar */}
@@ -327,6 +353,8 @@ export default function App(): JSX.Element {
                 selectedId={selectedConversation?.id || null}
                 onSelect={handleSelectResult}
                 query={query}
+                activeCwd={chatCwd}
+                isClaudeTyping={isClaudeTyping}
               />
             )}
           </div>
