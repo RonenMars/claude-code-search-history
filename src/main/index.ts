@@ -4,11 +4,13 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ConversationScanner } from './services/scanner'
 import { SearchIndexer } from './services/indexer'
-import type { Conversation } from '../shared/types'
+import { PtyManager } from './services/pty-manager'
+import type { Conversation, PtySpawnOptions } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let scanner: ConversationScanner | null = null
 let indexer: SearchIndexer | null = null
+let ptyManager: PtyManager | null = null
 
 function getPrefsPath(): string {
   return join(app.getPath('userData'), 'preferences.json')
@@ -160,6 +162,51 @@ function setupIpcHandlers(): void {
   ipcMain.handle('set-preferences', async (_event, prefs: Record<string, unknown>) => {
     await savePreferences(prefs)
     return true
+  })
+
+  // ─── PTY Handlers ──────────────────────────────────────────────────
+
+  ipcMain.handle('pty-spawn', async (_event, options: PtySpawnOptions) => {
+    if (!ptyManager) {
+      ptyManager = new PtyManager()
+      ptyManager.setDataHandler((data) => {
+        mainWindow?.webContents.send('pty-data', data)
+      })
+      ptyManager.setExitHandler((code) => {
+        mainWindow?.webContents.send('pty-exit', code)
+      })
+    }
+    return ptyManager.spawn(options)
+  })
+
+  ipcMain.on('pty-input', (_event, data: string) => {
+    ptyManager?.write(data)
+  })
+
+  ipcMain.on('pty-resize', (_event, cols: number, rows: number) => {
+    ptyManager?.resize(cols, rows)
+  })
+
+  ipcMain.handle('pty-kill', async () => {
+    ptyManager?.kill()
+    return true
+  })
+
+  ipcMain.handle('pty-status', async () => {
+    return {
+      active: ptyManager?.isActive() ?? false,
+      pid: ptyManager?.getPid()
+    }
+  })
+
+  ipcMain.handle('select-directory', async () => {
+    if (!mainWindow) return null
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select Project Directory'
+    })
+    if (canceled || filePaths.length === 0) return null
+    return filePaths[0]
   })
 }
 
