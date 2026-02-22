@@ -4,6 +4,7 @@ import ResultsList from './components/ResultsList'
 import ConversationView from './components/ConversationView'
 import FilterPanel from './components/FilterPanel'
 import ErrorBoundary from './components/ErrorBoundary'
+import ChatTerminal from './components/ChatTerminal'
 import { useSearch } from './hooks/useSearch'
 import type { Conversation, SortOption, DateRangeOption } from '../../shared/types'
 
@@ -18,6 +19,10 @@ export default function App(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true)
   const [scanProgress, setScanProgress] = useState<{ scanned: number; total: number } | null>(null)
   const prefsDebounceRef = useRef<NodeJS.Timeout>()
+
+  // Chat state
+  const [chatCwd, setChatCwd] = useState<string | null>(null)
+  const [chatKey, setChatKey] = useState(0) // increment to force remount
 
   const { query, setQuery, results, searching, refresh } = useSearch(selectedProject)
 
@@ -126,6 +131,7 @@ export default function App(): JSX.Element {
     try {
       const conversation = await window.electronAPI.getConversation(id)
       setSelectedConversation(conversation)
+      setChatCwd(null) // switch back to history view
     } catch (err) {
       console.error('Failed to load conversation:', err)
     }
@@ -148,14 +154,60 @@ export default function App(): JSX.Element {
     }
   }, [])
 
+  // ─── Chat handlers ────────────────────────────────────────────────
+
+  const handleNewChat = useCallback(async () => {
+    if (chatCwd) {
+      const confirmed = window.confirm('A chat session is active. Start a new one?')
+      if (!confirmed) return
+      await window.electronAPI.ptyKill()
+    }
+    const dir = await window.electronAPI.selectDirectory()
+    if (dir) {
+      setChatCwd(dir)
+      setChatKey((k) => k + 1)
+      setSelectedConversation(null)
+    }
+  }, [chatCwd])
+
+  const handleChatInProject = useCallback(async (projectPath: string) => {
+    if (chatCwd) {
+      const confirmed = window.confirm('A chat session is active. Start a new one?')
+      if (!confirmed) return
+      await window.electronAPI.ptyKill()
+    }
+    setChatCwd(projectPath)
+    setChatKey((k) => k + 1)
+    setSelectedConversation(null)
+  }, [chatCwd])
+
+  const handleChatExit = useCallback(() => {
+    // Keep the terminal visible with the exit message — don't auto-close
+  }, [])
+
+  const handleCloseChat = useCallback(async () => {
+    await window.electronAPI.ptyKill()
+    setChatCwd(null)
+  }, [])
+
   return (
     <div className="flex flex-col h-screen bg-claude-darker">
       {/* Title bar */}
-      <div className="titlebar-drag h-8 flex items-center justify-between px-4 bg-claude-dark border-b border-neutral-800">
+      <div className="titlebar-drag h-8 flex items-center justify-between pl-20 pr-4 bg-claude-dark border-b border-neutral-800">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-neutral-400">Claude Code Search</span>
         </div>
         <div className="titlebar-no-drag flex items-center gap-3 text-xs text-neutral-500">
+          <button
+            onClick={handleNewChat}
+            className="hover:text-neutral-300 transition-colors flex items-center gap-1"
+            title="New Claude Code chat"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Chat
+          </button>
           <span>{stats.conversations} conversations</span>
           <span>{stats.projects} projects</span>
           <button
@@ -196,6 +248,7 @@ export default function App(): JSX.Element {
               onSortChange={setSortBy}
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
+              onChatInProject={handleChatInProject}
             />
           </div>
 
@@ -238,9 +291,29 @@ export default function App(): JSX.Element {
           </div>
         </div>
 
-        {/* Conversation view */}
+        {/* Right panel: Chat terminal or Conversation view */}
         <div className="flex-1 overflow-hidden">
-          {selectedConversation ? (
+          {chatCwd ? (
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-4 py-1 bg-claude-dark border-b border-neutral-700">
+                <span className="text-xs text-neutral-500">Live Chat</span>
+                <button
+                  onClick={handleCloseChat}
+                  className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+                  title="Close chat and return to history"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <ChatTerminal
+                  key={chatKey}
+                  cwd={chatCwd}
+                  onExit={handleChatExit}
+                />
+              </div>
+            </div>
+          ) : selectedConversation ? (
             <ErrorBoundary>
               <ConversationView conversation={selectedConversation} query={query} />
             </ErrorBoundary>
@@ -261,6 +334,12 @@ export default function App(): JSX.Element {
                   />
                 </svg>
                 <p>Select a conversation to view</p>
+                <button
+                  onClick={handleNewChat}
+                  className="mt-4 px-4 py-2 text-sm text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-lg transition-colors"
+                >
+                  Start a new chat
+                </button>
               </div>
             </div>
           )}

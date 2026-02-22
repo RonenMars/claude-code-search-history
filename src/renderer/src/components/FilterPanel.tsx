@@ -8,6 +8,7 @@ interface FilterPanelProps {
   onSortChange: (sort: SortOption) => void
   dateRange: DateRangeOption
   onDateRangeChange: (range: DateRangeOption) => void
+  onChatInProject: (projectPath: string) => void
 }
 
 export default function FilterPanel({
@@ -17,7 +18,8 @@ export default function FilterPanel({
   sortBy,
   onSortChange,
   dateRange,
-  onDateRangeChange
+  onDateRangeChange,
+  onChatInProject
 }: FilterPanelProps): JSX.Element {
   return (
     <div className="mt-3 space-y-2">
@@ -25,7 +27,7 @@ export default function FilterPanel({
       <select
         value={selectedProject}
         onChange={(e) => onProjectChange(e.target.value)}
-        className="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
+        className="custom-select w-full pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
       >
         <option value="">All Projects</option>
         {projects.map((project) => (
@@ -35,12 +37,24 @@ export default function FilterPanel({
         ))}
       </select>
 
+      {selectedProject && (
+        <button
+          onClick={() => onChatInProject(selectedProject)}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-lg transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          Chat in this project
+        </button>
+      )}
+
       {/* Sort and Date Range */}
       <div className="flex gap-2">
         <select
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value as SortOption)}
-          className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
+          className="custom-select flex-1 pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
           title="Sort conversations"
         >
           <option value="recent">Most Recent</option>
@@ -53,7 +67,7 @@ export default function FilterPanel({
         <select
           value={dateRange}
           onChange={(e) => onDateRangeChange(e.target.value as DateRangeOption)}
-          className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
+          className="custom-select flex-1 pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
           title="Filter by date"
         >
           <option value="all">All Time</option>
