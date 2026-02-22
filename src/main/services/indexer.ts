@@ -23,7 +23,7 @@ export class SearchIndexer {
       document: {
         id: 'id',
         index: ['content', 'projectName', 'sessionId', 'sessionName'],
-        store: ['id', 'projectName', 'projectPath', 'sessionId', 'sessionName', 'timestamp', 'messageCount']
+        store: ['id', 'projectName', 'projectPath', 'sessionId', 'sessionName', 'timestamp', 'messageCount', 'lastMessageSender']
       },
       tokenize: 'forward',
       resolution: 9,
