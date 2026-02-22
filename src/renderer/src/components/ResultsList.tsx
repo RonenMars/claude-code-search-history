@@ -11,6 +11,7 @@ interface SearchResult {
   timestamp: string
   messageCount: number
   score: number
+  lastMessageSender: 'user' | 'assistant'
 }
 
 interface ResultsListProps {

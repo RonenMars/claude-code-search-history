@@ -21,6 +21,7 @@ export interface ConversationMeta {
   messageCount: number
   preview: string
   contentSnippet: string
+  lastMessageSender: 'user' | 'assistant'
 }
 
 export interface Conversation {
@@ -46,6 +47,7 @@ export interface SearchResult {
   timestamp: string
   messageCount: number
   score: number
+  lastMessageSender: 'user' | 'assistant'
 }
 
 export type ExportFormat = 'markdown' | 'json' | 'text'
