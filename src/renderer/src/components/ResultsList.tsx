@@ -1,31 +1,23 @@
 import { useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-
-interface SearchResult {
-  id: string
-  projectName: string
-  projectPath: string
-  sessionId: string
-  sessionName: string
-  preview: string
-  timestamp: string
-  messageCount: number
-  score: number
-  lastMessageSender: 'user' | 'assistant'
-}
+import type { SearchResult } from '../../../shared/types'
 
 interface ResultsListProps {
   results: SearchResult[]
   selectedId: string | null
   onSelect: (id: string) => void
   query: string
+  activeCwd: string | null
+  isClaudeTyping: boolean
 }
 
 export default function ResultsList({
   results,
   selectedId,
   onSelect,
-  query
+  query,
+  activeCwd,
+  isClaudeTyping
 }: ResultsListProps): JSX.Element {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -67,6 +59,8 @@ export default function ResultsList({
                 isSelected={results[virtualRow.index].id === selectedId}
                 onSelect={() => onSelect(results[virtualRow.index].id)}
                 query={query}
+                activeCwd={activeCwd}
+                isClaudeTyping={isClaudeTyping}
               />
             </div>
           ))}
@@ -81,9 +75,11 @@ interface ResultItemProps {
   isSelected: boolean
   onSelect: () => void
   query: string
+  activeCwd: string | null
+  isClaudeTyping: boolean
 }
 
-function ResultItem({ result, isSelected, onSelect, query }: ResultItemProps): JSX.Element {
+function ResultItem({ result, isSelected, onSelect, query, activeCwd, isClaudeTyping }: ResultItemProps): JSX.Element {
   const highlightedPreview = useMemo(() => {
     if (!query) return escapeHtml(result.preview)
     return highlightText(result.preview, query)
@@ -99,6 +95,10 @@ function ResultItem({ result, isSelected, onSelect, query }: ResultItemProps): J
     return formatDate(result.timestamp)
   }, [result.timestamp])
 
+  const isActive = activeCwd === result.projectPath
+  const isTyping = isActive && isClaudeTyping
+  const isAwaitingReply = !isActive && result.lastMessageSender === 'assistant'
+
   return (
     <button
       onClick={onSelect}
@@ -109,7 +109,16 @@ function ResultItem({ result, isSelected, onSelect, query }: ResultItemProps): J
         <span className="text-xs font-medium text-claude-orange truncate max-w-[200px]">
           {result.projectName}
         </span>
-        <span className="text-xs text-neutral-500 whitespace-nowrap">{formattedDate}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isTyping ? (
+            <TypingIndicator />
+          ) : isActive ? (
+            <LiveBadge />
+          ) : isAwaitingReply ? (
+            <AwaitingReplyBadge />
+          ) : null}
+          <span className="text-xs text-neutral-500 whitespace-nowrap">{formattedDate}</span>
+        </div>
       </div>
       {result.sessionName && (
         <p className="text-xs text-neutral-400 mb-1 truncate">{result.sessionName}</p>
@@ -126,6 +135,37 @@ function ResultItem({ result, isSelected, onSelect, query }: ResultItemProps): J
       />
       <div className="mt-2 text-xs text-neutral-500">{result.messageCount} messages</div>
     </button>
+  )
+}
+
+function LiveBadge(): JSX.Element {
+  return (
+    <span className="flex items-center gap-1 text-[10px] font-medium text-green-400">
+      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+      Live
+    </span>
+  )
+}
+
+function TypingIndicator(): JSX.Element {
+  return (
+    <span className="flex items-center gap-1 text-[10px] font-medium text-claude-orange">
+      <span className="flex gap-0.5">
+        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:0ms]" />
+        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:150ms]" />
+        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:300ms]" />
+      </span>
+      Typing…
+    </span>
+  )
+}
+
+function AwaitingReplyBadge(): JSX.Element {
+  return (
+    <span className="flex items-center gap-1 text-[10px] font-medium text-amber-400">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+      Awaiting reply
+    </span>
   )
 }
 
