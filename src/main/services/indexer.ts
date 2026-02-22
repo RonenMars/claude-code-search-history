@@ -11,6 +11,7 @@ interface IndexedDocument {
   timestamp: string
   messageCount: number
   preview: string
+  lastMessageSender: 'user' | 'assistant'
 }
 
 export class SearchIndexer {
@@ -43,7 +44,8 @@ export class SearchIndexer {
         content: meta.contentSnippet,
         timestamp: meta.timestamp,
         messageCount: meta.messageCount,
-        preview: meta.preview
+        preview: meta.preview,
+        lastMessageSender: meta.lastMessageSender
       }
 
       this.documents.set(meta.id, doc)
@@ -93,7 +95,8 @@ export class SearchIndexer {
           preview,
           timestamp: doc.timestamp,
           messageCount: doc.messageCount,
-          score: 1
+          score: 1,
+          lastMessageSender: doc.lastMessageSender
         })
 
         if (searchResults.length >= limit) break
@@ -126,7 +129,8 @@ export class SearchIndexer {
       preview: doc.preview || this.truncateText(doc.content, 200),
       timestamp: doc.timestamp,
       messageCount: doc.messageCount,
-      score: 1
+      score: 1,
+      lastMessageSender: doc.lastMessageSender
     }))
   }
 
