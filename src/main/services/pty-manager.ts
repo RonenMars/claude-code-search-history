@@ -18,8 +18,14 @@ export class PtyManager {
   }
 
   spawn(options: PtySpawnOptions): { success: boolean; error?: string } {
+    // Force-kill any stale process (fire-and-forget)
     if (this.process) {
-      return { success: false, error: 'A session is already active. Kill it first.' }
+      const stale = this.process
+      this.process = null
+      this.killing = false
+      for (const resolve of this.exitResolvers) { resolve() }
+      this.exitResolvers = []
+      try { stale.kill('SIGKILL') } catch { /* already dead */ }
     }
 
     try {
@@ -34,7 +40,7 @@ export class PtyManager {
 
       this.killing = false
 
-      this.process = pty.spawn(shell, args, {
+      const proc = pty.spawn(shell, args, {
         name: 'xterm-256color',
         cols: 120,
         rows: 30,
@@ -46,19 +52,22 @@ export class PtyManager {
         }
       })
 
-      this.process.onData((data) => {
+      this.process = proc
+
+      proc.onData((data) => {
         this.onData?.(data)
       })
 
-      this.process.onExit(({ exitCode }) => {
-        this.process = null
-        this.killing = false
-        // Resolve any pending kill() promises
-        for (const resolve of this.exitResolvers) {
-          resolve()
+      proc.onExit(({ exitCode }) => {
+        // Guard: only clean up if this is still the active process.
+        // A stale process's onExit must not null out a newer process.
+        if (this.process === proc) {
+          this.process = null
+          this.killing = false
+          for (const resolve of this.exitResolvers) { resolve() }
+          this.exitResolvers = []
+          this.onExit?.(exitCode)
         }
-        this.exitResolvers = []
-        this.onExit?.(exitCode)
       })
 
       return { success: true }

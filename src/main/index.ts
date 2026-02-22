@@ -112,6 +112,13 @@ function setupIpcHandlers(): void {
     return true
   })
 
+  ipcMain.handle('get-latest-conversation', async (_event, projectPath: string) => {
+    if (!scanner) return null
+    const meta = scanner.getLatestForProject(projectPath)
+    if (!meta) return null
+    return scanner.getConversation(meta.id)
+  })
+
   ipcMain.handle(
     'export-conversation',
     async (_event, id: string, format: 'markdown' | 'json' | 'text') => {
@@ -170,10 +177,14 @@ function setupIpcHandlers(): void {
     if (!ptyManager) {
       ptyManager = new PtyManager()
       ptyManager.setDataHandler((data) => {
-        mainWindow?.webContents.send('pty-data', data)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('pty-data', data)
+        }
       })
       ptyManager.setExitHandler((code) => {
-        mainWindow?.webContents.send('pty-exit', code)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('pty-exit', code)
+        }
       })
     }
     return ptyManager.spawn(options)
@@ -293,7 +304,12 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
+  app.quit()
+})
+
+app.on('before-quit', () => {
+  // Kill any active PTY processes so the process tree can exit cleanly
+  if (ptyManager?.isActive()) {
+    ptyManager.kill().catch(() => {})
   }
 })

@@ -15,7 +15,7 @@ export default function MessageContent({ content, query }: MessageContentProps):
     if (isJSON(trimmed)) {
         return (
             <div className="message-content">
-                <JSONBlock content={trimmed} />
+                <JSONBlock content={trimmed} query={query} />
             </div>
         )
     }
@@ -39,19 +39,19 @@ function MarkdownRenderer({ content, query }: { content: string; query?: string 
     const components = useMemo<Components>(() => ({
         // Code blocks & inline code
         code({ className, children }) {
-            const match = /language-(\w+)/.exec(className || '')
+            const langMatch = /language-(\w+)/.exec(className || '')
             const codeString = String(children).replace(/\n$/, '')
 
-            if (match) {
-                return <CodeBlock language={match[1]} code={codeString} />
+            if (langMatch) {
+                return <CodeBlock language={langMatch[1]} code={codeString} query={query} />
             }
 
             if (codeString.includes('\n')) {
-                return <CodeBlock language="text" code={codeString} />
+                return <CodeBlock language="text" code={codeString} query={query} />
             }
 
-            // Inline code — no highlighting inside code spans
-            return <code className="inline-code">{children}</code>
+            // Inline code
+            return <code className="inline-code">{hl(children)}</code>
         },
 
         pre({ children }) {
@@ -118,7 +118,7 @@ function MarkdownRenderer({ content, query }: { content: string; query?: string 
         blockquote({ children }) {
             return (
                 <blockquote className="my-2 border-l-3 border-claude-orange/50 pl-3 text-neutral-400 italic">
-                    {children}
+                    {hl(children)}
                 </blockquote>
             )
         },
@@ -149,7 +149,7 @@ function MarkdownRenderer({ content, query }: { content: string; query?: string 
         em({ children }) {
             return <em className="italic text-neutral-200">{hl(children)}</em>
         },
-    }), [hl])
+    }), [hl, query])
 
     return (
         <div className="md-content">
@@ -202,7 +202,7 @@ function highlightChildren(children: ReactNode, query: string): ReactNode {
 
 // ─── Code Block ──────────────────────────────────────────────────────
 
-function CodeBlock({ language, code }: { language: string; code: string }): JSX.Element {
+function CodeBlock({ language, code, query }: { language: string; code: string; query?: string }): JSX.Element {
     const [copied, setCopied] = useState(false)
 
     const handleCopy = useCallback(async () => {
@@ -215,7 +215,10 @@ function CodeBlock({ language, code }: { language: string; code: string }): JSX.
         }
     }, [code])
 
-    const highlighted = useMemo(() => highlightCode(code, language), [code, language])
+    const highlighted = useMemo(() => {
+        const html = highlightCode(code, language)
+        return query ? addSearchHighlightToHtml(html, query) : html
+    }, [code, language, query])
 
     return (
         <div className="code-block-wrapper group relative my-3">
@@ -240,7 +243,7 @@ function CodeBlock({ language, code }: { language: string; code: string }): JSX.
 
 // ─── JSON Block ──────────────────────────────────────────────────────
 
-function JSONBlock({ content }: { content: string }): JSX.Element {
+function JSONBlock({ content, query }: { content: string; query?: string }): JSX.Element {
     const [copied, setCopied] = useState(false)
     const [collapsed, setCollapsed] = useState(false)
 
@@ -253,7 +256,10 @@ function JSONBlock({ content }: { content: string }): JSX.Element {
         }
     }, [content])
 
-    const highlighted = useMemo(() => highlightJSON(formatted), [formatted])
+    const highlighted = useMemo(() => {
+        const html = highlightJSON(formatted)
+        return query ? addSearchHighlightToHtml(html, query) : html
+    }, [formatted, query])
 
     const handleCopy = useCallback(async () => {
         try {
@@ -306,6 +312,20 @@ function isJSON(str: string): boolean {
     } catch {
         return false
     }
+}
+
+/**
+ * Apply search highlighting to an already-rendered HTML string.
+ * Only highlights text content between HTML tags, leaving tags intact.
+ */
+function addSearchHighlightToHtml(html: string, query: string): string {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const searchRegex = new RegExp(escaped, 'gi')
+    // Split into HTML tags vs text content; only highlight text parts
+    return html.replace(/(<[^>]*>)|([^<]+)/g, (_match, tag: string, text: string) => {
+        if (tag) return tag
+        return text.replace(searchRegex, '<span class="highlight">$&</span>')
+    })
 }
 
 function escapeHtml(text: string): string {

@@ -22,6 +22,7 @@ export default function App(): JSX.Element {
 
   // Chat state
   const [chatCwd, setChatCwd] = useState<string | null>(null)
+  const [chatResumeSessionId, setChatResumeSessionId] = useState<string | undefined>(undefined)
   const [chatKey, setChatKey] = useState(0) // increment to force remount
 
   const { query, setQuery, results, searching, refresh } = useSearch(selectedProject)
@@ -160,11 +161,12 @@ export default function App(): JSX.Element {
     if (chatCwd) {
       const confirmed = window.confirm('A chat session is active. Start a new one?')
       if (!confirmed) return
-      await window.electronAPI.ptyKill()
     }
+    await window.electronAPI.ptyKill() // always kill — PTY may outlive chatCwd state
     const dir = await window.electronAPI.selectDirectory()
     if (dir) {
       setChatCwd(dir)
+      setChatResumeSessionId(undefined)
       setChatKey((k) => k + 1)
       setSelectedConversation(null)
     }
@@ -174,21 +176,60 @@ export default function App(): JSX.Element {
     if (chatCwd) {
       const confirmed = window.confirm('A chat session is active. Start a new one?')
       if (!confirmed) return
-      await window.electronAPI.ptyKill()
     }
+    await window.electronAPI.ptyKill()
     setChatCwd(projectPath)
+    setChatResumeSessionId(undefined)
     setChatKey((k) => k + 1)
     setSelectedConversation(null)
   }, [chatCwd])
 
-  const handleChatExit = useCallback(() => {
-    // Keep the terminal visible with the exit message — don't auto-close
-  }, [])
+  const handleContinueChat = useCallback(async (projectPath: string, sessionId: string) => {
+    if (chatCwd) {
+      const confirmed = window.confirm('A chat session is active. Start a new one?')
+      if (!confirmed) return
+    }
+    await window.electronAPI.ptyKill()
+    setChatCwd(projectPath)
+    setChatResumeSessionId(sessionId)
+    setChatKey((k) => k + 1)
+    setSelectedConversation(null)
+  }, [chatCwd])
+
+  // Rebuild index and navigate to the latest conversation for the project
+  const returnToHistory = useCallback(async (projectPath: string) => {
+    await window.electronAPI.rebuildIndex()
+    const [projectList, statsData] = await Promise.all([
+      window.electronAPI.getProjects(),
+      window.electronAPI.getStats()
+    ])
+    setProjects(projectList)
+    setStats(statsData)
+    refresh()
+
+    const conversation = await window.electronAPI.getLatestConversation(projectPath)
+    if (conversation) {
+      setSelectedConversation(conversation)
+    }
+    setChatCwd(null)
+  }, [refresh])
+
+  const handleChatExit = useCallback((_code: number) => {
+    // When process exits, auto-return to history view
+    if (chatCwd) {
+      returnToHistory(chatCwd)
+    }
+  }, [chatCwd, returnToHistory])
 
   const handleCloseChat = useCallback(async () => {
+    const projectPath = chatCwd
     await window.electronAPI.ptyKill()
-    setChatCwd(null)
-  }, [])
+    if (projectPath) {
+      returnToHistory(projectPath)
+    } else {
+      setChatCwd(null)
+    }
+  }, [chatCwd, returnToHistory])
 
   return (
     <div className="flex flex-col h-screen bg-claude-darker">
@@ -309,13 +350,14 @@ export default function App(): JSX.Element {
                 <ChatTerminal
                   key={chatKey}
                   cwd={chatCwd}
+                  resumeSessionId={chatResumeSessionId}
                   onExit={handleChatExit}
                 />
               </div>
             </div>
           ) : selectedConversation ? (
             <ErrorBoundary>
-              <ConversationView conversation={selectedConversation} query={query} />
+              <ConversationView conversation={selectedConversation} query={query} onContinueChat={handleContinueChat} />
             </ErrorBoundary>
           ) : (
             <div className="flex items-center justify-center h-full text-neutral-500">

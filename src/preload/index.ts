@@ -17,6 +17,7 @@ export interface ElectronAPI {
   getProjects: () => Promise<string[]>
   getStats: () => Promise<{ conversations: number; projects: number }>
   rebuildIndex: () => Promise<boolean>
+  getLatestConversation: (projectPath: string) => Promise<Conversation | null>
   exportConversation: (id: string, format: ExportFormat) => Promise<ExportResult>
   getPreferences: () => Promise<Partial<UserPreferences>>
   setPreferences: (prefs: Partial<UserPreferences>) => Promise<boolean>
@@ -39,6 +40,7 @@ const api: ElectronAPI = {
   getProjects: () => ipcRenderer.invoke('get-projects'),
   getStats: () => ipcRenderer.invoke('get-stats'),
   rebuildIndex: () => ipcRenderer.invoke('rebuild-index'),
+  getLatestConversation: (projectPath) => ipcRenderer.invoke('get-latest-conversation', projectPath),
   exportConversation: (id, format) => ipcRenderer.invoke('export-conversation', id, format),
   getPreferences: () => ipcRenderer.invoke('get-preferences'),
   setPreferences: (prefs) => ipcRenderer.invoke('set-preferences', prefs),

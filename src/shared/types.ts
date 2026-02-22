@@ -4,6 +4,7 @@ export interface ConversationMessage {
   type: 'user' | 'assistant' | 'system'
   content: string
   timestamp: string
+  uuid?: string
   metadata?: MessageMetadata
   lineNumber?: number
   isToolResult?: boolean

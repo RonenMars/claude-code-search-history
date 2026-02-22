@@ -1,4 +1,5 @@
-import { useRef, useEffect, useState, useCallback, useMemo, forwardRef, memo } from 'react'
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo, forwardRef, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import MessageNavigation from './MessageNavigation'
 import MessageContent from './MessageContent'
@@ -10,11 +11,13 @@ import type { ToolResult, ToolUseBlock, Conversation, ConversationMessage, Messa
 interface ConversationViewProps {
   conversation: Conversation
   query: string
+  onContinueChat?: (projectPath: string, sessionId: string) => void
 }
 
 export default function ConversationView({
   conversation,
-  query
+  query,
+  onContinueChat
 }: ConversationViewProps): JSX.Element {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -31,6 +34,12 @@ export default function ConversationView({
     estimateSize: () => 120,
     overscan: 5,
   })
+
+  // Reversed messages: newest first for display
+  const displayMessages = useMemo(
+    () => [...conversation.messages].reverse(),
+    [conversation.messages]
+  )
 
   // Reset virtualizer when conversation changes
   useEffect(() => {
@@ -49,13 +58,13 @@ export default function ConversationView({
     if (!chatSearchQuery) return []
     const lower = chatSearchQuery.toLowerCase()
     const matches: number[] = []
-    conversation.messages.forEach((msg, i) => {
+    displayMessages.forEach((msg, i) => {
       if (msg.content.toLowerCase().includes(lower)) {
         matches.push(i)
       }
     })
     return matches
-  }, [chatSearchQuery, conversation.messages])
+  }, [chatSearchQuery, displayMessages])
 
   // The effective highlight query: local search takes priority over global
   const effectiveQuery = chatSearchOpen && chatSearchQuery ? chatSearchQuery : query
@@ -196,6 +205,20 @@ export default function ConversationView({
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {/* Continue Chat */}
+            {onContinueChat && (
+              <button
+                onClick={() => onContinueChat(conversation.projectPath, conversation.sessionId)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-md transition-colors"
+                title="Continue this conversation in a live terminal"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Continue Chat
+              </button>
+            )}
+
             {/* In-chat Search Toggle */}
             <button
               onClick={() => {
@@ -323,7 +346,7 @@ export default function ConversationView({
                 className="px-4 py-2"
               >
                 <MessageBubble
-                  message={conversation.messages[virtualRow.index]}
+                  message={displayMessages[virtualRow.index]}
                   query={effectiveQuery}
                   filePath={conversation.filePath}
                   isCurrentMessage={virtualRow.index === currentMessageIndex}
@@ -453,18 +476,7 @@ const MessageBubble = memo(function MessageBubble({
   const hasToolUseBlocks = message.metadata?.toolUseBlocks && message.metadata.toolUseBlocks.length > 0
   const [copied, setCopied] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
-  const infoRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!showInfo) return
-    function handleClick(e: MouseEvent): void {
-      if (infoRef.current && !infoRef.current.contains(e.target as Node)) {
-        setShowInfo(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [showInfo])
+  const infoBtnRef = useRef<HTMLButtonElement>(null)
 
   // Determine bubble style based on message type
   let bubbleClass: string
@@ -511,22 +523,29 @@ const MessageBubble = memo(function MessageBubble({
             </span>
           )}
           <div className="ml-auto flex items-center gap-1">
-            <div className="relative" ref={infoRef}>
-              <button
-                type="button"
-                aria-label="Message info"
-                onClick={() => setShowInfo(!showInfo)}
-                className={btnClass}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
-                  <circle cx="12" cy="12" r="10" strokeWidth="2" />
-                  <path strokeLinecap="round" strokeWidth="2" d="M12 16v-4m0-4h.01" />
-                </svg>
-              </button>
-              {showInfo && (
-                <MetadataTooltip metadata={message.metadata} isUser={isUser} filePath={filePath} lineNumber={message.lineNumber} />
-              )}
-            </div>
+            <button
+              ref={infoBtnRef}
+              type="button"
+              aria-label="Message info"
+              onClick={() => setShowInfo(!showInfo)}
+              className={btnClass}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
+                <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                <path strokeLinecap="round" strokeWidth="2" d="M12 16v-4m0-4h.01" />
+              </svg>
+            </button>
+            {showInfo && (
+              <MetadataTooltip
+                metadata={message.metadata}
+                isUser={isUser}
+                filePath={filePath}
+                lineNumber={message.lineNumber}
+                uuid={message.uuid}
+                anchorRef={infoBtnRef}
+                onClose={() => setShowInfo(false)}
+              />
+            )}
             <button
               type="button"
               aria-label={copied ? 'Copied' : 'Copy message'}
@@ -574,9 +593,62 @@ const MessageBubble = memo(function MessageBubble({
 })
 
 
-function MetadataTooltip({ metadata, isUser, filePath, lineNumber }: { metadata?: MessageMetadata; isUser: boolean; filePath: string; lineNumber?: number }): JSX.Element {
+interface MetadataTooltipProps {
+  metadata?: MessageMetadata
+  isUser: boolean
+  filePath: string
+  lineNumber?: number
+  uuid?: string
+  anchorRef: React.RefObject<HTMLButtonElement | null>
+  onClose: () => void
+}
+
+function MetadataTooltip({ metadata, isUser, filePath, lineNumber, uuid, anchorRef, onClose }: MetadataTooltipProps): JSX.Element | null {
   const totalTokens = (metadata?.inputTokens || 0) + (metadata?.outputTokens || 0)
   const [copiedPath, setCopiedPath] = useState(false)
+  const [copiedUuid, setCopiedUuid] = useState(false)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+
+  // Position the tooltip relative to the anchor button
+  useLayoutEffect(() => {
+    if (!anchorRef.current || !tooltipRef.current) return
+    const anchor = anchorRef.current.getBoundingClientRect()
+    const tooltip = tooltipRef.current.getBoundingClientRect()
+    const pad = 8
+
+    // Vertical: prefer above, flip below if not enough space
+    let top: number
+    if (anchor.top - tooltip.height - pad >= 0) {
+      top = anchor.top - tooltip.height - pad
+    } else {
+      top = anchor.bottom + pad
+    }
+
+    // Horizontal: align right edge to anchor for user messages, left edge for assistant
+    let left: number
+    if (isUser) {
+      left = Math.max(pad, anchor.right - tooltip.width)
+    } else {
+      left = Math.min(anchor.left, window.innerWidth - tooltip.width - pad)
+    }
+
+    setPos({ top, left })
+  }, [anchorRef, isUser])
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent): void {
+      if (
+        tooltipRef.current && !tooltipRef.current.contains(e.target as Node) &&
+        anchorRef.current && !anchorRef.current.contains(e.target as Node)
+      ) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [anchorRef, onClose])
 
   const handleCopyPath = async (): Promise<void> => {
     try {
@@ -589,8 +661,12 @@ function MetadataTooltip({ metadata, isUser, filePath, lineNumber }: { metadata?
     }
   }
 
-  return (
-    <div className={`absolute ${isUser ? 'right-0' : 'left-0'} bottom-full mb-2 w-80 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl z-20 p-3 text-xs`}>
+  return createPortal(
+    <div
+      ref={tooltipRef}
+      className="fixed w-80 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl p-3 text-xs"
+      style={pos ? { top: pos.top, left: pos.left, zIndex: 9999 } : { opacity: 0, pointerEvents: 'none', top: 0, left: 0, zIndex: 9999 }}
+    >
       <div className="space-y-1.5 text-neutral-300">
         {/* File info */}
         <div className="flex items-start justify-between gap-2">
@@ -617,6 +693,39 @@ function MetadataTooltip({ metadata, isUser, filePath, lineNumber }: { metadata?
           </div>
         </div>
         {lineNumber !== undefined && <Row label="Line" value={lineNumber} />}
+        {uuid && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-neutral-500">ID</span>
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="font-mono truncate text-right text-[10px]" title={uuid}>
+                {uuid.slice(0, 8)}
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(uuid)
+                    setCopiedUuid(true)
+                    setTimeout(() => setCopiedUuid(false), 1500)
+                  } catch { /* no-op */ }
+                }}
+                className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
+                title={copiedUuid ? 'Copied!' : uuid}
+              >
+                {copiedUuid ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                    <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Metadata section */}
         {metadata && (
@@ -642,7 +751,8 @@ function MetadataTooltip({ metadata, isUser, filePath, lineNumber }: { metadata?
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

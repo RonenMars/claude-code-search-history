@@ -284,6 +284,7 @@ export class ConversationScanner {
               type: entry.type,
               content: content || '',
               timestamp: entry.timestamp || '',
+              uuid: entry.uuid || undefined,
               metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
               lineNumber,
               isToolResult: isToolResultMessage || undefined
@@ -578,7 +579,24 @@ export class ConversationScanner {
     }
   }
 
+  getLatestForProject(projectPath: string): ConversationMeta | null {
+    let latest: ConversationMeta | null = null
+    for (const meta of this.metadataCache.values()) {
+      if (meta.projectPath === projectPath || meta.projectPath === projectPath + '/') {
+        if (!latest || meta.timestamp > latest.timestamp) {
+          latest = meta
+        }
+      }
+    }
+    return latest
+  }
+
   getProjects(): string[] {
-    return Array.from(this.projects).sort()
+    // Normalize paths (strip trailing slashes) and deduplicate
+    const normalized = new Set<string>()
+    for (const p of this.projects) {
+      normalized.add(p.replace(/\/+$/, ''))
+    }
+    return Array.from(normalized).sort()
   }
 }
