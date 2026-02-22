@@ -181,3 +181,16 @@ export interface MessageMetadata {
   toolUseBlocks?: ToolUseBlock[]
   toolResults?: ToolResult[]
 }
+
+// ─── PTY / Chat Types ────────────────────────────────────────────────
+
+export interface PtySpawnOptions {
+  cwd: string
+  resumeSessionId?: string  // pass to claude --resume <id>
+}
+
+export interface PtyStatus {
+  active: boolean
+  cwd?: string
+  pid?: number
+}
