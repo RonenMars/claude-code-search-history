@@ -188,7 +188,7 @@ function setupIpcHandlers(): void {
   })
 
   ipcMain.handle('pty-kill', async () => {
-    ptyManager?.kill()
+    await ptyManager?.kill()
     return true
   })
 

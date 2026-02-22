@@ -6,6 +6,8 @@ export class PtyManager {
   private process: pty.IPty | null = null
   private onData?: (data: string) => void
   private onExit?: (code: number) => void
+  private exitResolvers: Array<() => void> = []
+  private killing = false
 
   setDataHandler(handler: (data: string) => void): void {
     this.onData = handler
@@ -30,6 +32,8 @@ export class PtyManager {
         args.push('-l', '-c', this.buildClaudeCommand(options))
       }
 
+      this.killing = false
+
       this.process = pty.spawn(shell, args, {
         name: 'xterm-256color',
         cols: 120,
@@ -48,6 +52,12 @@ export class PtyManager {
 
       this.process.onExit(({ exitCode }) => {
         this.process = null
+        this.killing = false
+        // Resolve any pending kill() promises
+        for (const resolve of this.exitResolvers) {
+          resolve()
+        }
+        this.exitResolvers = []
         this.onExit?.(exitCode)
       })
 
@@ -74,18 +84,34 @@ export class PtyManager {
     this.process?.resize(cols, rows)
   }
 
-  kill(): void {
-    if (!this.process) return
-    // Send SIGINT first (graceful)
-    this.process.kill('SIGINT')
-    // Force kill after 3 seconds if still alive
-    const pid = this.process.pid
-    setTimeout(() => {
-      if (this.process && this.process.pid === pid) {
-        this.process.kill('SIGKILL')
-        this.process = null
-      }
-    }, 3000)
+  /**
+   * Kill the process. First call sends SIGINT, second call sends SIGKILL immediately.
+   * Returns a promise that resolves when the process has actually exited.
+   */
+  kill(): Promise<void> {
+    if (!this.process) return Promise.resolve()
+
+    const exitPromise = new Promise<void>((resolve) => {
+      this.exitResolvers.push(resolve)
+    })
+
+    if (this.killing) {
+      // Second call — force kill immediately
+      this.process.kill('SIGKILL')
+    } else {
+      // First call — graceful SIGINT
+      this.killing = true
+      this.process.kill('SIGINT')
+      // Force kill after 3 seconds if still alive
+      const pid = this.process.pid
+      setTimeout(() => {
+        if (this.process && this.process.pid === pid) {
+          this.process.kill('SIGKILL')
+        }
+      }, 3000)
+    }
+
+    return exitPromise
   }
 
   isActive(): boolean {

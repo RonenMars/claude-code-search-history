@@ -13,7 +13,10 @@ export default function ChatTerminal({ cwd, resumeSessionId, onExit }: ChatTermi
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const onExitRef = useRef(onExit)
+  onExitRef.current = onExit
   const [exited, setExited] = useState<number | null>(null)
+  const [stopping, setStopping] = useState(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -73,7 +76,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, onExit }: ChatTermi
     const cleanupExit = window.electronAPI.onPtyExit((code) => {
       terminal.write(`\r\n\x1b[90m--- Process exited with code ${code} ---\x1b[0m\r\n`)
       setExited(code)
-      onExit(code)
+      onExitRef.current(code)
     })
 
     // Spawn the claude process
@@ -110,7 +113,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, onExit }: ChatTermi
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [cwd, resumeSessionId, onExit])
+  }, [cwd, resumeSessionId])
 
   return (
     <div className="flex flex-col h-full">
@@ -130,10 +133,13 @@ export default function ChatTerminal({ cwd, resumeSessionId, onExit }: ChatTermi
           )}
           {exited === null && (
             <button
-              onClick={() => window.electronAPI.ptyKill()}
+              onClick={() => {
+                setStopping(true)
+                window.electronAPI.ptyKill()
+              }}
               className="px-3 py-1 text-xs font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 border border-red-400/30 rounded-md transition-colors"
             >
-              Stop
+              {stopping ? 'Force Stop' : 'Stop'}
             </button>
           )}
         </div>

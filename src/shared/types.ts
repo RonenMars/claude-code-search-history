@@ -191,6 +191,5 @@ export interface PtySpawnOptions {
 
 export interface PtyStatus {
   active: boolean
-  cwd?: string
   pid?: number
 }
