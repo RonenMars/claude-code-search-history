@@ -7,6 +7,8 @@ interface ProfileUsage {
   conversations: number
   lastUsed: string | null
   tokensThisMonth: number
+  messages: number
+  projects: number
 }
 
 interface ProfilesPanelProps {

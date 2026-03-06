@@ -166,4 +166,16 @@ export class SearchIndexer {
   getDocumentCount(): number {
     return this.documents.size
   }
+
+  getStatsByAccount(): Record<string, { messages: number; projects: number }> {
+    const acc: Record<string, { messages: number; projects: Set<string> }> = {}
+    for (const doc of this.documents.values()) {
+      if (!acc[doc.account]) acc[doc.account] = { messages: 0, projects: new Set() }
+      acc[doc.account].messages += doc.messageCount
+      acc[doc.account].projects.add(doc.projectPath)
+    }
+    return Object.fromEntries(
+      Object.entries(acc).map(([id, v]) => [id, { messages: v.messages, projects: v.projects.size }])
+    )
+  }
 }

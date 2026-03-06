@@ -385,11 +385,13 @@ function setupIpcHandlers(): void {
   ipcMain.handle('get-profiles-usage', async () => {
     const config = await loadProfilesConfig()
     const enabledProfiles = config.profiles.filter((p) => p.enabled)
+    const indexerStats = indexer?.getStatsByAccount() ?? {}
     const results = await Promise.all(
       enabledProfiles.map(async (p) => {
         const resolvedDir = p.configDir.replace(/^~/, homedir())
         const usage = await getProfileUsage(resolvedDir)
-        return [p.id, usage] as const
+        const extra = indexerStats[p.id] ?? { messages: 0, projects: 0 }
+        return [p.id, { ...usage, messages: extra.messages, projects: extra.projects }] as const
       })
     )
     return Object.fromEntries(results)

@@ -210,6 +210,8 @@ export interface ProfileUsage {
   conversations: number
   lastUsed: string | null  // ISO timestamp, or null if no conversations
   tokensThisMonth: number
+  messages: number
+  projects: number
 }
 
 export interface ProfilesUsage {
