@@ -7,10 +7,11 @@ import type {
   UserPreferences,
   PtySpawnOptions,
   PtyStatus,
-  Profile
+  Profile,
+  AppSettings
 } from '../shared/types'
 
-export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile }
+export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings }
 
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
@@ -26,12 +27,15 @@ export interface ElectronAPI {
   onScanProgress: (callback: (progress: { scanned: number; total: number }) => void) => (() => void)
   // PTY
   ptySpawn: (options: PtySpawnOptions) => Promise<{ success: boolean; error?: string }>
-  ptyInput: (data: string) => void
-  ptyResize: (cols: number, rows: number) => void
-  ptyKill: () => Promise<boolean>
-  ptyStatus: () => Promise<PtyStatus>
-  onPtyData: (callback: (data: string) => void) => () => void
-  onPtyExit: (callback: (code: number) => void) => () => void
+  ptyInput: (instanceId: string, data: string) => void
+  ptyResize: (instanceId: string, cols: number, rows: number) => void
+  ptyKill: (instanceId: string) => Promise<boolean>
+  ptyStatus: (instanceId: string) => Promise<PtyStatus>
+  onPtyData: (callback: (instanceId: string, data: string) => void) => () => void
+  onPtyExit: (callback: (instanceId: string, code: number) => void) => () => void
+  // Settings
+  getSettings: () => Promise<AppSettings>
+  setSettings: (settings: Partial<AppSettings>) => Promise<boolean>
   selectDirectory: () => Promise<string | null>
   getProfilesUsage: () => Promise<Record<string, { conversations: number; lastUsed: string | null; tokensThisMonth: number }>>
   getProfiles: () => Promise<Profile[]>
@@ -58,24 +62,27 @@ const api: ElectronAPI = {
   },
   // PTY
   ptySpawn: (options) => ipcRenderer.invoke('pty-spawn', options),
-  ptyInput: (data) => ipcRenderer.send('pty-input', data),
-  ptyResize: (cols, rows) => ipcRenderer.send('pty-resize', cols, rows),
-  ptyKill: () => ipcRenderer.invoke('pty-kill'),
-  ptyStatus: () => ipcRenderer.invoke('pty-status'),
+  ptyInput: (instanceId, data) => ipcRenderer.send('pty-input', { instanceId, data }),
+  ptyResize: (instanceId, cols, rows) => ipcRenderer.send('pty-resize', { instanceId, cols, rows }),
+  ptyKill: (instanceId) => ipcRenderer.invoke('pty-kill', instanceId),
+  ptyStatus: (instanceId) => ipcRenderer.invoke('pty-status', instanceId),
   onPtyData: (callback) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: string): void => {
-      callback(data)
+    const handler = (_event: Electron.IpcRendererEvent, payload: { instanceId: string; data: string }): void => {
+      callback(payload.instanceId, payload.data)
     }
     ipcRenderer.on('pty-data', handler)
     return () => ipcRenderer.removeListener('pty-data', handler)
   },
   onPtyExit: (callback) => {
-    const handler = (_event: Electron.IpcRendererEvent, code: number): void => {
-      callback(code)
+    const handler = (_event: Electron.IpcRendererEvent, payload: { instanceId: string; code: number }): void => {
+      callback(payload.instanceId, payload.code)
     }
     ipcRenderer.on('pty-exit', handler)
     return () => ipcRenderer.removeListener('pty-exit', handler)
   },
+  // Settings
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   getProfilesUsage: () => ipcRenderer.invoke('get-profiles-usage'),
   getProfiles: () => ipcRenderer.invoke('get-profiles'),
