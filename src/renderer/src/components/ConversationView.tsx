@@ -1,31 +1,72 @@
-import { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo, forwardRef, memo } from 'react'
-import { createPortal } from 'react-dom'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import MessageNavigation from './MessageNavigation'
-import MessageContent from './MessageContent'
-import ToolResultCard from './ToolResultCard'
-import ToolInvocationBadge from './ToolInvocationBadge'
-import type { ToolResult, ToolUseBlock, Conversation, ConversationMessage, MessageMetadata, ExportFormat } from '../../../shared/types'
-
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useCallback,
+  useMemo,
+  forwardRef,
+  memo,
+} from "react";
+import { createPortal } from "react-dom";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import MessageNavigation from "./MessageNavigation";
+import MessageContent from "./MessageContent";
+import ToolResultCard from "./ToolResultCard";
+import ToolInvocationBadge from "./ToolInvocationBadge";
+import type {
+  ToolResult,
+  ToolUseBlock,
+  Conversation,
+  ConversationMessage,
+  MessageMetadata,
+  ExportFormat,
+  GitInfo,
+  CreateWorktreeResult,
+} from "../../../shared/types";
 
 interface ConversationViewProps {
-  conversation: Conversation
-  query: string
-  onContinueChat?: (projectPath: string, sessionId: string) => void
+  conversation: Conversation;
+  query: string;
+  onContinueChat?: (projectPath: string, sessionId: string) => void;
+  gitInfo?: Record<string, GitInfo>;
+  onGoToRootProject?: (rootProjectPath: string) => void;
+  onCreateWorktree?: (
+    rootPath: string,
+    worktreePath: string,
+    branch: string,
+  ) => Promise<CreateWorktreeResult>;
 }
 
 export default function ConversationView({
   conversation,
   query,
-  onContinueChat
+  onContinueChat,
+  gitInfo,
+  onGoToRootProject,
+  onCreateWorktree,
 }: ConversationViewProps): JSX.Element {
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [showExportMenu, setShowExportMenu] = useState(false)
-  const [exportStatus, setExportStatus] = useState<string | null>(null)
-  const exportMenuRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Worktree creation form state
+  const [showWorktreeForm, setShowWorktreeForm] = useState(false);
+  const [wtBranch, setWtBranch] = useState("");
+  const [wtPath, setWtPath] = useState("");
+  const [wtError, setWtError] = useState<string | null>(null);
+  const [wtCreating, setWtCreating] = useState(false);
+  const [wtSuccess, setWtSuccess] = useState(false);
+
+  // Derive git info for current conversation
+  const currentGitInfo = gitInfo?.[conversation.projectPath];
+  const isWorktree = currentGitInfo?.type === "worktree";
+  const rootPath = currentGitInfo?.rootProjectPath;
+  const rootName = currentGitInfo?.rootProjectName;
 
   // Message navigation state
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
   // ─── Virtualizer ─────────────────────────────────────────────────
   const virtualizer = useVirtualizer({
@@ -33,177 +74,256 @@ export default function ConversationView({
     getScrollElement: () => scrollContainerRef.current,
     estimateSize: () => 120,
     overscan: 5,
-  })
+  });
 
   // Messages in chronological order: oldest first (top), newest last (bottom)
   const displayMessages = useMemo(
     () => conversation.messages,
-    [conversation.messages]
-  )
+    [conversation.messages],
+  );
 
   // When conversation changes: scroll to bottom (newest message) for chat-like UX
   useEffect(() => {
-    const lastIndex = conversation.messages.length - 1
-    if (lastIndex < 0) return
-    setCurrentMessageIndex(lastIndex)
+    const lastIndex = conversation.messages.length - 1;
+    if (lastIndex < 0) return;
+    setCurrentMessageIndex(lastIndex);
     // Double-raf: wait two paint cycles so the virtualizer can measure sizes
     // before we jump to the end (avoids landing mid-list with estimated sizes)
-    let raf1: number, raf2: number
+    let raf1: number, raf2: number;
     raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
-        virtualizer.scrollToIndex(lastIndex, { align: 'end' })
-      })
-    })
+        virtualizer.scrollToIndex(lastIndex, { align: "end" });
+      });
+    });
     return () => {
-      cancelAnimationFrame(raf1)
-      cancelAnimationFrame(raf2)
-    }
-  }, [conversation.id, conversation.messages.length, virtualizer])
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [conversation.id, conversation.messages.length, virtualizer]);
 
   // ─── In-chat search state ──────────────────────────────────────────
-  const [chatSearchOpen, setChatSearchOpen] = useState(false)
-  const [chatSearchQuery, setChatSearchQuery] = useState('')
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
-  const chatSearchInputRef = useRef<HTMLInputElement>(null)
+  const [chatSearchOpen, setChatSearchOpen] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const chatSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Compute which message indices match the in-chat search
   const chatSearchMatches = useMemo(() => {
-    if (!chatSearchQuery) return []
-    const lower = chatSearchQuery.toLowerCase()
-    const matches: number[] = []
+    if (!chatSearchQuery) return [];
+    const lower = chatSearchQuery.toLowerCase();
+    const matches: number[] = [];
     displayMessages.forEach((msg, i) => {
       if (msg.content.toLowerCase().includes(lower)) {
-        matches.push(i)
+        matches.push(i);
       }
-    })
-    return matches
-  }, [chatSearchQuery, displayMessages])
+    });
+    return matches;
+  }, [chatSearchQuery, displayMessages]);
 
   // The effective highlight query: local search takes priority over global
-  const effectiveQuery = chatSearchOpen && chatSearchQuery ? chatSearchQuery : query
+  const effectiveQuery =
+    chatSearchOpen && chatSearchQuery ? chatSearchQuery : query;
 
   // Reset current match when matches change
   useEffect(() => {
-    setCurrentMatchIndex(0)
-  }, [chatSearchMatches.length])
+    setCurrentMatchIndex(0);
+  }, [chatSearchMatches.length]);
 
   // Scroll to current match
   useEffect(() => {
-    if (chatSearchMatches.length === 0) return
-    const msgIndex = chatSearchMatches[currentMatchIndex]
-    if (msgIndex === undefined) return
-    virtualizer.scrollToIndex(msgIndex, { align: 'center' })
-    setCurrentMessageIndex(msgIndex)
-  }, [currentMatchIndex, chatSearchMatches, virtualizer])
+    if (chatSearchMatches.length === 0) return;
+    const msgIndex = chatSearchMatches[currentMatchIndex];
+    if (msgIndex === undefined) return;
+    virtualizer.scrollToIndex(msgIndex, { align: "center" });
+    setCurrentMessageIndex(msgIndex);
+  }, [currentMatchIndex, chatSearchMatches, virtualizer]);
 
   const handleChatSearchNext = useCallback(() => {
-    if (chatSearchMatches.length === 0) return
-    setCurrentMatchIndex((prev) => (prev + 1) % chatSearchMatches.length)
-  }, [chatSearchMatches.length])
+    if (chatSearchMatches.length === 0) return;
+    setCurrentMatchIndex((prev) => (prev + 1) % chatSearchMatches.length);
+  }, [chatSearchMatches.length]);
 
   const handleChatSearchPrev = useCallback(() => {
-    if (chatSearchMatches.length === 0) return
-    setCurrentMatchIndex((prev) => (prev - 1 + chatSearchMatches.length) % chatSearchMatches.length)
-  }, [chatSearchMatches.length])
+    if (chatSearchMatches.length === 0) return;
+    setCurrentMatchIndex(
+      (prev) =>
+        (prev - 1 + chatSearchMatches.length) % chatSearchMatches.length,
+    );
+  }, [chatSearchMatches.length]);
 
   const closeChatSearch = useCallback(() => {
-    setChatSearchOpen(false)
-    setChatSearchQuery('')
-    setCurrentMatchIndex(0)
-  }, [])
+    setChatSearchOpen(false);
+    setChatSearchQuery("");
+    setCurrentMatchIndex(0);
+  }, []);
 
-  // Reset in-chat search when conversation changes
+  // Reset in-chat search and worktree form when conversation changes
   useEffect(() => {
-    closeChatSearch()
-  }, [conversation.id, closeChatSearch])
+    closeChatSearch();
+    setShowWorktreeForm(false);
+    setWtBranch("");
+    setWtPath("");
+    setWtError(null);
+    setWtCreating(false);
+    setWtSuccess(false);
+  }, [conversation.id, closeChatSearch]);
 
   // Keyboard shortcut: Cmd+F to open in-chat search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'f') {
-        e.preventDefault()
-        setChatSearchOpen(true)
-        setTimeout(() => chatSearchInputRef.current?.focus(), 0)
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === "f") {
+        e.preventDefault();
+        setChatSearchOpen(true);
+        setTimeout(() => chatSearchInputRef.current?.focus(), 0);
       }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // ─── Worktree form helpers ─────────────────────────────────────────
+
+  // Auto-fill path as branch name changes
+  useEffect(() => {
+    if (showWorktreeForm && rootPath && wtBranch) {
+      const parent = rootPath.replace(/\/[^/]+$/, "");
+      setWtPath(`${parent}/worktrees/${wtBranch}`);
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [wtBranch, showWorktreeForm, rootPath]);
+
+  const handleOpenWorktreeForm = useCallback(() => {
+    setShowWorktreeForm(true);
+    setWtBranch("");
+    setWtPath("");
+    setWtError(null);
+    setWtSuccess(false);
+  }, []);
+
+  const handleSubmitWorktree = useCallback(async () => {
+    if (!onCreateWorktree || !rootPath || !wtBranch.trim() || !wtPath.trim())
+      return;
+    setWtCreating(true);
+    setWtError(null);
+    try {
+      const result = await onCreateWorktree(
+        rootPath,
+        wtPath.trim(),
+        wtBranch.trim(),
+      );
+      if (result.success) {
+        setWtSuccess(true);
+        setTimeout(() => {
+          setShowWorktreeForm(false);
+          setWtSuccess(false);
+        }, 2000);
+      } else {
+        setWtError(result.error || "Failed to create worktree");
+      }
+    } catch (err) {
+      setWtError(String(err));
+    } finally {
+      setWtCreating(false);
+    }
+  }, [onCreateWorktree, rootPath, wtBranch, wtPath]);
 
   // ─── Message navigation ────────────────────────────────────────────
 
-  const scrollToMessage = useCallback((index: number) => {
-    virtualizer.scrollToIndex(index, { align: 'center' })
-    setCurrentMessageIndex(index)
-  }, [virtualizer])
+  const scrollToMessage = useCallback(
+    (index: number) => {
+      virtualizer.scrollToIndex(index, { align: "center" });
+      setCurrentMessageIndex(index);
+    },
+    [virtualizer],
+  );
 
-  const handleNavigate = useCallback((index: number) => {
-    scrollToMessage(index)
-  }, [scrollToMessage])
+  const handleNavigate = useCallback(
+    (index: number) => {
+      scrollToMessage(index);
+    },
+    [scrollToMessage],
+  );
 
   const handleJumpToFirst = useCallback(() => {
     // Jump to oldest message (top)
-    virtualizer.scrollToIndex(0, { align: 'start' })
-    setCurrentMessageIndex(0)
-  }, [virtualizer])
+    virtualizer.scrollToIndex(0, { align: "start" });
+    setCurrentMessageIndex(0);
+  }, [virtualizer]);
 
   const handleJumpToLast = useCallback(() => {
     // Jump to newest message (bottom)
-    const lastIndex = conversation.messages.length - 1
-    virtualizer.scrollToIndex(lastIndex, { align: 'end' })
-    setCurrentMessageIndex(lastIndex)
-  }, [conversation.messages.length, virtualizer])
+    const lastIndex = conversation.messages.length - 1;
+    virtualizer.scrollToIndex(lastIndex, { align: "end" });
+    setCurrentMessageIndex(lastIndex);
+  }, [conversation.messages.length, virtualizer]);
 
   // Keyboard navigation (only when chat search is NOT focused)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (chatSearchOpen && document.activeElement === chatSearchInputRef.current) return
+      if (
+        chatSearchOpen &&
+        document.activeElement === chatSearchInputRef.current
+      )
+        return;
 
-      if (e.key === 'ArrowUp' && currentMessageIndex > 0) {
-        e.preventDefault()
-        scrollToMessage(currentMessageIndex - 1)
-      } else if (e.key === 'ArrowDown' && currentMessageIndex < conversation.messages.length - 1) {
-        e.preventDefault()
-        scrollToMessage(currentMessageIndex + 1)
+      if (e.key === "ArrowUp" && currentMessageIndex > 0) {
+        e.preventDefault();
+        scrollToMessage(currentMessageIndex - 1);
+      } else if (
+        e.key === "ArrowDown" &&
+        currentMessageIndex < conversation.messages.length - 1
+      ) {
+        e.preventDefault();
+        scrollToMessage(currentMessageIndex + 1);
       }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentMessageIndex, conversation.messages.length, scrollToMessage, chatSearchOpen])
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    currentMessageIndex,
+    conversation.messages.length,
+    scrollToMessage,
+    chatSearchOpen,
+  ]);
 
   // Close export menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent): void {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-        setShowExportMenu(false)
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowExportMenu(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleExport = async (format: ExportFormat): Promise<void> => {
-    setShowExportMenu(false)
-    setExportStatus('Exporting...')
+    setShowExportMenu(false);
+    setExportStatus("Exporting...");
 
     try {
-      const result = await window.electronAPI.exportConversation(conversation.id, format)
+      const result = await window.electronAPI.exportConversation(
+        conversation.id,
+        format,
+      );
       if (result.success) {
-        setExportStatus('Exported!')
-        setTimeout(() => setExportStatus(null), 2000)
+        setExportStatus("Exported!");
+        setTimeout(() => setExportStatus(null), 2000);
       } else if (result.canceled) {
-        setExportStatus(null)
+        setExportStatus(null);
       } else {
-        setExportStatus('Export failed')
-        setTimeout(() => setExportStatus(null), 3000)
+        setExportStatus("Export failed");
+        setTimeout(() => setExportStatus(null), 3000);
       }
     } catch {
-      setExportStatus('Export failed')
-      setTimeout(() => setExportStatus(null), 3000)
+      setExportStatus("Export failed");
+      setTimeout(() => setExportStatus(null), 3000);
     }
-  }
+  };
 
-  const virtualItems = virtualizer.getVirtualItems()
+  const virtualItems = virtualizer.getVirtualItems();
 
   return (
     <div className="flex flex-col h-full">
@@ -211,9 +331,13 @@ export default function ConversationView({
       <div className="p-4 border-b border-neutral-800 bg-claude-dark">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-medium text-claude-orange">{conversation.projectName}</h2>
+            <h2 className="text-sm font-medium text-claude-orange">
+              {conversation.projectName}
+            </h2>
             {conversation.sessionName && (
-              <p className="text-xs text-neutral-400 mt-1">{conversation.sessionName}</p>
+              <p className="text-xs text-neutral-400 mt-1">
+                {conversation.sessionName}
+              </p>
             )}
             <p className="text-xs text-neutral-500 mt-1 font-mono truncate max-w-xl">
               {conversation.sessionId}
@@ -223,34 +347,101 @@ export default function ConversationView({
             {/* Continue Chat */}
             {onContinueChat && (
               <button
-                onClick={() => onContinueChat(conversation.projectPath, conversation.sessionId)}
+                onClick={() =>
+                  onContinueChat(
+                    conversation.projectPath,
+                    conversation.sessionId,
+                  )
+                }
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-md transition-colors"
                 title="Continue this conversation in a live terminal"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
                 </svg>
                 Continue Chat
               </button>
+            )}
+
+            {/* Worktree navigation — only for worktree conversations */}
+            {isWorktree && rootPath && (
+              <>
+                <button
+                  onClick={() => onGoToRootProject?.(rootPath)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
+                  title={`Go to root project: ${rootName}`}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"
+                    />
+                  </svg>
+                  Root
+                </button>
+                <button
+                  onClick={handleOpenWorktreeForm}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
+                  title="Create a new worktree"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Worktree
+                </button>
+              </>
             )}
 
             {/* In-chat Search Toggle */}
             <button
               onClick={() => {
                 if (chatSearchOpen) {
-                  closeChatSearch()
+                  closeChatSearch();
                 } else {
-                  setChatSearchOpen(true)
-                  setTimeout(() => chatSearchInputRef.current?.focus(), 0)
+                  setChatSearchOpen(true);
+                  setTimeout(() => chatSearchInputRef.current?.focus(), 0);
                 }
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${chatSearchOpen
-                ? 'text-claude-orange bg-claude-orange/10 border-claude-orange/40'
-                : 'text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border-neutral-700'
-                }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${
+                chatSearchOpen
+                  ? "text-claude-orange bg-claude-orange/10 border-claude-orange/40"
+                  : "text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+              }`}
               title="Search in chat (⌘F)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -280,25 +471,25 @@ export default function ConversationView({
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
                   />
                 </svg>
-                {exportStatus || 'Export'}
+                {exportStatus || "Export"}
               </button>
 
               {showExportMenu && (
                 <div className="absolute right-0 mt-1 w-40 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg z-10">
                   <button
-                    onClick={() => handleExport('markdown')}
+                    onClick={() => handleExport("markdown")}
                     className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700 rounded-t-md"
                   >
                     Markdown (.md)
                   </button>
                   <button
-                    onClick={() => handleExport('json')}
+                    onClick={() => handleExport("json")}
                     className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700"
                   >
                     JSON (.json)
                   </button>
                   <button
-                    onClick={() => handleExport('text')}
+                    onClick={() => handleExport("text")}
                     className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700 rounded-b-md"
                   >
                     Plain Text (.txt)
@@ -331,18 +522,101 @@ export default function ConversationView({
           value={chatSearchQuery}
           onChange={setChatSearchQuery}
           matchCount={chatSearchMatches.length}
-          currentMatch={chatSearchMatches.length > 0 ? currentMatchIndex + 1 : 0}
+          currentMatch={
+            chatSearchMatches.length > 0 ? currentMatchIndex + 1 : 0
+          }
           onNext={handleChatSearchNext}
           onPrev={handleChatSearchPrev}
           onClose={closeChatSearch}
         />
       )}
 
+      {/* Worktree Creation Form */}
+      {showWorktreeForm && isWorktree && rootPath && (
+        <div className="px-4 py-3 bg-neutral-900/90 border-b border-neutral-700 backdrop-blur-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-neutral-300">
+              New Worktree from{" "}
+              <span className="text-claude-orange">{rootName}</span>
+            </span>
+            <button
+              onClick={() => setShowWorktreeForm(false)}
+              className="p-1 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded transition-colors"
+              title="Cancel"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-[10px] text-neutral-500 mb-1">
+                Branch name
+              </label>
+              <input
+                type="text"
+                value={wtBranch}
+                onChange={(e) => setWtBranch(e.target.value)}
+                placeholder="feature/my-branch"
+                className="w-full px-2 py-1.5 text-xs bg-neutral-800 border border-neutral-700 rounded text-neutral-200 placeholder-neutral-500 outline-none focus:border-claude-orange/50"
+                autoFocus
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[10px] text-neutral-500 mb-1">
+                Path
+              </label>
+              <input
+                type="text"
+                value={wtPath}
+                onChange={(e) => setWtPath(e.target.value)}
+                placeholder="Worktree path"
+                className="w-full px-2 py-1.5 text-xs bg-neutral-800 border border-neutral-700 rounded text-neutral-200 placeholder-neutral-500 outline-none focus:border-claude-orange/50 font-mono"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSubmitWorktree}
+              disabled={!wtBranch.trim() || !wtPath.trim() || wtCreating}
+              className="px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {wtCreating ? "Creating..." : wtSuccess ? "Created!" : "Create"}
+            </button>
+            <button
+              onClick={() => setShowWorktreeForm(false)}
+              className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+            >
+              Cancel
+            </button>
+            {wtError && (
+              <span className="text-xs text-red-400 truncate">{wtError}</span>
+            )}
+            {wtSuccess && (
+              <span className="text-xs text-green-400">
+                Worktree created successfully
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Virtualized Messages */}
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto"
-        style={{ contain: 'strict' }}
+        style={{ contain: "strict" }}
       >
         <div
           className="relative w-full"
@@ -350,7 +624,9 @@ export default function ConversationView({
         >
           <div
             className="absolute top-0 left-0 w-full"
-            style={{ transform: `translateY(${virtualItems[0]?.start ?? 0}px)` }}
+            style={{
+              transform: `translateY(${virtualItems[0]?.start ?? 0}px)`,
+            }}
           >
             {virtualItems.map((virtualRow) => (
               <div
@@ -371,39 +647,52 @@ export default function ConversationView({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // ─── In-Chat Search Bar ────────────────────────────────────────────────
 
 interface ChatSearchBarProps {
-  value: string
-  onChange: (value: string) => void
-  matchCount: number
-  currentMatch: number
-  onNext: () => void
-  onPrev: () => void
-  onClose: () => void
+  value: string;
+  onChange: (value: string) => void;
+  matchCount: number;
+  currentMatch: number;
+  onNext: () => void;
+  onPrev: () => void;
+  onClose: () => void;
 }
 
 const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
-  ({ value, onChange, matchCount, currentMatch, onNext, onPrev, onClose }, ref) => {
+  (
+    { value, onChange, matchCount, currentMatch, onNext, onPrev, onClose },
+    ref,
+  ) => {
     const handleKeyDown = (e: React.KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        onClose()
-      } else if (e.key === 'Enter') {
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "Enter") {
         if (e.shiftKey) {
-          onPrev()
+          onPrev();
         } else {
-          onNext()
+          onNext();
         }
       }
-    }
+    };
 
     return (
       <div className="flex items-center gap-2 px-4 py-2 bg-neutral-900/90 border-b border-neutral-700 backdrop-blur-sm">
-        <svg className="w-4 h-4 text-neutral-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <svg
+          className="w-4 h-4 text-neutral-500 shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
 
         <input
@@ -420,11 +709,11 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
           <span className="text-xs text-neutral-500 shrink-0 tabular-nums">
             {matchCount > 0 ? (
               <>
-                <span className="text-neutral-300">{currentMatch}</span> of{' '}
+                <span className="text-neutral-300">{currentMatch}</span> of{" "}
                 <span className="text-neutral-300">{matchCount}</span>
               </>
             ) : (
-              'No matches'
+              "No matches"
             )}
           </span>
         )}
@@ -437,8 +726,18 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
             title="Previous match (Shift+Enter)"
             aria-label="Previous match"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 15l7-7 7 7"
+              />
             </svg>
           </button>
           <button
@@ -448,8 +747,18 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
             title="Next match (Enter)"
             aria-label="Next match"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </button>
         </div>
@@ -460,82 +769,106 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
           title="Close (Esc)"
           aria-label="Close search"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
-    )
-  }
-)
+    );
+  },
+);
 
 // ─── Message Bubble (memoized to avoid re-renders during scroll) ────
 
 interface MessageBubbleProps {
-  message: ConversationMessage
-  query: string
-  filePath: string
-  isCurrentMessage?: boolean
+  message: ConversationMessage;
+  query: string;
+  filePath: string;
+  isCurrentMessage?: boolean;
 }
 
 const MessageBubble = memo(function MessageBubble({
   message,
   query,
   filePath,
-  isCurrentMessage = false
+  isCurrentMessage = false,
 }: MessageBubbleProps) {
-  const isUser = message.type === 'user'
-  const isToolResult = message.isToolResult
-  const hasToolResults = message.metadata?.toolResults && message.metadata.toolResults.length > 0
-  const hasToolUseBlocks = message.metadata?.toolUseBlocks && message.metadata.toolUseBlocks.length > 0
-  const [copied, setCopied] = useState(false)
-  const [showInfo, setShowInfo] = useState(false)
-  const infoBtnRef = useRef<HTMLButtonElement>(null)
+  const isUser = message.type === "user";
+  const isToolResult = message.isToolResult;
+  const hasToolResults =
+    message.metadata?.toolResults && message.metadata.toolResults.length > 0;
+  const hasToolUseBlocks =
+    message.metadata?.toolUseBlocks &&
+    message.metadata.toolUseBlocks.length > 0;
+  const [copied, setCopied] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const infoBtnRef = useRef<HTMLButtonElement>(null);
 
   // Determine bubble style based on message type
-  let bubbleClass: string
-  let labelText: string
-  let labelClass: string
-  let btnClass: string
+  let bubbleClass: string;
+  let labelText: string;
+  let labelClass: string;
+  let btnClass: string;
 
   if (isToolResult) {
     // Tool result: neutral dashed border
-    bubbleClass = 'bg-neutral-900/50 text-neutral-300 border border-dashed border-neutral-700/50'
-    labelText = 'Tool Result'
-    labelClass = 'text-neutral-500'
-    btnClass = 'inline-flex items-center justify-center rounded-md border border-neutral-700 text-neutral-400 hover:bg-neutral-700 px-2 py-1 transition-colors'
+    bubbleClass =
+      "bg-neutral-900/50 text-neutral-300 border border-dashed border-neutral-700/50";
+    labelText = "Tool Result";
+    labelClass = "text-neutral-500";
+    btnClass =
+      "inline-flex items-center justify-center rounded-md border border-neutral-700 text-neutral-400 hover:bg-neutral-700 px-2 py-1 transition-colors";
   } else if (isUser) {
-    bubbleClass = 'bg-claude-orange/20 text-neutral-200 border border-claude-orange/30'
-    labelText = 'You'
-    labelClass = 'text-claude-orange'
-    btnClass = `inline-flex items-center justify-center rounded-md border transition-colors border-claude-orange/30 text-claude-orange hover:bg-claude-orange/20 px-2 py-1`
+    bubbleClass =
+      "bg-claude-orange/20 text-neutral-200 border border-claude-orange/30";
+    labelText = "You";
+    labelClass = "text-claude-orange";
+    btnClass = `inline-flex items-center justify-center rounded-md border transition-colors border-claude-orange/30 text-claude-orange hover:bg-claude-orange/20 px-2 py-1`;
   } else {
-    bubbleClass = 'bg-neutral-800 text-neutral-300 border border-neutral-700'
-    labelText = 'Claude'
-    labelClass = 'text-neutral-400'
-    btnClass = `inline-flex items-center justify-center rounded-md border transition-colors border-neutral-700 text-neutral-400 hover:bg-neutral-700 px-2 py-1`
+    bubbleClass = "bg-neutral-800 text-neutral-300 border border-neutral-700";
+    labelText = "Claude";
+    labelClass = "text-neutral-400";
+    btnClass = `inline-flex items-center justify-center rounded-md border transition-colors border-neutral-700 text-neutral-400 hover:bg-neutral-700 px-2 py-1`;
   }
 
   // Tool result messages are centered, not right-aligned
-  const alignClass = isToolResult ? 'justify-center' : (isUser ? 'justify-end' : 'justify-start')
+  const alignClass = isToolResult
+    ? "justify-center"
+    : isUser
+      ? "justify-end"
+      : "justify-start";
 
   return (
     <div className={`flex ${alignClass}`}>
       <div
-        className={`max-w-[85%] rounded-lg px-4 py-3 transition-all ${bubbleClass} ${isCurrentMessage ? 'ring-2 ring-claude-orange/50' : ''}`}
+        className={`max-w-[85%] rounded-lg px-4 py-3 transition-all ${bubbleClass} ${isCurrentMessage ? "ring-2 ring-claude-orange/50" : ""}`}
       >
         <div className="flex items-center gap-2 mb-2">
           <span className={`text-xs font-medium ${labelClass}`}>
             {labelText}
           </span>
           {message.timestamp && (
-            <span className="text-xs text-neutral-500">{formatTime(message.timestamp)}</span>
-          )}
-          {!isToolResult && message.metadata?.toolUses && message.metadata.toolUses.length > 0 && (
-            <span className="text-[10px] font-mono text-neutral-500 bg-neutral-900 px-1.5 py-0.5 rounded">
-              {message.metadata.toolUses.join(', ')}
+            <span className="text-xs text-neutral-500">
+              {formatTime(message.timestamp)}
             </span>
           )}
+          {!isToolResult &&
+            message.metadata?.toolUses &&
+            message.metadata.toolUses.length > 0 && (
+              <span className="text-[10px] font-mono text-neutral-500 bg-neutral-900 px-1.5 py-0.5 rounded">
+                {message.metadata.toolUses.join(", ")}
+              </span>
+            )}
           <div className="ml-auto flex items-center gap-1">
             <button
               ref={infoBtnRef}
@@ -544,9 +877,19 @@ const MessageBubble = memo(function MessageBubble({
               onClick={() => setShowInfo(!showInfo)}
               className={btnClass}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="w-3.5 h-3.5"
+              >
                 <circle cx="12" cy="12" r="10" strokeWidth="2" />
-                <path strokeLinecap="round" strokeWidth="2" d="M12 16v-4m0-4h.01" />
+                <path
+                  strokeLinecap="round"
+                  strokeWidth="2"
+                  d="M12 16v-4m0-4h.01"
+                />
               </svg>
             </button>
             {showInfo && (
@@ -562,13 +905,13 @@ const MessageBubble = memo(function MessageBubble({
             )}
             <button
               type="button"
-              aria-label={copied ? 'Copied' : 'Copy message'}
-              title={copied ? 'Copied!' : 'Copy message'}
+              aria-label={copied ? "Copied" : "Copy message"}
+              title={copied ? "Copied!" : "Copy message"}
               onClick={async () => {
                 try {
-                  await navigator.clipboard.writeText(message.content)
-                  setCopied(true)
-                  setTimeout(() => setCopied(false), 1500)
+                  await navigator.clipboard.writeText(message.content);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
                 } catch {
                   // no-op
                 }
@@ -576,13 +919,46 @@ const MessageBubble = memo(function MessageBubble({
               className={btnClass}
             >
               {copied ? (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  className="w-3.5 h-3.5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
-                  <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  className="w-3.5 h-3.5"
+                >
+                  <rect
+                    x="9"
+                    y="9"
+                    width="13"
+                    height="13"
+                    rx="2"
+                    ry="2"
+                    strokeWidth="2"
+                  />
+                  <rect
+                    x="3"
+                    y="3"
+                    width="13"
+                    height="13"
+                    rx="2"
+                    ry="2"
+                    strokeWidth="2"
+                  />
                 </svg>
               )}
             </button>
@@ -603,104 +979,162 @@ const MessageBubble = memo(function MessageBubble({
         )}
       </div>
     </div>
-  )
-})
-
+  );
+});
 
 interface MetadataTooltipProps {
-  metadata?: MessageMetadata
-  isUser: boolean
-  filePath: string
-  lineNumber?: number
-  uuid?: string
-  anchorRef: React.RefObject<HTMLButtonElement | null>
-  onClose: () => void
+  metadata?: MessageMetadata;
+  isUser: boolean;
+  filePath: string;
+  lineNumber?: number;
+  uuid?: string;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
 }
 
-function MetadataTooltip({ metadata, isUser, filePath, lineNumber, uuid, anchorRef, onClose }: MetadataTooltipProps): JSX.Element | null {
-  const totalTokens = (metadata?.inputTokens || 0) + (metadata?.outputTokens || 0)
-  const [copiedPath, setCopiedPath] = useState(false)
-  const [copiedUuid, setCopiedUuid] = useState(false)
-  const tooltipRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+function MetadataTooltip({
+  metadata,
+  isUser,
+  filePath,
+  lineNumber,
+  uuid,
+  anchorRef,
+  onClose,
+}: MetadataTooltipProps): JSX.Element | null {
+  const totalTokens =
+    (metadata?.inputTokens || 0) + (metadata?.outputTokens || 0);
+  const [copiedPath, setCopiedPath] = useState(false);
+  const [copiedUuid, setCopiedUuid] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   // Position the tooltip relative to the anchor button
   useLayoutEffect(() => {
-    if (!anchorRef.current || !tooltipRef.current) return
-    const anchor = anchorRef.current.getBoundingClientRect()
-    const tooltip = tooltipRef.current.getBoundingClientRect()
-    const pad = 8
+    if (!anchorRef.current || !tooltipRef.current) return;
+    const anchor = anchorRef.current.getBoundingClientRect();
+    const tooltip = tooltipRef.current.getBoundingClientRect();
+    const pad = 8;
 
     // Vertical: prefer above, flip below if not enough space
-    let top: number
+    let top: number;
     if (anchor.top - tooltip.height - pad >= 0) {
-      top = anchor.top - tooltip.height - pad
+      top = anchor.top - tooltip.height - pad;
     } else {
-      top = anchor.bottom + pad
+      top = anchor.bottom + pad;
     }
 
     // Horizontal: align right edge to anchor for user messages, left edge for assistant
-    let left: number
+    let left: number;
     if (isUser) {
-      left = Math.max(pad, anchor.right - tooltip.width)
+      left = Math.max(pad, anchor.right - tooltip.width);
     } else {
-      left = Math.min(anchor.left, window.innerWidth - tooltip.width - pad)
+      left = Math.min(anchor.left, window.innerWidth - tooltip.width - pad);
     }
 
-    setPos({ top, left })
-  }, [anchorRef, isUser])
+    setPos({ top, left });
+  }, [anchorRef, isUser]);
 
   // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent): void {
       if (
-        tooltipRef.current && !tooltipRef.current.contains(e.target as Node) &&
-        anchorRef.current && !anchorRef.current.contains(e.target as Node)
+        tooltipRef.current &&
+        !tooltipRef.current.contains(e.target as Node) &&
+        anchorRef.current &&
+        !anchorRef.current.contains(e.target as Node)
       ) {
-        onClose()
+        onClose();
       }
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [anchorRef, onClose])
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [anchorRef, onClose]);
 
   const handleCopyPath = async (): Promise<void> => {
     try {
-      const value = lineNumber ? `${filePath}:${lineNumber}` : filePath
-      await navigator.clipboard.writeText(value)
-      setCopiedPath(true)
-      setTimeout(() => setCopiedPath(false), 1500)
+      const value = lineNumber ? `${filePath}:${lineNumber}` : filePath;
+      await navigator.clipboard.writeText(value);
+      setCopiedPath(true);
+      setTimeout(() => setCopiedPath(false), 1500);
     } catch {
       // no-op
     }
-  }
+  };
 
   return createPortal(
     <div
       ref={tooltipRef}
       className="fixed w-80 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl p-3 text-xs"
-      style={pos ? { top: pos.top, left: pos.left, zIndex: 9999 } : { opacity: 0, pointerEvents: 'none', top: 0, left: 0, zIndex: 9999 }}
+      style={
+        pos
+          ? { top: pos.top, left: pos.left, zIndex: 9999 }
+          : { opacity: 0, pointerEvents: "none", top: 0, left: 0, zIndex: 9999 }
+      }
     >
       <div className="space-y-1.5 text-neutral-300">
         {/* File info */}
         <div className="flex items-start justify-between gap-2">
           <span className="text-neutral-500 shrink-0">File</span>
           <div className="flex items-center gap-1 min-w-0">
-            <span className="font-mono truncate text-right text-[10px]" title={filePath}>{filePath}</span>
+            <span
+              className="font-mono truncate text-right text-[10px]"
+              title={filePath}
+            >
+              {filePath}
+            </span>
             <button
               type="button"
               onClick={handleCopyPath}
               className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
-              title={copiedPath ? 'Copied!' : (lineNumber ? `${filePath}:${lineNumber}` : filePath)}
+              title={
+                copiedPath
+                  ? "Copied!"
+                  : lineNumber
+                    ? `${filePath}:${lineNumber}`
+                    : filePath
+              }
             >
               {copiedPath ? (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  className="w-3 h-3"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
-                  <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  className="w-3 h-3"
+                >
+                  <rect
+                    x="9"
+                    y="9"
+                    width="13"
+                    height="13"
+                    rx="2"
+                    ry="2"
+                    strokeWidth="2"
+                  />
+                  <rect
+                    x="3"
+                    y="3"
+                    width="13"
+                    height="13"
+                    rx="2"
+                    ry="2"
+                    strokeWidth="2"
+                  />
                 </svg>
               )}
             </button>
@@ -711,29 +1145,67 @@ function MetadataTooltip({ metadata, isUser, filePath, lineNumber, uuid, anchorR
           <div className="flex items-center justify-between gap-2">
             <span className="text-neutral-500">ID</span>
             <div className="flex items-center gap-1 min-w-0">
-              <span className="font-mono truncate text-right text-[10px]" title={uuid}>
+              <span
+                className="font-mono truncate text-right text-[10px]"
+                title={uuid}
+              >
                 {uuid.slice(0, 8)}
               </span>
               <button
                 type="button"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(uuid)
-                    setCopiedUuid(true)
-                    setTimeout(() => setCopiedUuid(false), 1500)
-                  } catch { /* no-op */ }
+                    await navigator.clipboard.writeText(uuid);
+                    setCopiedUuid(true);
+                    setTimeout(() => setCopiedUuid(false), 1500);
+                  } catch {
+                    /* no-op */
+                  }
                 }}
                 className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
-                title={copiedUuid ? 'Copied!' : uuid}
+                title={copiedUuid ? "Copied!" : uuid}
               >
                 {copiedUuid ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    className="w-3 h-3"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
-                    <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    className="w-3 h-3"
+                  >
+                    <rect
+                      x="9"
+                      y="9"
+                      width="13"
+                      height="13"
+                      rx="2"
+                      ry="2"
+                      strokeWidth="2"
+                    />
+                    <rect
+                      x="3"
+                      y="3"
+                      width="13"
+                      height="13"
+                      rx="2"
+                      ry="2"
+                      strokeWidth="2"
+                    />
                   </svg>
                 )}
               </button>
@@ -744,55 +1216,94 @@ function MetadataTooltip({ metadata, isUser, filePath, lineNumber, uuid, anchorR
         {/* Metadata section */}
         {metadata && (
           <>
-            {(metadata.model || metadata.gitBranch || metadata.stopReason !== undefined || metadata.version || (metadata.toolUses && metadata.toolUses.length > 0)) && (
+            {(metadata.model ||
+              metadata.gitBranch ||
+              metadata.stopReason !== undefined ||
+              metadata.version ||
+              (metadata.toolUses && metadata.toolUses.length > 0)) && (
               <div className="border-t border-neutral-700 my-1.5" />
             )}
             {metadata.model && <Row label="Model" value={metadata.model} />}
-            {metadata.gitBranch && <Row label="Branch" value={metadata.gitBranch} />}
-            {metadata.stopReason !== undefined && <Row label="Stop" value={metadata.stopReason ?? 'streaming'} />}
-            {metadata.version && <Row label="Version" value={metadata.version} />}
-            {metadata.toolUses && metadata.toolUses.length > 0 && <Row label="Tools" value={metadata.toolUses.join(', ')} />}
+            {metadata.gitBranch && (
+              <Row label="Branch" value={metadata.gitBranch} />
+            )}
+            {metadata.stopReason !== undefined && (
+              <Row label="Stop" value={metadata.stopReason ?? "streaming"} />
+            )}
+            {metadata.version && (
+              <Row label="Version" value={metadata.version} />
+            )}
+            {metadata.toolUses && metadata.toolUses.length > 0 && (
+              <Row label="Tools" value={metadata.toolUses.join(", ")} />
+            )}
             {totalTokens > 0 && (
               <>
                 <div className="border-t border-neutral-700 my-1.5" />
                 <div className="text-neutral-400 font-medium mb-1">Tokens</div>
-                {metadata.inputTokens !== undefined && <Row label="Input" value={metadata.inputTokens.toLocaleString()} />}
-                {metadata.outputTokens !== undefined && <Row label="Output" value={metadata.outputTokens.toLocaleString()} />}
-                {metadata.cacheReadTokens !== undefined && metadata.cacheReadTokens > 0 && <Row label="Cache read" value={metadata.cacheReadTokens.toLocaleString()} />}
-                {metadata.cacheCreationTokens !== undefined && metadata.cacheCreationTokens > 0 && <Row label="Cache create" value={metadata.cacheCreationTokens.toLocaleString()} />}
+                {metadata.inputTokens !== undefined && (
+                  <Row
+                    label="Input"
+                    value={metadata.inputTokens.toLocaleString()}
+                  />
+                )}
+                {metadata.outputTokens !== undefined && (
+                  <Row
+                    label="Output"
+                    value={metadata.outputTokens.toLocaleString()}
+                  />
+                )}
+                {metadata.cacheReadTokens !== undefined &&
+                  metadata.cacheReadTokens > 0 && (
+                    <Row
+                      label="Cache read"
+                      value={metadata.cacheReadTokens.toLocaleString()}
+                    />
+                  )}
+                {metadata.cacheCreationTokens !== undefined &&
+                  metadata.cacheCreationTokens > 0 && (
+                    <Row
+                      label="Cache create"
+                      value={metadata.cacheCreationTokens.toLocaleString()}
+                    />
+                  )}
               </>
             )}
           </>
         )}
       </div>
     </div>,
-    document.body
-  )
+    document.body,
+  );
 }
 
-function Row({ label, value }: { label: string; value: string | number }): JSX.Element {
+function Row({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}): JSX.Element {
   return (
     <div className="flex justify-between gap-2">
       <span className="text-neutral-500">{label}</span>
       <span className="font-mono truncate text-right">{value}</span>
     </div>
-  )
+  );
 }
-
 
 function formatFullDate(timestamp: string): string {
   return new Date(timestamp).toLocaleString([], {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatTime(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
