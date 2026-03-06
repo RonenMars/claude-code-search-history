@@ -328,16 +328,16 @@ function setupIpcHandlers(): void {
   // ─── PTY Handlers ──────────────────────────────────────────────────
 
   ipcMain.handle('pty-spawn', async (_event, options: PtySpawnOptions) => {
-    const settings = await loadSettings()
-    if (ptyManagers.size >= settings.maxChatInstances) {
-      return { success: false, error: 'limit' }
-    }
-
-    // Kill stale instance with same id if it exists
+    // Kill stale instance with same id if it exists (BEFORE limit check)
     const stale = ptyManagers.get(options.instanceId)
     if (stale) {
       stale.kill().catch(() => {})
       ptyManagers.delete(options.instanceId)
+    }
+
+    const settings = await loadSettings()
+    if (ptyManagers.size >= settings.maxChatInstances) {
+      return { success: false, error: 'limit' }
     }
 
     const manager = new PtyManager()
