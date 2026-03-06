@@ -206,13 +206,24 @@ export interface ProfilesConfig {
   profiles: Profile[]
 }
 
+export interface ProfileUsage {
+  conversations: number
+  lastUsed: string | null  // ISO timestamp, or null if no conversations
+  tokensThisMonth: number
+}
+
+export interface ProfilesUsage {
+  work: ProfileUsage
+  personal: ProfileUsage
+}
+
 // ─── PTY / Chat Types ────────────────────────────────────────────────
 
 export interface PtySpawnOptions {
   instanceId: string
   cwd: string
   resumeSessionId?: string
-  configDir?: string   // CLAUDE_CONFIG_DIR to set; omit for default ~/.claude
+  profile?: ClaudeProfile
 }
 
 export interface PtyStatus {
