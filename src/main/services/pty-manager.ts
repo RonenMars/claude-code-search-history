@@ -1,5 +1,5 @@
 import * as pty from 'node-pty'
-import { platform } from 'os'
+import { platform, homedir } from 'os'
 import type { PtySpawnOptions } from '../../shared/types'
 
 export class PtyManager {
@@ -40,16 +40,21 @@ export class PtyManager {
 
       this.killing = false
 
+      const spawnEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        // Unset CLAUDECODE to avoid "nested session" error
+        CLAUDECODE: ''
+      }
+      if (options.configDir) {
+        spawnEnv.CLAUDE_CONFIG_DIR = options.configDir.replace(/^~/, homedir())
+      }
+
       const proc = pty.spawn(shell, args, {
         name: 'xterm-256color',
         cols: 120,
         rows: 30,
         cwd: options.cwd,
-        env: {
-          ...process.env,
-          // Unset CLAUDECODE to avoid "nested session" error
-          CLAUDECODE: ''
-        }
+        env: spawnEnv
       })
 
       this.process = proc
@@ -78,7 +83,7 @@ export class PtyManager {
   }
 
   private buildClaudeCommand(options: PtySpawnOptions): string {
-    const parts = ['claude']
+    const parts = ['claude', '--dangerously-skip-permissions']
     if (options.resumeSessionId) {
       parts.push('--resume', options.resumeSessionId)
     }
