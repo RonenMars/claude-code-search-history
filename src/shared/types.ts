@@ -207,6 +207,7 @@ export interface ProfilesConfig {
 // ─── PTY / Chat Types ────────────────────────────────────────────────
 
 export interface PtySpawnOptions {
+  instanceId: string
   cwd: string
   resumeSessionId?: string
   configDir?: string   // CLAUDE_CONFIG_DIR to set; omit for default ~/.claude
@@ -215,4 +216,18 @@ export interface PtySpawnOptions {
 export interface PtyStatus {
   active: boolean
   pid?: number
+}
+
+export interface ChatInstance {
+  instanceId: string
+  cwd: string
+  profile: Profile | null
+  status: 'active' | 'exited'
+  exitCode: number | null
+  resumeSessionId?: string
+  isClaudeTyping: boolean
+}
+
+export interface AppSettings {
+  maxChatInstances: number
 }
