@@ -10,6 +10,8 @@ export interface ConversationMessage {
   isToolResult?: boolean
 }
 
+export type Account = string  // profile id, e.g. "default", "work", custom uuid
+
 export interface ConversationMeta {
   id: string
   filePath: string
@@ -22,6 +24,7 @@ export interface ConversationMeta {
   preview: string
   contentSnippet: string
   lastMessageSender: 'user' | 'assistant'
+  account: Account
 }
 
 export interface Conversation {
@@ -35,6 +38,7 @@ export interface Conversation {
   fullText: string
   timestamp: string
   messageCount: number
+  account: Account
 }
 
 export interface SearchResult {
@@ -48,6 +52,7 @@ export interface SearchResult {
   messageCount: number
   score: number
   lastMessageSender: 'user' | 'assistant'
+  account: Account
 }
 
 export type ExportFormat = 'markdown' | 'json' | 'text'
@@ -185,11 +190,26 @@ export interface MessageMetadata {
   toolResults?: ToolResult[]
 }
 
+// ─── Profile Types ───────────────────────────────────────────────────
+
+export interface Profile {
+  id: string        // stable slug or uuid, used as Account value
+  label: string     // display name, e.g. "Default", "Work"
+  emoji: string     // single emoji character
+  configDir: string // absolute or ~-prefixed path to CLAUDE_CONFIG_DIR
+  enabled: boolean  // soft-disable without deleting
+}
+
+export interface ProfilesConfig {
+  profiles: Profile[]
+}
+
 // ─── PTY / Chat Types ────────────────────────────────────────────────
 
 export interface PtySpawnOptions {
   cwd: string
-  resumeSessionId?: string  // pass to claude --resume <id>
+  resumeSessionId?: string
+  configDir?: string   // CLAUDE_CONFIG_DIR to set; omit for default ~/.claude
 }
 
 export interface PtyStatus {
