@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Backend & IPC Bridge
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: 6d1e4e5511c4ccd2d09af5e9c8b209c6a0b935a6
@@ -350,3 +350,4 @@ Manual validation (no automated test framework configured):
 
 - 2026-03-06T00:00:00Z – system – lane=planned – Prompt created.
 - 2026-03-06T21:48:23Z – claude – shell_pid=64026 – lane=doing – Assigned agent via workflow command
+- 2026-03-06T21:50:49Z – claude – shell_pid=64026 – lane=for_review – T001-T004 complete: Worktree type, execFileNoThrow util, get-worktrees IPC handler, preload bridge.
