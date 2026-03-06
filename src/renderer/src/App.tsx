@@ -244,10 +244,12 @@ export default function App(): JSX.Element {
     const conversation = await window.electronAPI.getLatestConversation(projectPath)
     if (conversation) {
       setSelectedConversation(conversation)
+      setRightPanel('conversation')
+    } else {
+      setRightPanel('empty')
     }
     setChatCwd(null)
     setActiveChatProfile(null)
-    // rightPanel will be set by handleSelectResult when conversation loads
   }, [refresh])
 
   const handleChatExit = useCallback((_code: number) => {
@@ -281,7 +283,15 @@ export default function App(): JSX.Element {
   const handleProfilesSaved = useCallback(async (updated: Profile[]) => {
     setProfiles(updated)
     await window.electronAPI.saveProfiles(updated)
-  }, [])
+    // Refresh project list and stats since index was rebuilt
+    const [projectList, statsData] = await Promise.all([
+      window.electronAPI.getProjects(),
+      window.electronAPI.getStats()
+    ])
+    setProjects(projectList)
+    setStats(statsData)
+    refresh()
+  }, [refresh])
 
   useEffect(() => {
     if (!chatCwd) {

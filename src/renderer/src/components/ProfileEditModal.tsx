@@ -5,6 +5,7 @@ const PRESET_EMOJIS = ['🤖', '💼', '🏠', '🎯', '🔬', '🎨', '⚡', '�
 
 interface ProfileEditModalProps {
   profile: Profile | null  // null = creating new
+  isOnlyEnabled?: boolean  // when true, disable the enabled toggle
   onSave: (profile: Profile) => void
   onCancel: () => void
 }
@@ -13,7 +14,7 @@ function generateId(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.random().toString(36).slice(2, 6)
 }
 
-export default function ProfileEditModal({ profile, onSave, onCancel }: ProfileEditModalProps): JSX.Element {
+export default function ProfileEditModal({ profile, isOnlyEnabled, onSave, onCancel }: ProfileEditModalProps): JSX.Element {
   const isNew = profile === null
   const [label, setLabel] = useState(profile?.label ?? '')
   const [emoji, setEmoji] = useState(profile?.emoji ?? '🤖')
@@ -101,16 +102,20 @@ export default function ProfileEditModal({ profile, onSave, onCancel }: ProfileE
         {/* Enabled toggle */}
         <div className="mb-6 flex items-center gap-3">
           <button
-            onClick={() => setEnabled((v) => !v)}
-            className={`w-9 h-5 rounded-full transition-colors ${enabled ? 'bg-claude-orange' : 'bg-neutral-700'}`}
+            onClick={() => !isOnlyEnabled && setEnabled((v) => !v)}
+            disabled={isOnlyEnabled}
+            className={`w-9 h-5 rounded-full transition-colors ${enabled ? 'bg-claude-orange' : 'bg-neutral-700'} ${isOnlyEnabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             role="switch"
             aria-checked={enabled}
+            title={isOnlyEnabled ? 'Cannot disable the only enabled profile' : undefined}
           >
             <span
               className={`block w-3 h-3 bg-white rounded-full m-1 transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`}
             />
           </button>
-          <span className="text-xs text-neutral-400">Profile enabled</span>
+          <span className="text-xs text-neutral-400">
+            Profile enabled{isOnlyEnabled ? ' (required — only active profile)' : ''}
+          </span>
         </div>
 
         {/* Actions */}

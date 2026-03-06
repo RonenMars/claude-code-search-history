@@ -29,6 +29,12 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
   const enabledCount = profiles.filter((p) => p.enabled).length
 
   const handleSaveEdit = async (updated: Profile): Promise<void> => {
+    // Prevent disabling the last enabled profile
+    const isCurrentlyEnabled = editingProfile !== 'new' && editingProfile?.enabled
+    const wouldDisable = isCurrentlyEnabled && !updated.enabled
+    const wouldBeZeroEnabled = wouldDisable && enabledCount <= 1
+    if (wouldBeZeroEnabled) return  // guard: silently ignore (button is disabled in modal via prop)
+
     setSaving(true)
     let next: Profile[]
     if (editingProfile === 'new') {
@@ -97,6 +103,7 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
       {editingProfile !== null && (
         <ProfileEditModal
           profile={editingProfile === 'new' ? null : editingProfile}
+          isOnlyEnabled={editingProfile !== 'new' && editingProfile !== null && enabledCount <= 1 && editingProfile.enabled}
           onSave={handleSaveEdit}
           onCancel={() => setEditingProfile(null)}
         />
