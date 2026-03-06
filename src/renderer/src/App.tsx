@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import ChatTerminal from './components/ChatTerminal'
 import { useSearch } from './hooks/useSearch'
 import ProfilePickerModal from './components/ProfilePickerModal'
+import SettingsModal from './components/SettingsModal'
 import ProfilesPanel from './components/ProfilesPanel'
 import ActiveChatList from './components/ActiveChatList'
 import type { Conversation, SortOption, DateRangeOption, Profile } from '../../shared/types'
@@ -33,6 +34,8 @@ export default function App(): JSX.Element {
   const [activeChatInstanceId, setActiveChatInstanceId] = useState<string | null>(null)
   const [appSettings, setAppSettings] = useState<AppSettings>({ maxChatInstances: 3 })
   const typingTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  const [showSettings, setShowSettings] = useState(false)
 
   // Profile picker state
   const [pendingChatConfig, setPendingChatConfig] = useState<{
@@ -301,6 +304,12 @@ export default function App(): JSX.Element {
     setRightPanel(selectedConversation ? 'conversation' : 'empty')
   }, [selectedConversation])
 
+  const handleSaveSettings = useCallback(async (partial: Partial<AppSettings>) => {
+    const updated = { ...appSettings, ...partial }
+    setAppSettings(updated)
+    await window.electronAPI.setSettings(partial)
+  }, [appSettings])
+
   const handleProfilesSaved = useCallback(async (updated: Profile[]) => {
     setProfiles(updated)
     await window.electronAPI.saveProfiles(updated)
@@ -331,6 +340,16 @@ export default function App(): JSX.Element {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Chat
+          </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="hover:text-neutral-300 transition-colors"
+            title="Settings"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           </button>
           <button
             onClick={handleOpenProfiles}
@@ -495,6 +514,13 @@ export default function App(): JSX.Element {
           profiles={profiles}
           onSelect={handleProfileSelected}
           onCancel={handleProfilePickerCancel}
+        />
+      )}
+      {showSettings && (
+        <SettingsModal
+          settings={appSettings}
+          onSave={handleSaveSettings}
+          onClose={() => setShowSettings(false)}
         />
       )}
     </div>
