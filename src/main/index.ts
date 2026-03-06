@@ -65,9 +65,23 @@ async function saveProfilesConfig(config: ProfilesConfig): Promise<void> {
 
 async function ensureProfilesExist(): Promise<ProfilesConfig> {
   try {
-    await readFile(getProfilesPath(), 'utf-8')
-    return loadProfilesConfig()
-  } catch {
+    const data = await readFile(getProfilesPath(), 'utf-8')
+    try {
+      const parsed = JSON.parse(data) as ProfilesConfig
+      if (Array.isArray(parsed.profiles) && parsed.profiles.length > 0) {
+        return parsed
+      }
+    } catch {
+      // Malformed JSON — persist corrected defaults
+    }
+    // File exists but is empty or malformed — rewrite with defaults
+    const defaults = { profiles: [DEFAULT_PROFILE] }
+    await saveProfilesConfig(defaults)
+    return defaults
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw err  // surface unexpected errors (permissions, etc.)
+    }
     // File doesn't exist — write defaults
     const defaults = { profiles: [DEFAULT_PROFILE] }
     await saveProfilesConfig(defaults)
@@ -336,15 +350,8 @@ function setupIpcHandlers(): void {
   ipcMain.handle('save-profiles', async (_event, profiles: Profile[]) => {
     const config: ProfilesConfig = { profiles }
     await saveProfilesConfig(config)
-    // Re-initialize scanner with updated profiles
     const enabledProfiles = profiles.filter((p) => p.enabled)
-    scanner = new ConversationScanner(enabledProfiles)
-    indexer = new SearchIndexer()
-    scanner.setProgressCallback((scanned, total) => {
-      mainWindow?.webContents.send('scan-progress', { scanned, total })
-    })
-    const metas = await scanner.scanAllMeta()
-    await indexer.buildIndex(metas)
+    await initializeSearch(enabledProfiles)
     mainWindow?.webContents.send('index-ready')
     return true
   })
