@@ -1,12 +1,13 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises'
-import { join } from 'path'
+import { join, basename } from 'path'
 import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ConversationScanner } from './services/scanner'
 import { SearchIndexer } from './services/indexer'
 import { PtyManager } from './services/pty-manager'
-import type { Conversation, PtySpawnOptions, Profile, ProfilesConfig, AppSettings } from '../shared/types'
+import type { Conversation, PtySpawnOptions, Profile, ProfilesConfig, AppSettings, Worktree } from '../shared/types'
+import { execFileNoThrow } from './utils/execFileNoThrow'
 
 let mainWindow: BrowserWindow | null = null
 let scanner: ConversationScanner | null = null
@@ -425,6 +426,65 @@ function setupIpcHandlers(): void {
     if (canceled || filePaths.length === 0) return null
     return filePaths[0]
   })
+
+  ipcMain.handle('get-worktrees', async (): Promise<Worktree[]> => {
+    if (!scanner) return []
+
+    const projectPaths = scanner.getProjects()
+
+    const results = await Promise.all(
+      projectPaths.map(async (projectPath) => {
+        const { stdout, code } = await execFileNoThrow(
+          'git',
+          ['worktree', 'list', '--porcelain'],
+          { cwd: projectPath }
+        )
+        if (code !== 0 || !stdout.trim()) return []
+        return parseWorktrees(stdout, projectPath)
+      })
+    )
+
+    const all = results.flat()
+
+    // Only surface projects that have at least one linked (non-main) worktree
+    const projectsWithLinked = new Set(
+      all.filter((w) => !w.isMain).map((w) => w.projectPath)
+    )
+
+    return all.filter((w) => projectsWithLinked.has(w.projectPath))
+  })
+}
+
+function parseWorktrees(stdout: string, projectPath: string): Worktree[] {
+  const blocks = stdout.trim().split(/\n\n+/)
+  const projectName = basename(projectPath)
+
+  return blocks
+    .map((block, index) => {
+      const lines = block.split('\n')
+      const get = (prefix: string): string =>
+        lines.find((l) => l.startsWith(prefix))?.slice(prefix.length).trim() ?? ''
+
+      const worktreePath = get('worktree ')
+      if (!worktreePath) return null
+
+      const head = get('HEAD ').slice(0, 7)
+      const rawBranch = get('branch ')
+      const isDetached = lines.some((l) => l === 'detached')
+      const branch = isDetached
+        ? '(detached)'
+        : rawBranch.replace(/^refs\/heads\//, '')
+
+      return {
+        path: worktreePath,
+        head,
+        branch,
+        isMain: index === 0,
+        projectPath,
+        projectName,
+      } satisfies Worktree
+    })
+    .filter((w): w is Worktree => w !== null)
 }
 
 function formatAsMarkdown(conversation: Conversation): string {

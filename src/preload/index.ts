@@ -10,10 +10,11 @@ import type {
   Profile,
   AppSettings,
   StatsGranularity,
-  PeriodStat
+  PeriodStat,
+  Worktree
 } from '../shared/types'
 
-export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, StatsGranularity, PeriodStat }
+export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, StatsGranularity, PeriodStat, Worktree }
 
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
@@ -43,6 +44,7 @@ export interface ElectronAPI {
   getProfilesUsage: () => Promise<Record<string, { conversations: number; lastUsed: string | null; tokensThisMonth: number }>>
   getProfiles: () => Promise<Profile[]>
   saveProfiles: (profiles: Profile[]) => Promise<boolean>
+  getWorktrees: () => Promise<Worktree[]>
 }
 
 const api: ElectronAPI = {
@@ -91,6 +93,7 @@ const api: ElectronAPI = {
   getProfilesUsage: () => ipcRenderer.invoke('get-profiles-usage'),
   getProfiles: () => ipcRenderer.invoke('get-profiles'),
   saveProfiles: (profiles) => ipcRenderer.invoke('save-profiles', profiles),
+  getWorktrees: () => ipcRenderer.invoke('get-worktrees'),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

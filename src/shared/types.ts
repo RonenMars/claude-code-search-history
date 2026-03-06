@@ -257,3 +257,14 @@ export interface ChatInstance {
 export interface AppSettings {
   maxChatInstances: number
 }
+
+// ─── Git Worktree Types ──────────────────────────────────────────────
+
+export interface Worktree {
+  path: string        // absolute path to the worktree directory
+  head: string        // short SHA (first 7 characters of HEAD commit)
+  branch: string      // display name: "feature-foo", "main", or "(detached)"
+  isMain: boolean     // true = main worktree (first in git output), false = linked
+  projectPath: string // absolute path of the main worktree (root project)
+  projectName: string // basename(projectPath) — used for display grouping
+}
