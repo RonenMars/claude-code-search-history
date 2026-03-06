@@ -1,18 +1,19 @@
 import { useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { ClaudeProfile, SearchResult } from '../../../shared/types'
+import type { ClaudeProfile, GitInfo, Profile, SearchResult } from '../../../shared/types'
 
 interface ResultsListProps {
   results: SearchResult[]
   selectedId: string | null
   onSelect: (id: string) => void
   query: string
+  gitInfo: Record<string, GitInfo>
   activeCwd: string | null
   activeChatSessionId: string | undefined
   isClaudeTyping: boolean
   activeChatProfile: ClaudeProfile | null
   accountFilter: string | null
-  onClearAccountFilter: () => void
+  profiles: Profile[]
 }
 
 export default function ResultsList({
@@ -20,13 +21,16 @@ export default function ResultsList({
   selectedId,
   onSelect,
   query,
+  gitInfo,
   activeCwd,
   activeChatSessionId,
   isClaudeTyping,
   activeChatProfile,
   accountFilter,
-  onClearAccountFilter
+  profiles
 }: ResultsListProps): JSX.Element {
+  const enabledProfiles = profiles.filter((p) => p.enabled)
+  const showProfileBadge = enabledProfiles.length > 1
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const filteredResults = accountFilter
@@ -52,17 +56,6 @@ export default function ResultsList({
 
   return (
     <div className="flex flex-col h-full">
-      {accountFilter && (
-        <div className="px-3 py-1.5 flex items-center gap-2 border-b border-neutral-800">
-          <span className="text-xs text-neutral-400">Filtered by profile</span>
-          <button
-            onClick={onClearAccountFilter}
-            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors underline"
-          >
-            Clear
-          </button>
-        </div>
-      )}
     <div ref={scrollContainerRef} className="h-full overflow-y-auto">
       <div
         className="relative w-full"
@@ -83,10 +76,12 @@ export default function ResultsList({
                 isSelected={filteredResults[virtualRow.index].id === selectedId}
                 onSelect={() => onSelect(filteredResults[virtualRow.index].id)}
                 query={query}
+                gitInfo={gitInfo}
                 activeCwd={activeCwd}
                 activeChatSessionId={activeChatSessionId}
                 isClaudeTyping={isClaudeTyping}
                 activeChatProfile={activeChatProfile}
+                profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === filteredResults[virtualRow.index].account) : undefined}
               />
             </div>
           ))}
@@ -102,13 +97,15 @@ interface ResultItemProps {
   isSelected: boolean
   onSelect: () => void
   query: string
+  gitInfo: Record<string, GitInfo>
   activeCwd: string | null
   activeChatSessionId: string | undefined
   isClaudeTyping: boolean
   activeChatProfile: ClaudeProfile | null
+  profileBadge: Profile | undefined
 }
 
-function ResultItem({ result, isSelected, onSelect, query, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile }: ResultItemProps): JSX.Element {
+function ResultItem({ result, isSelected, onSelect, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge }: ResultItemProps): JSX.Element {
   const highlightedPreview = useMemo(() => {
     if (!query) return escapeHtml(result.preview)
     return highlightText(result.preview, query)
@@ -140,6 +137,12 @@ function ResultItem({ result, isSelected, onSelect, query, activeCwd, activeChat
           <span className="text-xs font-medium text-claude-orange truncate max-w-[200px]">
             {result.projectName}
           </span>
+          <GitBadge info={gitInfo[result.projectPath]} />
+          {profileBadge && (
+            <span className="shrink-0 text-[10px] text-neutral-500" title={profileBadge.label}>
+              {profileBadge.emoji}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {isTyping ? (
@@ -207,6 +210,32 @@ function AwaitingReplyBadge(): JSX.Element {
     <span className="flex items-center gap-1 text-[10px] font-medium text-amber-400">
       <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
       Awaiting reply
+    </span>
+  )
+}
+
+function GitBadge({ info }: { info: GitInfo | undefined }): JSX.Element | null {
+  if (!info || info.type === 'none') return null
+  if (info.type === 'worktree') {
+    return (
+      <span className="shrink-0" title={`Worktree: ${info.branch || 'unknown'}`}>
+        <svg className="w-3 h-3 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="6" cy="6" r="2" strokeWidth={2} />
+          <circle cx="6" cy="18" r="2" strokeWidth={2} />
+          <circle cx="18" cy="6" r="2" strokeWidth={2} />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8v8M8 6h4a4 4 0 014 4v0" />
+        </svg>
+      </span>
+    )
+  }
+  return (
+    <span className="shrink-0" title="Git repo">
+      <svg className="w-3 h-3 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 3v12M18 9a6 6 0 01-6 6H6" />
+        <circle cx="6" cy="18" r="3" strokeWidth={2} />
+        <circle cx="6" cy="3" r="3" strokeWidth={2} />
+        <circle cx="18" cy="9" r="3" strokeWidth={2} />
+      </svg>
     </span>
   )
 }
