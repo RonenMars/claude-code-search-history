@@ -3,13 +3,14 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 interface ChatTerminalProps {
+  instanceId: string
   cwd: string
   resumeSessionId?: string
   configDir?: string
   onExit: (code: number) => void
 }
 
-export default function ChatTerminal({ cwd, resumeSessionId, configDir, onExit }: ChatTerminalProps): JSX.Element {
+export default function ChatTerminal({ instanceId, cwd, resumeSessionId, configDir, onExit }: ChatTerminalProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -64,23 +65,24 @@ export default function ChatTerminal({ cwd, resumeSessionId, configDir, onExit }
 
     // Send keystrokes to PTY
     terminal.onData((data) => {
-      window.electronAPI.ptyInput(data)
+      window.electronAPI.ptyInput(instanceId, data)
     })
 
     // Receive PTY output
-    const cleanupData = window.electronAPI.onPtyData((data) => {
-      terminal.write(data)
+    const cleanupData = window.electronAPI.onPtyData((id, data) => {
+      if (id === instanceId) terminal.write(data)
     })
 
     // Handle process exit
-    const cleanupExit = window.electronAPI.onPtyExit((code) => {
+    const cleanupExit = window.electronAPI.onPtyExit((id, code) => {
+      if (id !== instanceId) return
       terminal.write(`\r\n\x1b[90m--- Process exited with code ${code} ---\x1b[0m\r\n`)
       setExited(code)
       onExitRef.current(code)
     })
 
     // Spawn the claude process
-    window.electronAPI.ptySpawn({ cwd, resumeSessionId, configDir }).then((result) => {
+    window.electronAPI.ptySpawn({ instanceId, cwd, resumeSessionId, configDir }).then((result) => {
       if (!result.success) {
         terminal.write(`\x1b[31mFailed to start: ${result.error}\x1b[0m\r\n`)
         setExited(-1)
@@ -88,7 +90,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, configDir, onExit }
         // Send initial size
         const dims = fitAddon.proposeDimensions()
         if (dims) {
-          window.electronAPI.ptyResize(dims.cols, dims.rows)
+          window.electronAPI.ptyResize(instanceId, dims.cols, dims.rows)
         }
       }
     })
@@ -98,7 +100,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, configDir, onExit }
       fitAddon.fit()
       const dims = fitAddon.proposeDimensions()
       if (dims) {
-        window.electronAPI.ptyResize(dims.cols, dims.rows)
+        window.electronAPI.ptyResize(instanceId, dims.cols, dims.rows)
       }
     }
 
@@ -113,7 +115,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, configDir, onExit }
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [cwd, resumeSessionId, configDir])
+  }, [instanceId, cwd, resumeSessionId, configDir])
 
   return (
     <div className="flex flex-col h-full">
@@ -135,7 +137,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, configDir, onExit }
             <button
               onClick={() => {
                 setStopping(true)
-                window.electronAPI.ptyKill()
+                window.electronAPI.ptyKill(instanceId)
               }}
               className="px-3 py-1 text-xs font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 border border-red-400/30 rounded-md transition-colors"
             >
