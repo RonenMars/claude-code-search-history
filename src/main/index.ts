@@ -11,7 +11,7 @@ import type { Conversation, PtySpawnOptions, Profile, ProfilesConfig, AppSetting
 let mainWindow: BrowserWindow | null = null
 let scanner: ConversationScanner | null = null
 let indexer: SearchIndexer | null = null
-let ptyManager: PtyManager | null = null
+const ptyManagers = new Map<string, PtyManager>()
 
 function getPrefsPath(): string {
   return join(app.getPath('userData'), 'preferences.json')
@@ -328,39 +328,57 @@ function setupIpcHandlers(): void {
   // ─── PTY Handlers ──────────────────────────────────────────────────
 
   ipcMain.handle('pty-spawn', async (_event, options: PtySpawnOptions) => {
-    if (!ptyManager) {
-      ptyManager = new PtyManager()
-      ptyManager.setDataHandler((data) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('pty-data', data)
-        }
-      })
-      ptyManager.setExitHandler((code) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('pty-exit', code)
-        }
-      })
+    const settings = await loadSettings()
+    if (ptyManagers.size >= settings.maxChatInstances) {
+      return { success: false, error: 'limit' }
     }
-    return ptyManager.spawn(options)
+
+    // Kill stale instance with same id if it exists
+    const stale = ptyManagers.get(options.instanceId)
+    if (stale) {
+      stale.kill().catch(() => {})
+      ptyManagers.delete(options.instanceId)
+    }
+
+    const manager = new PtyManager()
+    manager.setDataHandler((data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('pty-data', { instanceId: options.instanceId, data })
+      }
+    })
+    manager.setExitHandler((code) => {
+      ptyManagers.delete(options.instanceId)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('pty-exit', { instanceId: options.instanceId, code })
+      }
+    })
+
+    ptyManagers.set(options.instanceId, manager)
+    return manager.spawn(options)
   })
 
-  ipcMain.on('pty-input', (_event, data: string) => {
-    ptyManager?.write(data)
+  ipcMain.on('pty-input', (_event, payload: { instanceId: string; data: string }) => {
+    ptyManagers.get(payload.instanceId)?.write(payload.data)
   })
 
-  ipcMain.on('pty-resize', (_event, cols: number, rows: number) => {
-    ptyManager?.resize(cols, rows)
+  ipcMain.on('pty-resize', (_event, payload: { instanceId: string; cols: number; rows: number }) => {
+    ptyManagers.get(payload.instanceId)?.resize(payload.cols, payload.rows)
   })
 
-  ipcMain.handle('pty-kill', async () => {
-    await ptyManager?.kill()
+  ipcMain.handle('pty-kill', async (_event, instanceId: string) => {
+    const manager = ptyManagers.get(instanceId)
+    if (manager) {
+      await manager.kill()
+      ptyManagers.delete(instanceId)
+    }
     return true
   })
 
-  ipcMain.handle('pty-status', async () => {
+  ipcMain.handle('pty-status', async (_event, instanceId: string) => {
+    const manager = ptyManagers.get(instanceId)
     return {
-      active: ptyManager?.isActive() ?? false,
-      pid: ptyManager?.getPid()
+      active: manager?.isActive() ?? false,
+      pid: manager?.getPid()
     }
   })
 
@@ -492,8 +510,9 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  // Kill any active PTY processes so the process tree can exit cleanly
-  if (ptyManager?.isActive()) {
-    ptyManager.kill().catch(() => {})
+  for (const manager of ptyManagers.values()) {
+    if (manager.isActive()) {
+      manager.kill().catch(() => {})
+    }
   }
 })
