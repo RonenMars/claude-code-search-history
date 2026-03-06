@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { SearchResult } from '../../../shared/types'
+import type { Profile, SearchResult } from '../../../shared/types'
 
 interface ResultsListProps {
   results: SearchResult[]
@@ -8,7 +8,11 @@ interface ResultsListProps {
   onSelect: (id: string) => void
   query: string
   activeCwd: string | null
+  activeChatSessionId: string | undefined
   isClaudeTyping: boolean
+  activeChatProfile: Profile | null
+  accountFilter: string | null
+  onClearAccountFilter: () => void
 }
 
 export default function ResultsList({
@@ -17,18 +21,26 @@ export default function ResultsList({
   onSelect,
   query,
   activeCwd,
-  isClaudeTyping
+  activeChatSessionId,
+  isClaudeTyping,
+  activeChatProfile,
+  accountFilter,
+  onClearAccountFilter
 }: ResultsListProps): JSX.Element {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  const filteredResults = accountFilter
+    ? results.filter((r) => r.account === accountFilter)
+    : results
+
   const virtualizer = useVirtualizer({
-    count: results.length,
+    count: filteredResults.length,
     getScrollElement: () => scrollContainerRef.current,
     estimateSize: () => 100,
     overscan: 3
   })
 
-  if (results.length === 0) {
+  if (filteredResults.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
         {query ? 'No results found' : 'Start typing to search'}
@@ -39,6 +51,18 @@ export default function ResultsList({
   const virtualItems = virtualizer.getVirtualItems()
 
   return (
+    <div className="flex flex-col h-full">
+      {accountFilter && (
+        <div className="px-3 py-1.5 flex items-center gap-2 border-b border-neutral-800">
+          <span className="text-xs text-neutral-400">Filtered by profile</span>
+          <button
+            onClick={onClearAccountFilter}
+            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors underline"
+          >
+            Clear
+          </button>
+        </div>
+      )}
     <div ref={scrollContainerRef} className="h-full overflow-y-auto">
       <div
         className="relative w-full"
@@ -55,17 +79,20 @@ export default function ResultsList({
               ref={virtualizer.measureElement}
             >
               <ResultItem
-                result={results[virtualRow.index]}
-                isSelected={results[virtualRow.index].id === selectedId}
-                onSelect={() => onSelect(results[virtualRow.index].id)}
+                result={filteredResults[virtualRow.index]}
+                isSelected={filteredResults[virtualRow.index].id === selectedId}
+                onSelect={() => onSelect(filteredResults[virtualRow.index].id)}
                 query={query}
                 activeCwd={activeCwd}
+                activeChatSessionId={activeChatSessionId}
                 isClaudeTyping={isClaudeTyping}
+                activeChatProfile={activeChatProfile}
               />
             </div>
           ))}
         </div>
       </div>
+    </div>
     </div>
   )
 }
@@ -76,10 +103,12 @@ interface ResultItemProps {
   onSelect: () => void
   query: string
   activeCwd: string | null
+  activeChatSessionId: string | undefined
   isClaudeTyping: boolean
+  activeChatProfile: Profile | null
 }
 
-function ResultItem({ result, isSelected, onSelect, query, activeCwd, isClaudeTyping }: ResultItemProps): JSX.Element {
+function ResultItem({ result, isSelected, onSelect, query, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile }: ResultItemProps): JSX.Element {
   const highlightedPreview = useMemo(() => {
     if (!query) return escapeHtml(result.preview)
     return highlightText(result.preview, query)
@@ -95,7 +124,8 @@ function ResultItem({ result, isSelected, onSelect, query, activeCwd, isClaudeTy
     return formatDate(result.timestamp)
   }, [result.timestamp])
 
-  const isActive = activeCwd === result.projectPath
+  const isActive = activeCwd === result.projectPath &&
+    (activeChatSessionId === undefined || result.sessionId === activeChatSessionId)
   const isTyping = isActive && isClaudeTyping
   const isAwaitingReply = !isActive && result.lastMessageSender === 'assistant'
 
@@ -106,9 +136,11 @@ function ResultItem({ result, isSelected, onSelect, query, activeCwd, isClaudeTy
         }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-xs font-medium text-claude-orange truncate max-w-[200px]">
-          {result.projectName}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-xs font-medium text-claude-orange truncate max-w-[200px]">
+            {result.projectName}
+          </span>
+        </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {isTyping ? (
             <TypingIndicator />
@@ -117,6 +149,7 @@ function ResultItem({ result, isSelected, onSelect, query, activeCwd, isClaudeTy
           ) : isAwaitingReply ? (
             <AwaitingReplyBadge />
           ) : null}
+          {isActive && activeChatProfile && <LiveProfileBadge profile={activeChatProfile} />}
           <span className="text-xs text-neutral-500 whitespace-nowrap">{formattedDate}</span>
         </div>
       </div>
@@ -135,6 +168,14 @@ function ResultItem({ result, isSelected, onSelect, query, activeCwd, isClaudeTy
       />
       <div className="mt-2 text-xs text-neutral-500">{result.messageCount} messages</div>
     </button>
+  )
+}
+
+function LiveProfileBadge({ profile }: { profile: Profile }): JSX.Element {
+  return (
+    <span className="text-[9px] font-medium text-neutral-400">
+      {profile.emoji}
+    </span>
   )
 }
 
