@@ -10,11 +10,12 @@ import ProfilePickerModal from './components/ProfilePickerModal'
 import SettingsModal from './components/SettingsModal'
 import ProfilesPanel from './components/ProfilesPanel'
 import ActiveChatList from './components/ActiveChatList'
+import WorktreesPanel from './components/WorktreesPanel'
 import type { Conversation, SortOption, DateRangeOption, Profile } from '../../shared/types'
 import type { ChatInstance, AppSettings } from '../../shared/types'
 import { v4 as uuidv4 } from 'uuid'
 
-type RightPanelView = 'conversation' | 'profiles' | 'settings' | 'empty'
+type RightPanelView = 'conversation' | 'profiles' | 'settings' | 'worktrees' | 'empty'
 
 
 export default function App(): JSX.Element {
@@ -367,6 +368,18 @@ export default function App(): JSX.Element {
             Chat
           </button>
           <button
+            onClick={() => setRightPanel('worktrees')}
+            className="hover:text-neutral-300 transition-colors"
+            title="Git worktrees"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="6" cy="6" r="2" strokeWidth={2}/>
+              <circle cx="6" cy="18" r="2" strokeWidth={2}/>
+              <circle cx="18" cy="6" r="2" strokeWidth={2}/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8v8M8 6h4a4 4 0 014 4v0" />
+            </svg>
+          </button>
+          <button
             onClick={() => setRightPanel('settings')}
             className="hover:text-neutral-300 transition-colors"
             title="Settings"
@@ -502,6 +515,13 @@ export default function App(): JSX.Element {
                   onClose={() => setRightPanel(selectedConversation ? 'conversation' : 'empty')}
                   defaultProfileId={defaultProfileId}
                   onClearDefaultProfile={handleClearDefaultProfile}
+                />
+              )
+            }
+            if (rightPanel === 'worktrees') {
+              return (
+                <WorktreesPanel
+                  onChatInWorktree={handleChatInProject}
                 />
               )
             }
