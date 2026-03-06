@@ -8,9 +8,12 @@ import ChatTerminal from './components/ChatTerminal'
 import { useSearch } from './hooks/useSearch'
 import ProfilePickerModal from './components/ProfilePickerModal'
 import ProfilesPanel from './components/ProfilesPanel'
+import ActiveChatList from './components/ActiveChatList'
 import type { Conversation, SortOption, DateRangeOption, Profile } from '../../shared/types'
+import type { ChatInstance, AppSettings } from '../../shared/types'
+import { v4 as uuidv4 } from 'uuid'
 
-type RightPanelView = 'conversation' | 'chat' | 'profiles' | 'empty'
+type RightPanelView = 'conversation' | 'profiles' | 'empty'
 
 
 export default function App(): JSX.Element {
@@ -25,15 +28,13 @@ export default function App(): JSX.Element {
   const [scanProgress, setScanProgress] = useState<{ scanned: number; total: number } | null>(null)
   const prefsDebounceRef = useRef<NodeJS.Timeout>()
 
-  // Chat state
-  const [chatCwd, setChatCwd] = useState<string | null>(null)
-  const [chatResumeSessionId, setChatResumeSessionId] = useState<string | undefined>(undefined)
-  const [chatKey, setChatKey] = useState(0) // increment to force remount
-  const [isClaudeTyping, setIsClaudeTyping] = useState(false)
-  const claudeTypingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Multi-instance chat state
+  const [chatInstances, setChatInstances] = useState<ChatInstance[]>([])
+  const [activeChatInstanceId, setActiveChatInstanceId] = useState<string | null>(null)
+  const [appSettings, setAppSettings] = useState<AppSettings>({ maxChatInstances: 3 })
+  const typingTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   // Profile picker state
-  const [activeChatProfile, setActiveChatProfile] = useState<Profile | null>(null)
   const [pendingChatConfig, setPendingChatConfig] = useState<{
     cwd: string | null
     resumeSessionId?: string
@@ -47,15 +48,17 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const loadData = async (): Promise<void> => {
       try {
-        const [projectList, statsData, prefs, profileList] = await Promise.all([
+        const [projectList, statsData, prefs, profileList, settings] = await Promise.all([
           window.electronAPI.getProjects(),
           window.electronAPI.getStats(),
           window.electronAPI.getPreferences(),
-          window.electronAPI.getProfiles()
+          window.electronAPI.getProfiles(),
+          window.electronAPI.getSettings()
         ])
         setProjects(projectList)
         setStats(statsData)
         setProfiles(profileList)
+        setAppSettings(settings)
 
         // Restore saved preferences
         if (prefs.sortBy) setSortBy(prefs.sortBy)
@@ -148,11 +151,50 @@ export default function App(): JSX.Element {
     }
   }, [sortBy, dateRange, selectedProject])
 
+  useEffect(() => {
+    const cleanup = window.electronAPI.onPtyData((instanceId) => {
+      setChatInstances((prev) =>
+        prev.map((inst) =>
+          inst.instanceId === instanceId ? { ...inst, isClaudeTyping: true } : inst
+        )
+      )
+      const existing = typingTimers.current.get(instanceId)
+      if (existing) clearTimeout(existing)
+      const timer = setTimeout(() => {
+        setChatInstances((prev) =>
+          prev.map((inst) =>
+            inst.instanceId === instanceId ? { ...inst, isClaudeTyping: false } : inst
+          )
+        )
+        typingTimers.current.delete(instanceId)
+      }, 1500)
+      typingTimers.current.set(instanceId, timer)
+    })
+
+    return () => {
+      cleanup()
+      for (const t of typingTimers.current.values()) clearTimeout(t)
+      typingTimers.current.clear()
+    }
+  }, [])
+
+  useEffect(() => {
+    const cleanup = window.electronAPI.onPtyExit((instanceId, code) => {
+      setChatInstances((prev) =>
+        prev.map((inst) =>
+          inst.instanceId === instanceId
+            ? { ...inst, status: 'exited', exitCode: code, isClaudeTyping: false }
+            : inst
+        )
+      )
+    })
+    return cleanup
+  }, [])
+
   const handleSelectResult = useCallback(async (id: string) => {
     try {
       const conversation = await window.electronAPI.getConversation(id)
       setSelectedConversation(conversation)
-      setChatCwd(null)
       setRightPanel(conversation ? 'conversation' : 'empty')
     } catch (err) {
       console.error('Failed to load conversation:', err)
@@ -179,32 +221,31 @@ export default function App(): JSX.Element {
   // ─── Chat handlers ────────────────────────────────────────────────
 
   const handleNewChat = useCallback(async () => {
-    if (chatCwd) {
-      const confirmed = window.confirm('A chat session is active. Start a new one?')
-      if (!confirmed) return
+    const activeCount = chatInstances.filter((i) => i.status === 'active').length
+    if (activeCount >= appSettings.maxChatInstances) {
+      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
+      return
     }
-    await window.electronAPI.ptyKill() // always kill — PTY may outlive chatCwd state
-    // cwd: null means "ask for directory after profile selection"
     setPendingChatConfig({ cwd: null, resumeSessionId: undefined })
-  }, [chatCwd])
+  }, [chatInstances, appSettings.maxChatInstances])
 
   const handleChatInProject = useCallback(async (projectPath: string) => {
-    if (chatCwd) {
-      const confirmed = window.confirm('A chat session is active. Start a new one?')
-      if (!confirmed) return
+    const activeCount = chatInstances.filter((i) => i.status === 'active').length
+    if (activeCount >= appSettings.maxChatInstances) {
+      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
+      return
     }
-    await window.electronAPI.ptyKill()
     setPendingChatConfig({ cwd: projectPath, resumeSessionId: undefined })
-  }, [chatCwd])
+  }, [chatInstances, appSettings.maxChatInstances])
 
   const handleContinueChat = useCallback(async (projectPath: string, sessionId: string) => {
-    if (chatCwd) {
-      const confirmed = window.confirm('A chat session is active. Start a new one?')
-      if (!confirmed) return
+    const activeCount = chatInstances.filter((i) => i.status === 'active').length
+    if (activeCount >= appSettings.maxChatInstances) {
+      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
+      return
     }
-    await window.electronAPI.ptyKill()
     setPendingChatConfig({ cwd: projectPath, resumeSessionId: sessionId })
-  }, [chatCwd])
+  }, [chatInstances, appSettings.maxChatInstances])
 
   const handleProfileSelected = useCallback(async (profile: Profile) => {
     const pending = pendingChatConfig
@@ -218,58 +259,38 @@ export default function App(): JSX.Element {
       cwd = dir
     }
 
-    setActiveChatProfile(profile)
-    setChatCwd(cwd)
-    setChatResumeSessionId(pending.resumeSessionId)
-    setChatKey((k) => k + 1)
+    const instanceId = uuidv4()
+    const newInstance: ChatInstance = {
+      instanceId,
+      cwd,
+      profile: profile.id as ChatInstance['profile'],
+      status: 'active',
+      exitCode: null,
+      resumeSessionId: pending.resumeSessionId,
+      isClaudeTyping: false,
+    }
+    setChatInstances((prev) => [...prev, newInstance])
+    setActiveChatInstanceId(instanceId)
     setSelectedConversation(null)
-    setRightPanel('chat')
   }, [pendingChatConfig])
 
   const handleProfilePickerCancel = useCallback(() => {
     setPendingChatConfig(null)
   }, [])
 
-  // Rebuild index and navigate to the latest conversation for the project
-  const returnToHistory = useCallback(async (projectPath: string) => {
-    await window.electronAPI.rebuildIndex()
-    const [projectList, statsData] = await Promise.all([
-      window.electronAPI.getProjects(),
-      window.electronAPI.getStats()
-    ])
-    setProjects(projectList)
-    setStats(statsData)
-    refresh()
+  const handleFocusInstance = useCallback((instanceId: string) => {
+    setActiveChatInstanceId(instanceId)
+    setSelectedConversation(null)
+  }, [])
 
-    const conversation = await window.electronAPI.getLatestConversation(projectPath)
-    if (conversation) {
-      setSelectedConversation(conversation)
-      setRightPanel('conversation')
-    } else {
-      setRightPanel('empty')
+  const handleCloseInstance = useCallback(async (instanceId: string) => {
+    const instance = chatInstances.find((i) => i.instanceId === instanceId)
+    if (instance?.status === 'active') {
+      await window.electronAPI.ptyKill(instanceId)
     }
-    setChatCwd(null)
-    setActiveChatProfile(null)
-  }, [refresh])
-
-  const handleChatExit = useCallback((_code: number) => {
-    // When process exits, auto-return to history view
-    if (chatCwd) {
-      returnToHistory(chatCwd)
-    }
-  }, [chatCwd, returnToHistory])
-
-  const handleCloseChat = useCallback(async () => {
-    const projectPath = chatCwd
-    await window.electronAPI.ptyKill()
-    if (projectPath) {
-      returnToHistory(projectPath)
-    } else {
-      setChatCwd(null)
-      setActiveChatProfile(null)
-      setRightPanel('empty')
-    }
-  }, [chatCwd, returnToHistory])
+    setChatInstances((prev) => prev.filter((i) => i.instanceId !== instanceId))
+    setActiveChatInstanceId((prev) => (prev === instanceId ? null : prev))
+  }, [chatInstances])
 
   const handleOpenProfiles = useCallback(() => {
     setRightPanel('profiles')
@@ -292,30 +313,6 @@ export default function App(): JSX.Element {
     setStats(statsData)
     refresh()
   }, [refresh])
-
-  useEffect(() => {
-    if (!chatCwd) {
-      setIsClaudeTyping(false)
-      return
-    }
-
-    const cleanup = window.electronAPI.onPtyData(() => {
-      setIsClaudeTyping(true)
-      if (claudeTypingTimerRef.current) clearTimeout(claudeTypingTimerRef.current)
-      claudeTypingTimerRef.current = setTimeout(() => {
-        setIsClaudeTyping(false)
-      }, 1500)
-    })
-
-    return () => {
-      cleanup()
-      if (claudeTypingTimerRef.current) {
-        clearTimeout(claudeTypingTimerRef.current)
-        claudeTypingTimerRef.current = null
-      }
-      setIsClaudeTyping(false)
-    }
-  }, [chatCwd])
 
   return (
     <div className="flex flex-col h-screen bg-claude-darker">
@@ -375,6 +372,12 @@ export default function App(): JSX.Element {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div className="w-96 flex flex-col border-r border-neutral-800 bg-claude-dark">
+          <ActiveChatList
+            instances={chatInstances}
+            activeChatInstanceId={activeChatInstanceId}
+            onFocus={handleFocusInstance}
+            onClose={handleCloseInstance}
+          />
           {/* Search */}
           <div className="p-4 border-b border-neutral-800">
             <SearchBar value={query} onChange={setQuery} isSearching={searching} />
@@ -424,10 +427,10 @@ export default function App(): JSX.Element {
                 selectedId={selectedConversation?.id || null}
                 onSelect={handleSelectResult}
                 query={query}
-                activeCwd={chatCwd}
-                activeChatSessionId={chatResumeSessionId}
-                isClaudeTyping={isClaudeTyping}
-                activeChatProfile={activeChatProfile}
+                activeCwd={chatInstances.find(i => i.instanceId === activeChatInstanceId)?.cwd ?? null}
+                activeChatSessionId={chatInstances.find(i => i.instanceId === activeChatInstanceId)?.resumeSessionId}
+                isClaudeTyping={chatInstances.some(i => i.isClaudeTyping)}
+                activeChatProfile={chatInstances.find(i => i.instanceId === activeChatInstanceId)?.profile as unknown as Profile | null ?? null}
                 accountFilter={accountFilter}
                 onClearAccountFilter={() => setAccountFilter(null)}
               />
@@ -437,66 +440,53 @@ export default function App(): JSX.Element {
 
         {/* Right panel: Chat, Profiles, Conversation, or empty */}
         <div className="flex-1 overflow-hidden">
-          {rightPanel === 'chat' && chatCwd ? (
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-4 py-1 bg-claude-dark border-b border-neutral-700">
-                <span className="text-xs text-neutral-500">
-                  Live Chat{activeChatProfile ? ` · ${activeChatProfile.emoji} ${activeChatProfile.label}` : ''}
-                </span>
-                <button
-                  onClick={handleCloseChat}
-                  className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
-                  title="Close chat and return to history"
-                >
-                  Close
-                </button>
-              </div>
-              <div className="flex-1 overflow-hidden">
+          {(() => {
+            const activeInstance = chatInstances.find((i) => i.instanceId === activeChatInstanceId)
+            if (activeInstance) {
+              return (
                 <ChatTerminal
-                  key={chatKey}
-                  cwd={chatCwd}
-                  resumeSessionId={chatResumeSessionId}
-                  configDir={activeChatProfile?.configDir}
-                  onExit={handleChatExit}
+                  key={activeInstance.instanceId}
+                  instanceId={activeInstance.instanceId}
+                  cwd={activeInstance.cwd}
+                  resumeSessionId={activeInstance.resumeSessionId}
+                  profile={activeInstance.profile ?? undefined}
+                  onExit={() => { /* handled by global onPtyExit effect */ }}
                 />
+              )
+            }
+            if (rightPanel === 'profiles') {
+              return (
+                <ProfilesPanel
+                  profiles={profiles}
+                  onFilterByProfile={handleFilterByProfile}
+                  onProfilesSaved={handleProfilesSaved}
+                />
+              )
+            }
+            if (selectedConversation) {
+              return (
+                <ErrorBoundary>
+                  <ConversationView conversation={selectedConversation} query={query} onContinueChat={handleContinueChat} />
+                </ErrorBoundary>
+              )
+            }
+            return (
+              <div className="flex items-center justify-center h-full text-neutral-500">
+                <div className="text-center">
+                  <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <p>Select a conversation to view</p>
+                  <button
+                    onClick={handleNewChat}
+                    className="mt-4 px-4 py-2 text-sm text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-lg transition-colors"
+                  >
+                    Start a new chat
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : rightPanel === 'profiles' ? (
-            <ProfilesPanel
-              profiles={profiles}
-              onFilterByProfile={handleFilterByProfile}
-              onProfilesSaved={handleProfilesSaved}
-            />
-          ) : rightPanel === 'conversation' && selectedConversation ? (
-            <ErrorBoundary>
-              <ConversationView conversation={selectedConversation} query={query} onContinueChat={handleContinueChat} />
-            </ErrorBoundary>
-          ) : (
-            <div className="flex items-center justify-center h-full text-neutral-500">
-              <div className="text-center">
-                <svg
-                  className="w-16 h-16 mx-auto mb-4 opacity-50"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                <p>Select a conversation to view</p>
-                <button
-                  onClick={handleNewChat}
-                  className="mt-4 px-4 py-2 text-sm text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-lg transition-colors"
-                >
-                  Start a new chat
-                </button>
-              </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
       </div>
 
