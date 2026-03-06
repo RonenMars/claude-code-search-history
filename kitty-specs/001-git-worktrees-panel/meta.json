@@ -1,4 +1,6 @@
 {
   "target_branch": "main",
-  "mission": "software-dev"
+  "mission": "software-dev",
+  "vcs": "git",
+  "vcs_locked_at": "2026-03-06T21:48:23.104925+00:00"
 }
