@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-
 interface ChatTerminalProps {
   cwd: string
   resumeSessionId?: string
+  configDir?: string
   onExit: (code: number) => void
 }
 
-export default function ChatTerminal({ cwd, resumeSessionId, onExit }: ChatTerminalProps): JSX.Element {
+export default function ChatTerminal({ cwd, resumeSessionId, configDir, onExit }: ChatTerminalProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -80,7 +80,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, onExit }: ChatTermi
     })
 
     // Spawn the claude process
-    window.electronAPI.ptySpawn({ cwd, resumeSessionId }).then((result) => {
+    window.electronAPI.ptySpawn({ cwd, resumeSessionId, configDir }).then((result) => {
       if (!result.success) {
         terminal.write(`\x1b[31mFailed to start: ${result.error}\x1b[0m\r\n`)
         setExited(-1)
@@ -113,7 +113,7 @@ export default function ChatTerminal({ cwd, resumeSessionId, onExit }: ChatTermi
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [cwd, resumeSessionId])
+  }, [cwd, resumeSessionId, configDir])
 
   return (
     <div className="flex flex-col h-full">
