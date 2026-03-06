@@ -1,178 +1,210 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises'
-import { join, basename } from 'path'
-import { homedir } from 'os'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { ConversationScanner } from './services/scanner'
-import { SearchIndexer } from './services/indexer'
-import { PtyManager } from './services/pty-manager'
-import type { Conversation, PtySpawnOptions, Profile, ProfilesConfig, AppSettings, Worktree } from '../shared/types'
-import { execFileNoThrow } from './utils/execFileNoThrow'
+app.commandLine.appendSwitch("remote-debugging-port", "9222");
 
-let mainWindow: BrowserWindow | null = null
-let scanner: ConversationScanner | null = null
-let indexer: SearchIndexer | null = null
-const ptyManagers = new Map<string, PtyManager>()
+import { app, shell, BrowserWindow, ipcMain, dialog } from "electron";
+import { readFile, writeFile, mkdir, readdir, stat } from "fs/promises";
+import { join, basename } from "path";
+import { homedir } from "os";
+import { electronApp, optimizer, is } from "@electron-toolkit/utils";
+import { ConversationScanner } from "./services/scanner";
+import { SearchIndexer } from "./services/indexer";
+import { PtyManager } from "./services/pty-manager";
+import type {
+  Conversation,
+  PtySpawnOptions,
+  Profile,
+  ProfilesConfig,
+  AppSettings,
+  Worktree,
+  GitInfo,
+  CreateWorktreeOptions,
+  CreateWorktreeResult,
+} from "../shared/types";
+import { execFileNoThrow } from "./utils/execFileNoThrow";
+
+let mainWindow: BrowserWindow | null = null;
+let scanner: ConversationScanner | null = null;
+let indexer: SearchIndexer | null = null;
+const ptyManagers = new Map<string, PtyManager>();
 
 function getPrefsPath(): string {
-  return join(app.getPath('userData'), 'preferences.json')
+  return join(app.getPath("userData"), "preferences.json");
 }
 
 async function loadPreferences(): Promise<Record<string, unknown>> {
   try {
-    const data = await readFile(getPrefsPath(), 'utf-8')
-    return JSON.parse(data)
+    const data = await readFile(getPrefsPath(), "utf-8");
+    return JSON.parse(data);
   } catch {
-    return {}
+    return {};
   }
 }
 
 async function savePreferences(prefs: Record<string, unknown>): Promise<void> {
-  const dir = app.getPath('userData')
-  await mkdir(dir, { recursive: true })
-  await writeFile(getPrefsPath(), JSON.stringify(prefs, null, 2), 'utf-8')
+  const dir = app.getPath("userData");
+  await mkdir(dir, { recursive: true });
+  await writeFile(getPrefsPath(), JSON.stringify(prefs, null, 2), "utf-8");
 }
 
 function getSettingsPath(): string {
-  return join(app.getPath('userData'), 'settings.json')
+  return join(app.getPath("userData"), "settings.json");
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  maxChatInstances: 3
-}
+  maxChatInstances: 3,
+};
 
 async function loadSettings(): Promise<AppSettings> {
   try {
-    const data = await readFile(getSettingsPath(), 'utf-8')
-    const parsed = JSON.parse(data)
-    return { ...DEFAULT_SETTINGS, ...parsed }
+    const data = await readFile(getSettingsPath(), "utf-8");
+    const parsed = JSON.parse(data);
+    return { ...DEFAULT_SETTINGS, ...parsed };
   } catch {
-    return { ...DEFAULT_SETTINGS }
+    return { ...DEFAULT_SETTINGS };
   }
 }
 
 async function saveSettings(settings: Partial<AppSettings>): Promise<void> {
-  const current = await loadSettings()
-  const merged = { ...current, ...settings }
-  const dir = app.getPath('userData')
-  await mkdir(dir, { recursive: true })
-  await writeFile(getSettingsPath(), JSON.stringify(merged, null, 2), 'utf-8')
+  const current = await loadSettings();
+  const merged = { ...current, ...settings };
+  const dir = app.getPath("userData");
+  await mkdir(dir, { recursive: true });
+  await writeFile(getSettingsPath(), JSON.stringify(merged, null, 2), "utf-8");
 }
 
 const DEFAULT_PROFILE: Profile = {
-  id: 'default',
-  label: 'Default',
-  emoji: '🤖',
-  configDir: join(homedir(), '.claude'),
-  enabled: true
-}
+  id: "default",
+  label: "Default",
+  emoji: "🤖",
+  configDir: join(homedir(), ".claude"),
+  enabled: true,
+};
 
 function getProfilesPath(): string {
-  return join(app.getPath('userData'), 'profiles.json')
+  return join(app.getPath("userData"), "profiles.json");
 }
 
 async function loadProfilesConfig(): Promise<ProfilesConfig> {
   try {
-    const data = await readFile(getProfilesPath(), 'utf-8')
-    const parsed = JSON.parse(data) as ProfilesConfig
+    const data = await readFile(getProfilesPath(), "utf-8");
+    const parsed = JSON.parse(data) as ProfilesConfig;
     if (Array.isArray(parsed.profiles) && parsed.profiles.length > 0) {
-      return parsed
+      return parsed;
     }
   } catch {
     // Missing or malformed — fall through to default
   }
-  return { profiles: [DEFAULT_PROFILE] }
+  return { profiles: [DEFAULT_PROFILE] };
 }
 
 async function saveProfilesConfig(config: ProfilesConfig): Promise<void> {
-  const dir = app.getPath('userData')
-  await mkdir(dir, { recursive: true })
-  await writeFile(getProfilesPath(), JSON.stringify(config, null, 2), 'utf-8')
+  const dir = app.getPath("userData");
+  await mkdir(dir, { recursive: true });
+  await writeFile(getProfilesPath(), JSON.stringify(config, null, 2), "utf-8");
 }
 
 async function ensureProfilesExist(): Promise<ProfilesConfig> {
   try {
-    const data = await readFile(getProfilesPath(), 'utf-8')
+    const data = await readFile(getProfilesPath(), "utf-8");
     try {
-      const parsed = JSON.parse(data) as ProfilesConfig
+      const parsed = JSON.parse(data) as ProfilesConfig;
       if (Array.isArray(parsed.profiles) && parsed.profiles.length > 0) {
-        return parsed
+        return parsed;
       }
     } catch {
       // Malformed JSON — persist corrected defaults
     }
     // File exists but is empty or malformed — rewrite with defaults
-    const defaults = { profiles: [DEFAULT_PROFILE] }
-    await saveProfilesConfig(defaults)
-    return defaults
+    const defaults = { profiles: [DEFAULT_PROFILE] };
+    await saveProfilesConfig(defaults);
+    return defaults;
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw err  // surface unexpected errors (permissions, etc.)
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw err; // surface unexpected errors (permissions, etc.)
     }
     // File doesn't exist — write defaults
-    const defaults = { profiles: [DEFAULT_PROFILE] }
-    await saveProfilesConfig(defaults)
-    return defaults
+    const defaults = { profiles: [DEFAULT_PROFILE] };
+    await saveProfilesConfig(defaults);
+    return defaults;
   }
 }
 
-async function getProfileUsage(profileDir: string): Promise<{ conversations: number; lastUsed: string | null; tokensThisMonth: number }> {
-  const projectsDir = join(profileDir, 'projects')
-  let conversations = 0
-  let latestMtime = 0
-  let tokensThisMonth = 0
+async function getProfileUsage(profileDir: string): Promise<{
+  conversations: number;
+  lastUsed: string | null;
+  tokensThisMonth: number;
+}> {
+  const projectsDir = join(profileDir, "projects");
+  let conversations = 0;
+  let latestMtime = 0;
+  let tokensThisMonth = 0;
 
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
   try {
-    const projectDirs = await readdir(projectsDir)
+    const projectDirs = await readdir(projectsDir);
     await Promise.all(
       projectDirs.map(async (pd) => {
-        if (pd.startsWith('.')) return
-        const pdPath = join(projectsDir, pd)
+        if (pd.startsWith(".")) return;
+        const pdPath = join(projectsDir, pd);
         try {
-          const pdStat = await stat(pdPath)
-          if (!pdStat.isDirectory()) return
-          const files = await readdir(pdPath)
+          const pdStat = await stat(pdPath);
+          if (!pdStat.isDirectory()) return;
+          const files = await readdir(pdPath);
           await Promise.all(
             files.map(async (f) => {
-              if (!f.endsWith('.jsonl')) return
-              const fPath = join(pdPath, f)
+              if (!f.endsWith(".jsonl")) return;
+              const fPath = join(pdPath, f);
               try {
-                const fStat = await stat(fPath)
-                if (fStat.size === 0) return
-                conversations++
-                if (fStat.mtimeMs > latestMtime) latestMtime = fStat.mtimeMs
+                const fStat = await stat(fPath);
+                if (fStat.size === 0) return;
+                conversations++;
+                if (fStat.mtimeMs > latestMtime) latestMtime = fStat.mtimeMs;
                 if (fStat.mtimeMs >= startOfMonth) {
                   try {
-                    const content = await readFile(fPath, 'utf-8')
-                    for (const line of content.split('\n')) {
-                      if (!line.trim()) continue
+                    const content = await readFile(fPath, "utf-8");
+                    for (const line of content.split("\n")) {
+                      if (!line.trim()) continue;
                       try {
-                        const parsed = JSON.parse(line)
-                        if (parsed.type === 'assistant' && parsed.message?.usage) {
-                          const u = parsed.message.usage
-                          tokensThisMonth += (u.input_tokens || 0) + (u.output_tokens || 0) +
-                                            (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0)
+                        const parsed = JSON.parse(line);
+                        if (
+                          parsed.type === "assistant" &&
+                          parsed.message?.usage
+                        ) {
+                          const u = parsed.message.usage;
+                          tokensThisMonth +=
+                            (u.input_tokens || 0) +
+                            (u.output_tokens || 0) +
+                            (u.cache_creation_input_tokens || 0) +
+                            (u.cache_read_input_tokens || 0);
                         }
-                      } catch { /* skip malformed lines */ }
+                      } catch {
+                        /* skip malformed lines */
+                      }
                     }
-                  } catch { /* skip unreadable files */ }
+                  } catch {
+                    /* skip unreadable files */
+                  }
                 }
-              } catch { /* skip missing/unreadable files */ }
-            })
-          )
-        } catch { /* skip unreadable project dirs */ }
-      })
-    )
-  } catch { /* profile dir or projects/ may not exist */ }
+              } catch {
+                /* skip missing/unreadable files */
+              }
+            }),
+          );
+        } catch {
+          /* skip unreadable project dirs */
+        }
+      }),
+    );
+  } catch {
+    /* profile dir or projects/ may not exist */
+  }
 
   return {
     conversations,
     lastUsed: latestMtime > 0 ? new Date(latestMtime).toISOString() : null,
-    tokensThisMonth
-  }
+    tokensThisMonth,
+  };
 }
 
 function createWindow(): void {
@@ -183,403 +215,567 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
-    backgroundColor: '#0d0d0d',
+    titleBarStyle: "hiddenInset",
+    backgroundColor: "#0d0d0d",
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, "../preload/index.js"),
       sandbox: false,
-      contextIsolation: true
-    }
-  })
+      contextIsolation: true,
+    },
+  });
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
-  })
+  mainWindow.on("ready-to-show", () => {
+    mainWindow?.show();
+  });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+    shell.openExternal(details.url);
+    return { action: "deny" };
+  });
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 }
 
 async function initializeSearch(profiles: Profile[]): Promise<void> {
-  scanner = new ConversationScanner(profiles)
-  indexer = new SearchIndexer()
+  scanner = new ConversationScanner(profiles);
+  indexer = new SearchIndexer();
 
   scanner.setProgressCallback((scanned, total) => {
-    mainWindow?.webContents.send('scan-progress', { scanned, total })
-  })
+    mainWindow?.webContents.send("scan-progress", { scanned, total });
+  });
 
-  console.log('Scanning for conversations...')
-  const metas = await scanner.scanAllMeta()
-  console.log(`Found ${metas.length} conversations`)
+  console.log("Scanning for conversations...");
+  const metas = await scanner.scanAllMeta();
+  console.log(`Found ${metas.length} conversations`);
 
-  console.log('Building search index...')
-  await indexer.buildIndex(metas)
-  console.log('Search index ready')
+  console.log("Building search index...");
+  await indexer.buildIndex(metas);
+  console.log("Search index ready");
 }
 
 // IPC Handlers
 function setupIpcHandlers(): void {
-  ipcMain.handle('search', async (_event, query: string, filters?: { project?: string; limit?: number }) => {
-    if (!indexer) return []
-    return indexer.search(query, filters?.limit || 10000, filters?.project)
-  })
+  ipcMain.handle(
+    "search",
+    async (
+      _event,
+      query: string,
+      filters?: { project?: string; limit?: number },
+    ) => {
+      if (!indexer) return [];
+      return indexer.search(query, filters?.limit || 10000, filters?.project);
+    },
+  );
 
-  ipcMain.handle('get-conversation', async (_event, id: string) => {
-    if (!scanner) return null
-    return scanner.getConversation(id)
-  })
+  ipcMain.handle("get-conversation", async (_event, id: string) => {
+    if (!scanner) return null;
+    return scanner.getConversation(id);
+  });
 
-  ipcMain.handle('get-projects', async () => {
-    if (!scanner) return []
-    return scanner.getProjects()
-  })
+  ipcMain.handle("get-projects", async () => {
+    if (!scanner) return [];
+    return scanner.getProjects();
+  });
 
-  ipcMain.handle('get-stats', async () => {
-    if (!scanner || !indexer) return { conversations: 0, projects: 0 }
-    const projects = scanner.getProjects()
+  ipcMain.handle("get-stats", async () => {
+    if (!scanner || !indexer) return { conversations: 0, projects: 0 };
+    const projects = scanner.getProjects();
     return {
       conversations: indexer.getDocumentCount(),
-      projects: projects.length
-    }
-  })
+      projects: projects.length,
+    };
+  });
 
-  ipcMain.handle('rebuild-index', async () => {
-    const config = await loadProfilesConfig()
-    const enabledProfiles = config.profiles.filter((p) => p.enabled)
-    await initializeSearch(enabledProfiles)
-    return true
-  })
-
-  ipcMain.handle('get-latest-conversation', async (_event, projectPath: string) => {
-    if (!scanner) return null
-    const meta = scanner.getLatestForProject(projectPath)
-    if (!meta) return null
-    return scanner.getConversation(meta.id)
-  })
+  ipcMain.handle("rebuild-index", async () => {
+    const config = await loadProfilesConfig();
+    const enabledProfiles = config.profiles.filter((p) => p.enabled);
+    await initializeSearch(enabledProfiles);
+    return true;
+  });
 
   ipcMain.handle(
-    'export-conversation',
-    async (_event, id: string, format: 'markdown' | 'json' | 'text') => {
-      if (!scanner || !mainWindow) return { success: false, error: 'Not initialized' }
+    "get-latest-conversation",
+    async (_event, projectPath: string) => {
+      if (!scanner) return null;
+      const meta = scanner.getLatestForProject(projectPath);
+      if (!meta) return null;
+      return scanner.getConversation(meta.id);
+    },
+  );
 
-      const conversation = await scanner.getConversation(id)
-      if (!conversation) return { success: false, error: 'Conversation not found' }
+  ipcMain.handle(
+    "export-conversation",
+    async (_event, id: string, format: "markdown" | "json" | "text") => {
+      if (!scanner || !mainWindow)
+        return { success: false, error: "Not initialized" };
+
+      const conversation = await scanner.getConversation(id);
+      if (!conversation)
+        return { success: false, error: "Conversation not found" };
 
       const extensions: Record<string, string> = {
-        markdown: 'md',
-        json: 'json',
-        text: 'txt'
-      }
+        markdown: "md",
+        json: "json",
+        text: "txt",
+      };
 
-      const sessionPrefix = conversation.sessionId?.slice(0, 8) || Date.now().toString()
+      const sessionPrefix =
+        conversation.sessionId?.slice(0, 8) || Date.now().toString();
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-        title: 'Export Conversation',
+        title: "Export Conversation",
         defaultPath: `conversation-${sessionPrefix}.${extensions[format]}`,
         filters: [
-          { name: format.charAt(0).toUpperCase() + format.slice(1), extensions: [extensions[format]] }
-        ]
-      })
+          {
+            name: format.charAt(0).toUpperCase() + format.slice(1),
+            extensions: [extensions[format]],
+          },
+        ],
+      });
 
-      if (canceled || !filePath) return { success: false, canceled: true }
+      if (canceled || !filePath) return { success: false, canceled: true };
 
-      let content: string
-      if (format === 'json') {
-        content = JSON.stringify(conversation, null, 2)
-      } else if (format === 'markdown') {
-        content = formatAsMarkdown(conversation)
+      let content: string;
+      if (format === "json") {
+        content = JSON.stringify(conversation, null, 2);
+      } else if (format === "markdown") {
+        content = formatAsMarkdown(conversation);
       } else {
-        content = formatAsText(conversation)
+        content = formatAsText(conversation);
       }
 
       try {
-        await writeFile(filePath, content, 'utf-8')
-        return { success: true, filePath }
+        await writeFile(filePath, content, "utf-8");
+        return { success: true, filePath };
       } catch (error) {
-        return { success: false, error: String(error) }
+        return { success: false, error: String(error) };
       }
-    }
-  )
+    },
+  );
 
-  ipcMain.handle('get-preferences', async () => {
-    return loadPreferences()
-  })
+  ipcMain.handle("get-preferences", async () => {
+    return loadPreferences();
+  });
 
-  ipcMain.handle('set-preferences', async (_event, prefs: Record<string, unknown>) => {
-    await savePreferences(prefs)
-    return true
-  })
+  ipcMain.handle(
+    "set-preferences",
+    async (_event, prefs: Record<string, unknown>) => {
+      await savePreferences(prefs);
+      return true;
+    },
+  );
 
-  ipcMain.handle('get-settings', async () => {
-    return loadSettings()
-  })
+  ipcMain.handle("get-settings", async () => {
+    return loadSettings();
+  });
 
-  ipcMain.handle('set-settings', async (_event, settings: Partial<AppSettings>) => {
-    await saveSettings(settings)
-    return true
-  })
+  ipcMain.handle(
+    "set-settings",
+    async (_event, settings: Partial<AppSettings>) => {
+      await saveSettings(settings);
+      return true;
+    },
+  );
 
   // ─── PTY Handlers ──────────────────────────────────────────────────
 
-  ipcMain.handle('pty-spawn', async (_event, options: PtySpawnOptions) => {
+  ipcMain.handle("pty-spawn", async (_event, options: PtySpawnOptions) => {
     // Kill stale instance with same id if it exists (BEFORE limit check)
-    const stale = ptyManagers.get(options.instanceId)
+    const stale = ptyManagers.get(options.instanceId);
     if (stale) {
-      stale.kill().catch(() => {})
-      ptyManagers.delete(options.instanceId)
+      stale.kill().catch(() => {});
+      ptyManagers.delete(options.instanceId);
     }
 
-    const settings = await loadSettings()
+    const settings = await loadSettings();
     if (ptyManagers.size >= settings.maxChatInstances) {
-      return { success: false, error: 'limit' }
+      return { success: false, error: "limit" };
     }
 
-    const manager = new PtyManager()
+    const manager = new PtyManager();
     manager.setDataHandler((data) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('pty-data', { instanceId: options.instanceId, data })
+        mainWindow.webContents.send("pty-data", {
+          instanceId: options.instanceId,
+          data,
+        });
       }
-    })
+    });
     manager.setExitHandler((code) => {
-      ptyManagers.delete(options.instanceId)
+      ptyManagers.delete(options.instanceId);
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('pty-exit', { instanceId: options.instanceId, code })
+        mainWindow.webContents.send("pty-exit", {
+          instanceId: options.instanceId,
+          code,
+        });
       }
-    })
+    });
 
-    ptyManagers.set(options.instanceId, manager)
-    return manager.spawn(options)
-  })
+    ptyManagers.set(options.instanceId, manager);
+    return manager.spawn(options);
+  });
 
-  ipcMain.on('pty-input', (_event, payload: { instanceId: string; data: string }) => {
-    ptyManagers.get(payload.instanceId)?.write(payload.data)
-  })
+  ipcMain.on(
+    "pty-input",
+    (_event, payload: { instanceId: string; data: string }) => {
+      ptyManagers.get(payload.instanceId)?.write(payload.data);
+    },
+  );
 
-  ipcMain.on('pty-resize', (_event, payload: { instanceId: string; cols: number; rows: number }) => {
-    ptyManagers.get(payload.instanceId)?.resize(payload.cols, payload.rows)
-  })
+  ipcMain.on(
+    "pty-resize",
+    (_event, payload: { instanceId: string; cols: number; rows: number }) => {
+      ptyManagers.get(payload.instanceId)?.resize(payload.cols, payload.rows);
+    },
+  );
 
-  ipcMain.handle('pty-kill', async (_event, instanceId: string) => {
-    const manager = ptyManagers.get(instanceId)
+  ipcMain.handle("pty-kill", async (_event, instanceId: string) => {
+    const manager = ptyManagers.get(instanceId);
     if (manager) {
-      await manager.kill()
-      ptyManagers.delete(instanceId)
+      await manager.kill();
+      ptyManagers.delete(instanceId);
     }
-    return true
-  })
+    return true;
+  });
 
-  ipcMain.handle('pty-status', async (_event, instanceId: string) => {
-    const manager = ptyManagers.get(instanceId)
+  ipcMain.handle("pty-status", async (_event, instanceId: string) => {
+    const manager = ptyManagers.get(instanceId);
     return {
       active: manager?.isActive() ?? false,
-      pid: manager?.getPid()
-    }
-  })
+      pid: manager?.getPid(),
+    };
+  });
 
-  ipcMain.handle('get-daily-stats', async (_event, granularity: string, limit: number) => {
-    if (!indexer) return []
-    return indexer.getDailyStats(granularity as 'day' | 'week' | 'month', limit)
-  })
+  ipcMain.handle(
+    "get-daily-stats",
+    async (_event, granularity: string, limit: number) => {
+      if (!indexer) return [];
+      return indexer.getDailyStats(
+        granularity as "day" | "week" | "month",
+        limit,
+      );
+    },
+  );
 
-  ipcMain.handle('get-profiles-usage', async () => {
-    const config = await loadProfilesConfig()
-    const enabledProfiles = config.profiles.filter((p) => p.enabled)
-    const indexerStats = indexer?.getStatsByAccount() ?? {}
+  ipcMain.handle("get-profiles-usage", async () => {
+    const config = await loadProfilesConfig();
+    const enabledProfiles = config.profiles.filter((p) => p.enabled);
+    const indexerStats = indexer?.getStatsByAccount() ?? {};
     const results = await Promise.all(
       enabledProfiles.map(async (p) => {
-        const resolvedDir = p.configDir.replace(/^~/, homedir())
-        const usage = await getProfileUsage(resolvedDir)
-        const extra = indexerStats[p.id] ?? { messages: 0, projects: 0 }
-        return [p.id, { ...usage, messages: extra.messages, projects: extra.projects }] as const
-      })
-    )
-    return Object.fromEntries(results)
-  })
+        const resolvedDir = p.configDir.replace(/^~/, homedir());
+        const usage = await getProfileUsage(resolvedDir);
+        const extra = indexerStats[p.id] ?? { messages: 0, projects: 0 };
+        return [
+          p.id,
+          { ...usage, messages: extra.messages, projects: extra.projects },
+        ] as const;
+      }),
+    );
+    return Object.fromEntries(results);
+  });
 
-  ipcMain.handle('get-profiles', async () => {
-    const config = await loadProfilesConfig()
-    return config.profiles
-  })
+  ipcMain.handle("get-profiles", async () => {
+    const config = await loadProfilesConfig();
+    return config.profiles;
+  });
 
-  ipcMain.handle('save-profiles', async (_event, profiles: Profile[]) => {
-    const config: ProfilesConfig = { profiles }
-    await saveProfilesConfig(config)
-    const enabledProfiles = profiles.filter((p) => p.enabled)
-    await initializeSearch(enabledProfiles)
-    mainWindow?.webContents.send('index-ready')
-    return true
-  })
+  ipcMain.handle("save-profiles", async (_event, profiles: Profile[]) => {
+    const config: ProfilesConfig = { profiles };
+    await saveProfilesConfig(config);
+    const enabledProfiles = profiles.filter((p) => p.enabled);
+    await initializeSearch(enabledProfiles);
+    mainWindow?.webContents.send("index-ready");
+    return true;
+  });
 
-  ipcMain.handle('select-directory', async () => {
-    if (!mainWindow) return null
+  ipcMain.handle("select-directory", async () => {
+    if (!mainWindow) return null;
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory'],
-      title: 'Select Project Directory'
-    })
-    if (canceled || filePaths.length === 0) return null
-    return filePaths[0]
-  })
+      properties: ["openDirectory"],
+      title: "Select Project Directory",
+    });
+    if (canceled || filePaths.length === 0) return null;
+    return filePaths[0];
+  });
 
-  ipcMain.handle('get-worktrees', async (): Promise<Worktree[]> => {
-    if (!scanner) return []
+  ipcMain.handle("is-index-ready", () => indexer !== null);
 
-    const projectPaths = scanner.getProjects()
+  ipcMain.handle("get-worktrees", async (): Promise<Worktree[]> => {
+    if (!scanner) return [];
+
+    const projectPaths = scanner.getProjects();
 
     const results = await Promise.all(
       projectPaths.map(async (projectPath) => {
         const { stdout, code } = await execFileNoThrow(
-          'git',
-          ['worktree', 'list', '--porcelain'],
-          { cwd: projectPath }
-        )
-        if (code !== 0 || !stdout.trim()) return []
-        return parseWorktrees(stdout, projectPath)
-      })
-    )
+          "git",
+          ["worktree", "list", "--porcelain"],
+          { cwd: projectPath },
+        );
+        if (code !== 0 || !stdout.trim()) return [];
+        return parseWorktrees(stdout);
+      }),
+    );
 
-    const all = results.flat()
+    // Deduplicate: multiple Claude project paths can belong to the same git repo,
+    // causing git worktree list to return the same entries from each cwd.
+    const seen = new Set<string>();
+    const all = results.flat().filter((w) => {
+      if (seen.has(w.path)) return false;
+      seen.add(w.path);
+      return true;
+    });
 
     // Only surface projects that have at least one linked (non-main) worktree
     const projectsWithLinked = new Set(
-      all.filter((w) => !w.isMain).map((w) => w.projectPath)
-    )
+      all.filter((w) => !w.isMain).map((w) => w.projectPath),
+    );
 
-    return all.filter((w) => projectsWithLinked.has(w.projectPath))
-  })
+    return all.filter((w) => projectsWithLinked.has(w.projectPath));
+  });
+
+  ipcMain.handle("open-in-finder", (_event, path: string) => {
+    shell.showItemInFolder(path);
+  });
+
+  ipcMain.handle("get-git-info", async (): Promise<Record<string, GitInfo>> => {
+    if (!scanner) return {};
+
+    const projectPaths = scanner.getProjects();
+    const result: Record<string, GitInfo> = {};
+
+    await Promise.all(
+      projectPaths.map(async (projectPath) => {
+        // Check if it's a git repo at all
+        const { code: revParseCode } = await execFileNoThrow(
+          "git",
+          ["rev-parse", "--is-inside-work-tree"],
+          { cwd: projectPath },
+        );
+        if (revParseCode !== 0) {
+          result[projectPath] = { type: "none" };
+          return;
+        }
+
+        // Get current branch
+        const { stdout: branchOut } = await execFileNoThrow(
+          "git",
+          ["rev-parse", "--abbrev-ref", "HEAD"],
+          { cwd: projectPath },
+        );
+        const branch = branchOut.trim() || undefined;
+
+        // Get the toplevel for this working directory
+        const { stdout: toplevelOut } = await execFileNoThrow(
+          "git",
+          ["rev-parse", "--show-toplevel"],
+          { cwd: projectPath },
+        );
+        const toplevel = toplevelOut.trim();
+
+        // Get the main worktree path (first entry in worktree list)
+        const { stdout: wtOut, code: wtCode } = await execFileNoThrow(
+          "git",
+          ["worktree", "list", "--porcelain"],
+          { cwd: projectPath },
+        );
+
+        if (wtCode === 0 && wtOut.trim()) {
+          const firstLine = wtOut
+            .split("\n")
+            .find((l) => l.startsWith("worktree "));
+          const mainWorktreePath = firstLine
+            ?.slice("worktree ".length)
+            .trim();
+
+          if (mainWorktreePath && toplevel !== mainWorktreePath) {
+            result[projectPath] = {
+              type: "worktree",
+              branch,
+              rootProjectPath: mainWorktreePath,
+              rootProjectName: basename(mainWorktreePath),
+            };
+            return;
+          }
+        }
+
+        // Plain git repo (or main worktree)
+        result[projectPath] = { type: "git", branch };
+      }),
+    );
+
+    return result;
+  });
+
+  ipcMain.handle(
+    "create-worktree",
+    async (
+      _event,
+      options: CreateWorktreeOptions,
+    ): Promise<CreateWorktreeResult> => {
+      const { rootPath, worktreePath, branch } = options;
+      const { stdout, stderr, code } = await execFileNoThrow(
+        "git",
+        ["worktree", "add", worktreePath, "-b", branch],
+        { cwd: rootPath },
+      );
+      if (code !== 0) {
+        return {
+          success: false,
+          error: stderr.trim() || stdout.trim() || "Unknown error",
+        };
+      }
+      return { success: true };
+    },
+  );
 }
 
-function parseWorktrees(stdout: string, projectPath: string): Worktree[] {
-  const blocks = stdout.trim().split(/\n\n+/)
-  const projectName = basename(projectPath)
+function parseWorktrees(stdout: string): Worktree[] {
+  const blocks = stdout.trim().split(/\n\n+/);
+
+  const parseBlock = (
+    block: string,
+  ): { path: string; head: string; branch: string } | null => {
+    const lines = block.split("\n");
+    const get = (prefix: string): string =>
+      lines
+        .find((l) => l.startsWith(prefix))
+        ?.slice(prefix.length)
+        .trim() ?? "";
+    const path = get("worktree ");
+    if (!path) return null;
+    const head = get("HEAD ").slice(0, 7);
+    const rawBranch = get("branch ");
+    const isDetached = lines.some((l) => l === "detached");
+    const branch = isDetached
+      ? "(detached)"
+      : rawBranch.replace(/^refs\/heads\//, "");
+    return { path, head, branch };
+  };
+
+  // Block 0 is always the main worktree — its path is the canonical projectPath
+  const mainEntry = parseBlock(blocks[0]);
+  if (!mainEntry) return [];
+  const projectPath = mainEntry.path;
+  const projectName = basename(projectPath);
 
   return blocks
     .map((block, index) => {
-      const lines = block.split('\n')
-      const get = (prefix: string): string =>
-        lines.find((l) => l.startsWith(prefix))?.slice(prefix.length).trim() ?? ''
-
-      const worktreePath = get('worktree ')
-      if (!worktreePath) return null
-
-      const head = get('HEAD ').slice(0, 7)
-      const rawBranch = get('branch ')
-      const isDetached = lines.some((l) => l === 'detached')
-      const branch = isDetached
-        ? '(detached)'
-        : rawBranch.replace(/^refs\/heads\//, '')
-
+      const entry = parseBlock(block);
+      if (!entry) return null;
       return {
-        path: worktreePath,
-        head,
-        branch,
+        path: entry.path,
+        head: entry.head,
+        branch: entry.branch,
         isMain: index === 0,
         projectPath,
         projectName,
-      } satisfies Worktree
+      } satisfies Worktree;
     })
-    .filter((w): w is Worktree => w !== null)
+    .filter((w): w is Worktree => w !== null);
 }
 
 function formatAsMarkdown(conversation: Conversation): string {
   const timestamp = conversation.timestamp
     ? new Date(conversation.timestamp).toLocaleString()
-    : 'Unknown'
+    : "Unknown";
 
   const lines: string[] = [
     `# Conversation Export`,
-    '',
-    `**Project:** ${conversation.projectName || 'Unknown'}`,
-    `**Session:** ${conversation.sessionId || 'Unknown'}`,
+    "",
+    `**Project:** ${conversation.projectName || "Unknown"}`,
+    `**Session:** ${conversation.sessionId || "Unknown"}`,
     `**Date:** ${timestamp}`,
     `**Messages:** ${conversation.messageCount || 0}`,
-    '',
-    '---',
-    ''
-  ]
+    "",
+    "---",
+    "",
+  ];
 
   for (const message of conversation.messages || []) {
-    const role = message.type === 'user' ? '## You' : '## Claude'
-    const time = message.timestamp ? ` *(${new Date(message.timestamp).toLocaleTimeString()})*` : ''
-    lines.push(`${role}${time}`)
-    lines.push('')
-    lines.push(message.content || '')
-    lines.push('')
+    const role = message.type === "user" ? "## You" : "## Claude";
+    const time = message.timestamp
+      ? ` *(${new Date(message.timestamp).toLocaleTimeString()})*`
+      : "";
+    lines.push(`${role}${time}`);
+    lines.push("");
+    lines.push(message.content || "");
+    lines.push("");
   }
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 function formatAsText(conversation: Conversation): string {
   const timestamp = conversation.timestamp
     ? new Date(conversation.timestamp).toLocaleString()
-    : 'Unknown'
+    : "Unknown";
 
   const lines: string[] = [
-    'CONVERSATION EXPORT',
-    '===================',
-    '',
-    `Project: ${conversation.projectName || 'Unknown'}`,
-    `Session: ${conversation.sessionId || 'Unknown'}`,
+    "CONVERSATION EXPORT",
+    "===================",
+    "",
+    `Project: ${conversation.projectName || "Unknown"}`,
+    `Session: ${conversation.sessionId || "Unknown"}`,
     `Date: ${timestamp}`,
     `Messages: ${conversation.messageCount || 0}`,
-    '',
-    '---',
-    ''
-  ]
+    "",
+    "---",
+    "",
+  ];
 
   for (const message of conversation.messages || []) {
-    const role = message.type === 'user' ? '[You]' : '[Claude]'
-    const time = message.timestamp ? ` (${new Date(message.timestamp).toLocaleTimeString()})` : ''
-    lines.push(`${role}${time}`)
-    lines.push(message.content || '')
-    lines.push('')
-    lines.push('---')
-    lines.push('')
+    const role = message.type === "user" ? "[You]" : "[Claude]";
+    const time = message.timestamp
+      ? ` (${new Date(message.timestamp).toLocaleTimeString()})`
+      : "";
+    lines.push(`${role}${time}`);
+    lines.push(message.content || "");
+    lines.push("");
+    lines.push("---");
+    lines.push("");
   }
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('com.claude-code-search')
+  electronApp.setAppUserModelId("com.claude-code-search");
 
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
+  app.on("browser-window-created", (_, window) => {
+    optimizer.watchWindowShortcuts(window);
+  });
 
-  setupIpcHandlers()
-  createWindow()
+  setupIpcHandlers();
+  createWindow();
 
   // Load profiles (or write defaults), then initialize search
-  const profilesConfig = await ensureProfilesExist()
-  const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled)
+  const profilesConfig = await ensureProfilesExist();
+  const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled);
 
   initializeSearch(enabledProfiles)
     .then(() => {
-      mainWindow?.webContents.send('index-ready')
+      mainWindow?.webContents.send("index-ready");
     })
-    .catch(console.error)
+    .catch(console.error);
 
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
+  app.on("activate", function () {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
 
-app.on('window-all-closed', () => {
-  app.quit()
-})
+app.on("window-all-closed", () => {
+  app.quit();
+});
 
-app.on('before-quit', () => {
+app.on("before-quit", () => {
   for (const manager of ptyManagers.values()) {
     if (manager.isActive()) {
-      manager.kill().catch(() => {})
+      manager.kill().catch(() => {});
     }
   }
-})
+});
