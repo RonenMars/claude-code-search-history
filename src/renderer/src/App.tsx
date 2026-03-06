@@ -476,6 +476,9 @@ export default function App(): JSX.Element {
                 <SettingsModal
                   settings={appSettings}
                   onSave={handleSaveSettings}
+                  profiles={profiles}
+                  onFilterByProfile={handleFilterByProfile}
+                  onProfilesSaved={handleProfilesSaved}
                 />
               )
             }
