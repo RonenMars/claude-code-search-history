@@ -6,7 +6,11 @@ import FilterPanel from './components/FilterPanel'
 import ErrorBoundary from './components/ErrorBoundary'
 import ChatTerminal from './components/ChatTerminal'
 import { useSearch } from './hooks/useSearch'
-import type { Conversation, SortOption, DateRangeOption } from '../../shared/types'
+import ProfilePickerModal from './components/ProfilePickerModal'
+import ProfilesPanel from './components/ProfilesPanel'
+import type { Conversation, SortOption, DateRangeOption, Profile } from '../../shared/types'
+
+type RightPanelView = 'conversation' | 'chat' | 'profiles' | 'empty'
 
 
 export default function App(): JSX.Element {
@@ -17,6 +21,7 @@ export default function App(): JSX.Element {
   const [projects, setProjects] = useState<string[]>([])
   const [stats, setStats] = useState({ conversations: 0, projects: 0 })
   const [isLoading, setIsLoading] = useState(true)
+  const [isIndexing, setIsIndexing] = useState(true)
   const [scanProgress, setScanProgress] = useState<{ scanned: number; total: number } | null>(null)
   const prefsDebounceRef = useRef<NodeJS.Timeout>()
 
@@ -27,18 +32,30 @@ export default function App(): JSX.Element {
   const [isClaudeTyping, setIsClaudeTyping] = useState(false)
   const claudeTypingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Profile picker state
+  const [activeChatProfile, setActiveChatProfile] = useState<Profile | null>(null)
+  const [pendingChatConfig, setPendingChatConfig] = useState<{
+    cwd: string | null
+    resumeSessionId?: string
+  } | null>(null)
+  const [rightPanel, setRightPanel] = useState<RightPanelView>('empty')
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [accountFilter, setAccountFilter] = useState<string | null>(null)
+
   const { query, setQuery, results, searching, refresh } = useSearch(selectedProject)
 
   useEffect(() => {
     const loadData = async (): Promise<void> => {
       try {
-        const [projectList, statsData, prefs] = await Promise.all([
+        const [projectList, statsData, prefs, profileList] = await Promise.all([
           window.electronAPI.getProjects(),
           window.electronAPI.getStats(),
-          window.electronAPI.getPreferences()
+          window.electronAPI.getPreferences(),
+          window.electronAPI.getProfiles()
         ])
         setProjects(projectList)
         setStats(statsData)
+        setProfiles(profileList)
 
         // Restore saved preferences
         if (prefs.sortBy) setSortBy(prefs.sortBy)
@@ -55,6 +72,7 @@ export default function App(): JSX.Element {
 
     // Listen for index ready (fires once)
     window.electronAPI.onIndexReady(() => {
+      setIsIndexing(false)
       loadData()
       refresh()
     })
@@ -134,7 +152,8 @@ export default function App(): JSX.Element {
     try {
       const conversation = await window.electronAPI.getConversation(id)
       setSelectedConversation(conversation)
-      setChatCwd(null) // switch back to history view
+      setChatCwd(null)
+      setRightPanel(conversation ? 'conversation' : 'empty')
     } catch (err) {
       console.error('Failed to load conversation:', err)
     }
@@ -165,13 +184,8 @@ export default function App(): JSX.Element {
       if (!confirmed) return
     }
     await window.electronAPI.ptyKill() // always kill — PTY may outlive chatCwd state
-    const dir = await window.electronAPI.selectDirectory()
-    if (dir) {
-      setChatCwd(dir)
-      setChatResumeSessionId(undefined)
-      setChatKey((k) => k + 1)
-      setSelectedConversation(null)
-    }
+    // cwd: null means "ask for directory after profile selection"
+    setPendingChatConfig({ cwd: null, resumeSessionId: undefined })
   }, [chatCwd])
 
   const handleChatInProject = useCallback(async (projectPath: string) => {
@@ -180,10 +194,7 @@ export default function App(): JSX.Element {
       if (!confirmed) return
     }
     await window.electronAPI.ptyKill()
-    setChatCwd(projectPath)
-    setChatResumeSessionId(undefined)
-    setChatKey((k) => k + 1)
-    setSelectedConversation(null)
+    setPendingChatConfig({ cwd: projectPath, resumeSessionId: undefined })
   }, [chatCwd])
 
   const handleContinueChat = useCallback(async (projectPath: string, sessionId: string) => {
@@ -192,11 +203,32 @@ export default function App(): JSX.Element {
       if (!confirmed) return
     }
     await window.electronAPI.ptyKill()
-    setChatCwd(projectPath)
-    setChatResumeSessionId(sessionId)
+    setPendingChatConfig({ cwd: projectPath, resumeSessionId: sessionId })
+  }, [chatCwd])
+
+  const handleProfileSelected = useCallback(async (profile: Profile) => {
+    const pending = pendingChatConfig
+    setPendingChatConfig(null)
+    if (!pending) return
+
+    let cwd = pending.cwd
+    if (cwd === null) {
+      const dir = await window.electronAPI.selectDirectory()
+      if (!dir) return
+      cwd = dir
+    }
+
+    setActiveChatProfile(profile)
+    setChatCwd(cwd)
+    setChatResumeSessionId(pending.resumeSessionId)
     setChatKey((k) => k + 1)
     setSelectedConversation(null)
-  }, [chatCwd])
+    setRightPanel('chat')
+  }, [pendingChatConfig])
+
+  const handleProfilePickerCancel = useCallback(() => {
+    setPendingChatConfig(null)
+  }, [])
 
   // Rebuild index and navigate to the latest conversation for the project
   const returnToHistory = useCallback(async (projectPath: string) => {
@@ -214,6 +246,8 @@ export default function App(): JSX.Element {
       setSelectedConversation(conversation)
     }
     setChatCwd(null)
+    setActiveChatProfile(null)
+    // rightPanel will be set by handleSelectResult when conversation loads
   }, [refresh])
 
   const handleChatExit = useCallback((_code: number) => {
@@ -230,8 +264,24 @@ export default function App(): JSX.Element {
       returnToHistory(projectPath)
     } else {
       setChatCwd(null)
+      setActiveChatProfile(null)
+      setRightPanel('empty')
     }
   }, [chatCwd, returnToHistory])
+
+  const handleOpenProfiles = useCallback(() => {
+    setRightPanel('profiles')
+  }, [])
+
+  const handleFilterByProfile = useCallback((profileId: string | null) => {
+    setAccountFilter(profileId)
+    setRightPanel(selectedConversation ? 'conversation' : 'empty')
+  }, [selectedConversation])
+
+  const handleProfilesSaved = useCallback(async (updated: Profile[]) => {
+    setProfiles(updated)
+    await window.electronAPI.saveProfiles(updated)
+  }, [])
 
   useEffect(() => {
     if (!chatCwd) {
@@ -274,6 +324,17 @@ export default function App(): JSX.Element {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Chat
+          </button>
+          <button
+            onClick={handleOpenProfiles}
+            className="hover:text-neutral-300 transition-colors flex items-center gap-1"
+            title="Manage profiles"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Profiles
           </button>
           <span>{stats.conversations} conversations</span>
           <span>{stats.projects} projects</span>
@@ -329,7 +390,7 @@ export default function App(): JSX.Element {
 
           {/* Results */}
           <div className="flex-1 overflow-hidden">
-            {isLoading ? (
+            {(isLoading || isIndexing) ? (
               <div className="flex items-center justify-center h-32">
                 <div className="text-center">
                   <div className="text-neutral-500 animate-pulse mb-2">
@@ -354,18 +415,24 @@ export default function App(): JSX.Element {
                 onSelect={handleSelectResult}
                 query={query}
                 activeCwd={chatCwd}
+                activeChatSessionId={chatResumeSessionId}
                 isClaudeTyping={isClaudeTyping}
+                activeChatProfile={activeChatProfile}
+                accountFilter={accountFilter}
+                onClearAccountFilter={() => setAccountFilter(null)}
               />
             )}
           </div>
         </div>
 
-        {/* Right panel: Chat terminal or Conversation view */}
+        {/* Right panel: Chat, Profiles, Conversation, or empty */}
         <div className="flex-1 overflow-hidden">
-          {chatCwd ? (
+          {rightPanel === 'chat' && chatCwd ? (
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between px-4 py-1 bg-claude-dark border-b border-neutral-700">
-                <span className="text-xs text-neutral-500">Live Chat</span>
+                <span className="text-xs text-neutral-500">
+                  Live Chat{activeChatProfile ? ` · ${activeChatProfile.emoji} ${activeChatProfile.label}` : ''}
+                </span>
                 <button
                   onClick={handleCloseChat}
                   className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
@@ -379,11 +446,18 @@ export default function App(): JSX.Element {
                   key={chatKey}
                   cwd={chatCwd}
                   resumeSessionId={chatResumeSessionId}
+                  configDir={activeChatProfile?.configDir}
                   onExit={handleChatExit}
                 />
               </div>
             </div>
-          ) : selectedConversation ? (
+          ) : rightPanel === 'profiles' ? (
+            <ProfilesPanel
+              profiles={profiles}
+              onFilterByProfile={handleFilterByProfile}
+              onProfilesSaved={handleProfilesSaved}
+            />
+          ) : rightPanel === 'conversation' && selectedConversation ? (
             <ErrorBoundary>
               <ConversationView conversation={selectedConversation} query={query} onContinueChat={handleContinueChat} />
             </ErrorBoundary>
@@ -415,6 +489,14 @@ export default function App(): JSX.Element {
           )}
         </div>
       </div>
+
+      {pendingChatConfig !== null && (
+        <ProfilePickerModal
+          profiles={profiles}
+          onSelect={handleProfileSelected}
+          onCancel={handleProfilePickerCancel}
+        />
+      )}
     </div>
   )
 }
