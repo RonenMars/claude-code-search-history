@@ -6,7 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ConversationScanner } from './services/scanner'
 import { SearchIndexer } from './services/indexer'
 import { PtyManager } from './services/pty-manager'
-import type { Conversation, PtySpawnOptions, Profile, ProfilesConfig } from '../shared/types'
+import type { Conversation, PtySpawnOptions, Profile, ProfilesConfig, AppSettings } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let scanner: ConversationScanner | null = null
@@ -30,6 +30,32 @@ async function savePreferences(prefs: Record<string, unknown>): Promise<void> {
   const dir = app.getPath('userData')
   await mkdir(dir, { recursive: true })
   await writeFile(getPrefsPath(), JSON.stringify(prefs, null, 2), 'utf-8')
+}
+
+function getSettingsPath(): string {
+  return join(app.getPath('userData'), 'settings.json')
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  maxChatInstances: 3
+}
+
+async function loadSettings(): Promise<AppSettings> {
+  try {
+    const data = await readFile(getSettingsPath(), 'utf-8')
+    const parsed = JSON.parse(data)
+    return { ...DEFAULT_SETTINGS, ...parsed }
+  } catch {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
+async function saveSettings(settings: Partial<AppSettings>): Promise<void> {
+  const current = await loadSettings()
+  const merged = { ...current, ...settings }
+  const dir = app.getPath('userData')
+  await mkdir(dir, { recursive: true })
+  await writeFile(getSettingsPath(), JSON.stringify(merged, null, 2), 'utf-8')
 }
 
 const DEFAULT_PROFILE: Profile = {
@@ -287,6 +313,15 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('set-preferences', async (_event, prefs: Record<string, unknown>) => {
     await savePreferences(prefs)
+    return true
+  })
+
+  ipcMain.handle('get-settings', async () => {
+    return loadSettings()
+  })
+
+  ipcMain.handle('set-settings', async (_event, settings: Partial<AppSettings>) => {
+    await saveSettings(settings)
     return true
   })
 
