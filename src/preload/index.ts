@@ -11,10 +11,13 @@ import type {
   AppSettings,
   StatsGranularity,
   PeriodStat,
-  Worktree
+  Worktree,
+  GitInfo,
+  CreateWorktreeOptions,
+  CreateWorktreeResult
 } from '../shared/types'
 
-export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, StatsGranularity, PeriodStat, Worktree }
+export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, StatsGranularity, PeriodStat, Worktree, GitInfo, CreateWorktreeOptions, CreateWorktreeResult }
 
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
@@ -45,6 +48,10 @@ export interface ElectronAPI {
   getProfiles: () => Promise<Profile[]>
   saveProfiles: (profiles: Profile[]) => Promise<boolean>
   getWorktrees: () => Promise<Worktree[]>
+  openInFinder: (path: string) => Promise<void>
+  isIndexReady: () => Promise<boolean>
+  getGitInfo: () => Promise<Record<string, GitInfo>>
+  createWorktree: (options: CreateWorktreeOptions) => Promise<CreateWorktreeResult>
 }
 
 const api: ElectronAPI = {
@@ -94,6 +101,10 @@ const api: ElectronAPI = {
   getProfiles: () => ipcRenderer.invoke('get-profiles'),
   saveProfiles: (profiles) => ipcRenderer.invoke('save-profiles', profiles),
   getWorktrees: () => ipcRenderer.invoke('get-worktrees'),
+  openInFinder: (path) => ipcRenderer.invoke('open-in-finder', path),
+  isIndexReady: () => ipcRenderer.invoke('is-index-ready'),
+  getGitInfo: () => ipcRenderer.invoke('get-git-info'),
+  createWorktree: (options) => ipcRenderer.invoke('create-worktree', options),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)
