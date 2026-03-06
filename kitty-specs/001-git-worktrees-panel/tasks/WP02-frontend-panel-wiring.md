@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Frontend Panel & App Wiring
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 001-git-worktrees-panel-WP01
 base_commit: 0ef8552611c74f5f951245a7686cc9cb9250287e
@@ -403,3 +403,4 @@ Manual end-to-end validation:
 
 - 2026-03-06T00:00:00Z – system – lane=planned – Prompt created.
 - 2026-03-06T21:51:38Z – claude – shell_pid=66854 – lane=doing – Assigned agent via workflow command
+- 2026-03-06T21:52:52Z – claude – shell_pid=66854 – lane=for_review – T005-T008 complete: WorktreesPanel component, RightPanelView type, git-branch titlebar button, panel switch case.
