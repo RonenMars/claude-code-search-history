@@ -49,10 +49,10 @@
 **Estimated size**: ~320 lines
 
 ### Included Subtasks
-- [ ] T005 [P] Create `src/renderer/src/components/WorktreesPanel.tsx`
-- [ ] T006 Add `'worktrees'` to `RightPanelView` type in `src/renderer/src/App.tsx`
-- [ ] T007 Add git-branch icon titlebar button in `src/renderer/src/App.tsx`
-- [ ] T008 Add `WorktreesPanel` case in right-panel render switch in `src/renderer/src/App.tsx`
+- [x] T005 [P] Create `src/renderer/src/components/WorktreesPanel.tsx`
+- [x] T006 Add `'worktrees'` to `RightPanelView` type in `src/renderer/src/App.tsx`
+- [x] T007 Add git-branch icon titlebar button in `src/renderer/src/App.tsx`
+- [x] T008 Add `WorktreesPanel` case in right-panel render switch in `src/renderer/src/App.tsx`
 
 ### Implementation Notes
 - T005 (the component) can be drafted while T006–T008 are applied. The component is self-contained: it calls `window.electronAPI.getWorktrees()` on mount and provides a refresh button.
