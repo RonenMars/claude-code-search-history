@@ -268,3 +268,23 @@ export interface Worktree {
   projectPath: string // absolute path of the main worktree (root project)
   projectName: string // basename(projectPath) — used for display grouping
 }
+
+// ─── Git Info Types (for conversation list badges) ──────────────────
+
+export interface GitInfo {
+  type: 'none' | 'git' | 'worktree'
+  branch?: string           // current branch name
+  rootProjectPath?: string  // for worktrees: absolute path to main worktree
+  rootProjectName?: string  // basename(rootProjectPath)
+}
+
+export interface CreateWorktreeOptions {
+  rootPath: string       // cwd for git command (main worktree path)
+  worktreePath: string   // absolute path for the new worktree
+  branch: string         // new branch name
+}
+
+export interface CreateWorktreeResult {
+  success: boolean
+  error?: string
+}
