@@ -1,11 +1,12 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { readFile, writeFile, mkdir } from 'fs/promises'
+import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises'
 import { join } from 'path'
+import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ConversationScanner } from './services/scanner'
 import { SearchIndexer } from './services/indexer'
 import { PtyManager } from './services/pty-manager'
-import type { Conversation, PtySpawnOptions } from '../shared/types'
+import type { Conversation, PtySpawnOptions, Profile, ProfilesConfig } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let scanner: ConversationScanner | null = null
@@ -29,6 +30,108 @@ async function savePreferences(prefs: Record<string, unknown>): Promise<void> {
   const dir = app.getPath('userData')
   await mkdir(dir, { recursive: true })
   await writeFile(getPrefsPath(), JSON.stringify(prefs, null, 2), 'utf-8')
+}
+
+const DEFAULT_PROFILE: Profile = {
+  id: 'default',
+  label: 'Default',
+  emoji: '🤖',
+  configDir: join(homedir(), '.claude'),
+  enabled: true
+}
+
+function getProfilesPath(): string {
+  return join(app.getPath('userData'), 'profiles.json')
+}
+
+async function loadProfilesConfig(): Promise<ProfilesConfig> {
+  try {
+    const data = await readFile(getProfilesPath(), 'utf-8')
+    const parsed = JSON.parse(data) as ProfilesConfig
+    if (Array.isArray(parsed.profiles) && parsed.profiles.length > 0) {
+      return parsed
+    }
+  } catch {
+    // Missing or malformed — fall through to default
+  }
+  return { profiles: [DEFAULT_PROFILE] }
+}
+
+async function saveProfilesConfig(config: ProfilesConfig): Promise<void> {
+  const dir = app.getPath('userData')
+  await mkdir(dir, { recursive: true })
+  await writeFile(getProfilesPath(), JSON.stringify(config, null, 2), 'utf-8')
+}
+
+async function ensureProfilesExist(): Promise<ProfilesConfig> {
+  try {
+    await readFile(getProfilesPath(), 'utf-8')
+    return loadProfilesConfig()
+  } catch {
+    // File doesn't exist — write defaults
+    const defaults = { profiles: [DEFAULT_PROFILE] }
+    await saveProfilesConfig(defaults)
+    return defaults
+  }
+}
+
+async function getProfileUsage(profileDir: string): Promise<{ conversations: number; lastUsed: string | null; tokensThisMonth: number }> {
+  const projectsDir = join(profileDir, 'projects')
+  let conversations = 0
+  let latestMtime = 0
+  let tokensThisMonth = 0
+
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+
+  try {
+    const projectDirs = await readdir(projectsDir)
+    await Promise.all(
+      projectDirs.map(async (pd) => {
+        if (pd.startsWith('.')) return
+        const pdPath = join(projectsDir, pd)
+        try {
+          const pdStat = await stat(pdPath)
+          if (!pdStat.isDirectory()) return
+          const files = await readdir(pdPath)
+          await Promise.all(
+            files.map(async (f) => {
+              if (!f.endsWith('.jsonl')) return
+              const fPath = join(pdPath, f)
+              try {
+                const fStat = await stat(fPath)
+                if (fStat.size === 0) return
+                conversations++
+                if (fStat.mtimeMs > latestMtime) latestMtime = fStat.mtimeMs
+                if (fStat.mtimeMs >= startOfMonth) {
+                  try {
+                    const content = await readFile(fPath, 'utf-8')
+                    for (const line of content.split('\n')) {
+                      if (!line.trim()) continue
+                      try {
+                        const parsed = JSON.parse(line)
+                        if (parsed.type === 'assistant' && parsed.message?.usage) {
+                          const u = parsed.message.usage
+                          tokensThisMonth += (u.input_tokens || 0) + (u.output_tokens || 0) +
+                                            (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0)
+                        }
+                      } catch { /* skip malformed lines */ }
+                    }
+                  } catch { /* skip unreadable files */ }
+                }
+              } catch { /* skip missing/unreadable files */ }
+            })
+          )
+        } catch { /* skip unreadable project dirs */ }
+      })
+    )
+  } catch { /* profile dir or projects/ may not exist */ }
+
+  return {
+    conversations,
+    lastUsed: latestMtime > 0 ? new Date(latestMtime).toISOString() : null,
+    tokensThisMonth
+  }
 }
 
 function createWindow(): void {
@@ -64,8 +167,8 @@ function createWindow(): void {
   }
 }
 
-async function initializeSearch(): Promise<void> {
-  scanner = new ConversationScanner()
+async function initializeSearch(profiles: Profile[]): Promise<void> {
+  scanner = new ConversationScanner(profiles)
   indexer = new SearchIndexer()
 
   scanner.setProgressCallback((scanned, total) => {
@@ -108,7 +211,9 @@ function setupIpcHandlers(): void {
   })
 
   ipcMain.handle('rebuild-index', async () => {
-    await initializeSearch()
+    const config = await loadProfilesConfig()
+    const enabledProfiles = config.profiles.filter((p) => p.enabled)
+    await initializeSearch(enabledProfiles)
     return true
   })
 
@@ -210,6 +315,40 @@ function setupIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle('get-profiles-usage', async () => {
+    const config = await loadProfilesConfig()
+    const enabledProfiles = config.profiles.filter((p) => p.enabled)
+    const results = await Promise.all(
+      enabledProfiles.map(async (p) => {
+        const resolvedDir = p.configDir.replace(/^~/, homedir())
+        const usage = await getProfileUsage(resolvedDir)
+        return [p.id, usage] as const
+      })
+    )
+    return Object.fromEntries(results)
+  })
+
+  ipcMain.handle('get-profiles', async () => {
+    const config = await loadProfilesConfig()
+    return config.profiles
+  })
+
+  ipcMain.handle('save-profiles', async (_event, profiles: Profile[]) => {
+    const config: ProfilesConfig = { profiles }
+    await saveProfilesConfig(config)
+    // Re-initialize scanner with updated profiles
+    const enabledProfiles = profiles.filter((p) => p.enabled)
+    scanner = new ConversationScanner(enabledProfiles)
+    indexer = new SearchIndexer()
+    scanner.setProgressCallback((scanned, total) => {
+      mainWindow?.webContents.send('scan-progress', { scanned, total })
+    })
+    const metas = await scanner.scanAllMeta()
+    await indexer.buildIndex(metas)
+    mainWindow?.webContents.send('index-ready')
+    return true
+  })
+
   ipcMain.handle('select-directory', async () => {
     if (!mainWindow) return null
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
@@ -291,8 +430,11 @@ app.whenReady().then(async () => {
   setupIpcHandlers()
   createWindow()
 
-  // Initialize search in background, notify renderer when ready
-  initializeSearch()
+  // Load profiles (or write defaults), then initialize search
+  const profilesConfig = await ensureProfilesExist()
+  const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled)
+
+  initializeSearch(enabledProfiles)
     .then(() => {
       mainWindow?.webContents.send('index-ready')
     })
