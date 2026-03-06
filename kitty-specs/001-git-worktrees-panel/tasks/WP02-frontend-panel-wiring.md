@@ -13,7 +13,7 @@ subtasks:
 - T008
 phase: Phase 2 - Frontend
 assignee: ''
-agent: ''
+agent: "claude"
 shell_pid: "66854"
 review_status: ''
 reviewed_by: ''
@@ -402,3 +402,4 @@ Manual end-to-end validation:
 ## Activity Log
 
 - 2026-03-06T00:00:00Z – system – lane=planned – Prompt created.
+- 2026-03-06T21:51:38Z – claude – shell_pid=66854 – lane=doing – Assigned agent via workflow command
