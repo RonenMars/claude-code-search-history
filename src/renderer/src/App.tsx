@@ -14,7 +14,7 @@ import type { Conversation, SortOption, DateRangeOption, Profile } from '../../s
 import type { ChatInstance, AppSettings } from '../../shared/types'
 import { v4 as uuidv4 } from 'uuid'
 
-type RightPanelView = 'conversation' | 'profiles' | 'empty'
+type RightPanelView = 'conversation' | 'profiles' | 'settings' | 'empty'
 
 
 export default function App(): JSX.Element {
@@ -34,8 +34,6 @@ export default function App(): JSX.Element {
   const [activeChatInstanceId, setActiveChatInstanceId] = useState<string | null>(null)
   const [appSettings, setAppSettings] = useState<AppSettings>({ maxChatInstances: 3 })
   const typingTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
-
-  const [showSettings, setShowSettings] = useState(false)
 
   // Profile picker state
   const [pendingChatConfig, setPendingChatConfig] = useState<{
@@ -342,7 +340,7 @@ export default function App(): JSX.Element {
             Chat
           </button>
           <button
-            onClick={() => setShowSettings(true)}
+            onClick={() => setRightPanel('settings')}
             className="hover:text-neutral-300 transition-colors"
             title="Settings"
           >
@@ -473,6 +471,14 @@ export default function App(): JSX.Element {
                 />
               )
             }
+            if (rightPanel === 'settings') {
+              return (
+                <SettingsModal
+                  settings={appSettings}
+                  onSave={handleSaveSettings}
+                />
+              )
+            }
             if (rightPanel === 'profiles') {
               return (
                 <ProfilesPanel
@@ -514,13 +520,6 @@ export default function App(): JSX.Element {
           profiles={profiles}
           onSelect={handleProfileSelected}
           onCancel={handleProfilePickerCancel}
-        />
-      )}
-      {showSettings && (
-        <SettingsModal
-          settings={appSettings}
-          onSave={handleSaveSettings}
-          onClose={() => setShowSettings(false)}
         />
       )}
     </div>

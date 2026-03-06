@@ -4,10 +4,9 @@ import type { AppSettings } from '../../../shared/types'
 interface SettingsModalProps {
   settings: AppSettings
   onSave: (settings: Partial<AppSettings>) => void
-  onClose: () => void
 }
 
-export default function SettingsModal({ settings, onSave, onClose }: SettingsModalProps): JSX.Element {
+export default function SettingsModal({ settings, onSave }: SettingsModalProps): JSX.Element {
   const [maxChatInstances, setMaxChatInstances] = useState(settings.maxChatInstances)
 
   const handleMaxChange = useCallback((value: number) => {
@@ -17,28 +16,17 @@ export default function SettingsModal({ settings, onSave, onClose }: SettingsMod
   }, [onSave])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="bg-claude-dark border border-neutral-700 rounded-xl shadow-2xl w-[480px] max-h-[80vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-700">
-          <h2 className="text-sm font-semibold text-neutral-200">Settings</h2>
-          <button
-            onClick={onClose}
-            className="text-neutral-500 hover:text-neutral-300 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <div className="h-full overflow-y-auto bg-claude-darker">
+      {/* Header */}
+      <div className="px-8 py-6 border-b border-neutral-800">
+        <h2 className="text-sm font-semibold text-neutral-200">Settings</h2>
+      </div>
 
+      <div className="px-8 py-6 max-w-xl">
         {/* Chat section */}
-        <div className="px-6 py-5 border-b border-neutral-800">
+        <div className="mb-8">
           <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">Chat</h3>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-3 border-b border-neutral-800">
             <div>
               <p className="text-sm text-neutral-200">Max simultaneous instances</p>
               <p className="text-xs text-neutral-500 mt-0.5">How many Claude Code sessions can run at once</p>
@@ -55,7 +43,7 @@ export default function SettingsModal({ settings, onSave, onClose }: SettingsMod
         </div>
 
         {/* Profiles section */}
-        <div className="px-6 py-5">
+        <div>
           <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">Profiles</h3>
           <p className="text-sm text-neutral-500">Profile management coming soon.</p>
         </div>
