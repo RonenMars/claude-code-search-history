@@ -1,25 +1,28 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-title: "Backend & IPC Bridge"
-phase: "Phase 1 - Foundation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP01
+title: Backend & IPC Bridge
+lane: "doing"
 dependencies: []
+base_branch: main
+base_commit: 6d1e4e5511c4ccd2d09af5e9c8b209c6a0b935a6
+created_at: '2026-03-06T21:48:23.348645+00:00'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+phase: Phase 1 - Foundation
+assignee: ''
+agent: ''
+shell_pid: "64026"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-06T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-06T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Backend & IPC Bridge
