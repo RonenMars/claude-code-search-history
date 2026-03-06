@@ -35,17 +35,30 @@ export default function ConversationView({
     overscan: 5,
   })
 
-  // Reversed messages: newest first for display
+  // Messages in chronological order: oldest first (top), newest last (bottom)
   const displayMessages = useMemo(
-    () => [...conversation.messages].reverse(),
+    () => conversation.messages,
     [conversation.messages]
   )
 
-  // Reset virtualizer when conversation changes
+  // When conversation changes: scroll to bottom (newest message) for chat-like UX
   useEffect(() => {
-    setCurrentMessageIndex(0)
-    virtualizer.scrollToOffset(0)
-  }, [conversation.id, virtualizer])
+    const lastIndex = conversation.messages.length - 1
+    if (lastIndex < 0) return
+    setCurrentMessageIndex(lastIndex)
+    // Double-raf: wait two paint cycles so the virtualizer can measure sizes
+    // before we jump to the end (avoids landing mid-list with estimated sizes)
+    let raf1: number, raf2: number
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        virtualizer.scrollToIndex(lastIndex, { align: 'end' })
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+    }
+  }, [conversation.id, conversation.messages.length, virtualizer])
 
   // ─── In-chat search state ──────────────────────────────────────────
   const [chatSearchOpen, setChatSearchOpen] = useState(false)
@@ -129,11 +142,13 @@ export default function ConversationView({
   }, [scrollToMessage])
 
   const handleJumpToFirst = useCallback(() => {
+    // Jump to oldest message (top)
     virtualizer.scrollToIndex(0, { align: 'start' })
     setCurrentMessageIndex(0)
   }, [virtualizer])
 
   const handleJumpToLast = useCallback(() => {
+    // Jump to newest message (bottom)
     const lastIndex = conversation.messages.length - 1
     virtualizer.scrollToIndex(lastIndex, { align: 'end' })
     setCurrentMessageIndex(lastIndex)
@@ -229,11 +244,10 @@ export default function ConversationView({
                   setTimeout(() => chatSearchInputRef.current?.focus(), 0)
                 }
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${
-                chatSearchOpen
-                  ? 'text-claude-orange bg-claude-orange/10 border-claude-orange/40'
-                  : 'text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border-neutral-700'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${chatSearchOpen
+                ? 'text-claude-orange bg-claude-orange/10 border-claude-orange/40'
+                : 'text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border-neutral-700'
+                }`}
               title="Search in chat (⌘F)"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

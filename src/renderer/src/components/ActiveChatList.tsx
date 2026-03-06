@@ -1,5 +1,8 @@
-import { basename } from 'path'
 import type { ChatInstance, ClaudeProfile } from '../../../shared/types'
+
+function basename(p: string): string {
+  return p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p
+}
 
 interface ActiveChatListProps {
   instances: ChatInstance[]

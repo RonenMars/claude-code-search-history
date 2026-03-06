@@ -1,5 +1,5 @@
 import FlexSearch from 'flexsearch'
-import type { ConversationMeta, SearchResult } from '../../shared/types'
+import type { Account, ConversationMeta, SearchResult } from '../../shared/types'
 
 interface IndexedDocument {
   id: string
@@ -12,6 +12,7 @@ interface IndexedDocument {
   messageCount: number
   preview: string
   lastMessageSender: 'user' | 'assistant'
+  account: Account
 }
 
 export class SearchIndexer {
@@ -23,7 +24,7 @@ export class SearchIndexer {
       document: {
         id: 'id',
         index: ['content', 'projectName', 'sessionId', 'sessionName'],
-        store: ['id', 'projectName', 'projectPath', 'sessionId', 'sessionName', 'timestamp', 'messageCount', 'lastMessageSender']
+        store: ['id', 'projectName', 'projectPath', 'sessionId', 'sessionName', 'timestamp', 'messageCount', 'lastMessageSender', 'account']
       },
       tokenize: 'forward',
       resolution: 9,
@@ -45,7 +46,8 @@ export class SearchIndexer {
         timestamp: meta.timestamp,
         messageCount: meta.messageCount,
         preview: meta.preview,
-        lastMessageSender: meta.lastMessageSender
+        lastMessageSender: meta.lastMessageSender,
+        account: meta.account,
       }
 
       this.documents.set(meta.id, doc)
@@ -96,7 +98,8 @@ export class SearchIndexer {
           timestamp: doc.timestamp,
           messageCount: doc.messageCount,
           score: 1,
-          lastMessageSender: doc.lastMessageSender
+          lastMessageSender: doc.lastMessageSender,
+          account: doc.account,
         })
 
         if (searchResults.length >= limit) break
@@ -130,7 +133,8 @@ export class SearchIndexer {
       timestamp: doc.timestamp,
       messageCount: doc.messageCount,
       score: 1,
-      lastMessageSender: doc.lastMessageSender
+      lastMessageSender: doc.lastMessageSender,
+      account: doc.account,
     }))
   }
 
