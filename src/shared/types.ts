@@ -192,6 +192,8 @@ export interface MessageMetadata {
 
 // ─── Profile Types ───────────────────────────────────────────────────
 
+export type ClaudeProfile = 'work' | 'personal'
+
 export interface Profile {
   id: string        // stable slug or uuid, used as Account value
   label: string     // display name, e.g. "Default", "Work"
@@ -221,7 +223,7 @@ export interface PtyStatus {
 export interface ChatInstance {
   instanceId: string
   cwd: string
-  profile: Profile | null
+  profile: ClaudeProfile | null
   status: 'active' | 'exited'
   exitCode: number | null
   resumeSessionId?: string
