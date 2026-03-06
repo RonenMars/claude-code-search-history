@@ -17,10 +17,10 @@
 **Estimated size**: ~300 lines
 
 ### Included Subtasks
-- [ ] T001 Add `Worktree` interface to `src/shared/types.ts`
-- [ ] T002 Create `src/main/utils/execFileSafe.ts` — promise wrapper for `execFile`
-- [ ] T003 Add `parseWorktrees` helper + `get-worktrees` IPC handler in `src/main/index.ts`
-- [ ] T004 Add `getWorktrees` to `ElectronAPI` interface + `api` object in `src/preload/index.ts`
+- [x] T001 Add `Worktree` interface to `src/shared/types.ts`
+- [x] T002 Create `src/main/utils/execFileSafe.ts` — promise wrapper for `execFile`
+- [x] T003 Add `parseWorktrees` helper + `get-worktrees` IPC handler in `src/main/index.ts`
+- [x] T004 Add `getWorktrees` to `ElectronAPI` interface + `api` object in `src/preload/index.ts`
 
 ### Implementation Notes
 - T001 and T002 are independent of each other and can be done in any order.
