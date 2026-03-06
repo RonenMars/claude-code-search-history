@@ -71,6 +71,7 @@ export interface UserPreferences {
   sortBy: SortOption
   dateRange: DateRangeOption
   selectedProject: string
+  defaultProfileId?: string
 }
 
 // ─── Tool Result Types ──────────────────────────────────────────────
@@ -217,6 +218,16 @@ export interface ProfileUsage {
 export interface ProfilesUsage {
   work: ProfileUsage
   personal: ProfileUsage
+}
+
+// ─── Stats Types ─────────────────────────────────────────────────────
+
+export type StatsGranularity = 'day' | 'week' | 'month'
+
+export interface PeriodStat {
+  date: string          // YYYY-MM-DD for day/week, YYYY-MM for month
+  conversations: number
+  messages: number
 }
 
 // ─── PTY / Chat Types ────────────────────────────────────────────────

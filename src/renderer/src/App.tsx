@@ -43,6 +43,7 @@ export default function App(): JSX.Element {
   const [rightPanel, setRightPanel] = useState<RightPanelView>('empty')
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [accountFilter, setAccountFilter] = useState<string | null>(null)
+  const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null)
 
   const { query, setQuery, results, searching, refresh } = useSearch(selectedProject)
 
@@ -65,6 +66,7 @@ export default function App(): JSX.Element {
         if (prefs.sortBy) setSortBy(prefs.sortBy)
         if (prefs.dateRange) setDateRange(prefs.dateRange)
         if (prefs.selectedProject) setSelectedProject(prefs.selectedProject)
+        if (prefs.defaultProfileId) setDefaultProfileId(prefs.defaultProfileId)
       } catch (err) {
         console.error('Failed to initialize:', err)
       } finally {
@@ -221,39 +223,8 @@ export default function App(): JSX.Element {
 
   // ─── Chat handlers ────────────────────────────────────────────────
 
-  const handleNewChat = useCallback(async () => {
-    const activeCount = chatInstances.filter((i) => i.status === 'active').length
-    if (activeCount >= appSettings.maxChatInstances) {
-      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
-      return
-    }
-    setPendingChatConfig({ cwd: null, resumeSessionId: undefined })
-  }, [chatInstances, appSettings.maxChatInstances])
-
-  const handleChatInProject = useCallback(async (projectPath: string) => {
-    const activeCount = chatInstances.filter((i) => i.status === 'active').length
-    if (activeCount >= appSettings.maxChatInstances) {
-      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
-      return
-    }
-    setPendingChatConfig({ cwd: projectPath, resumeSessionId: undefined })
-  }, [chatInstances, appSettings.maxChatInstances])
-
-  const handleContinueChat = useCallback(async (projectPath: string, sessionId: string) => {
-    const activeCount = chatInstances.filter((i) => i.status === 'active').length
-    if (activeCount >= appSettings.maxChatInstances) {
-      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
-      return
-    }
-    setPendingChatConfig({ cwd: projectPath, resumeSessionId: sessionId })
-  }, [chatInstances, appSettings.maxChatInstances])
-
-  const handleProfileSelected = useCallback(async (profile: Profile) => {
-    const pending = pendingChatConfig
-    setPendingChatConfig(null)
-    if (!pending) return
-
-    let cwd = pending.cwd
+  const startChat = useCallback(async (config: { cwd: string | null; resumeSessionId?: string }, profile: Profile) => {
+    let cwd = config.cwd
     if (cwd === null) {
       const dir = await window.electronAPI.selectDirectory()
       if (!dir) return
@@ -267,13 +238,73 @@ export default function App(): JSX.Element {
       profile: profile.id as ChatInstance['profile'],
       status: 'active',
       exitCode: null,
-      resumeSessionId: pending.resumeSessionId,
+      resumeSessionId: config.resumeSessionId,
       isClaudeTyping: false,
     }
     setChatInstances((prev) => [...prev, newInstance])
     setActiveChatInstanceId(instanceId)
     setSelectedConversation(null)
-  }, [pendingChatConfig])
+  }, [])
+
+  const handleNewChat = useCallback(async () => {
+    const activeCount = chatInstances.filter((i) => i.status === 'active').length
+    if (activeCount >= appSettings.maxChatInstances) {
+      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
+      return
+    }
+    const defaultProfile = defaultProfileId ? profiles.find((p) => p.id === defaultProfileId && p.enabled) : null
+    if (defaultProfile) {
+      await startChat({ cwd: null }, defaultProfile)
+    } else {
+      setPendingChatConfig({ cwd: null, resumeSessionId: undefined })
+    }
+  }, [chatInstances, appSettings.maxChatInstances, defaultProfileId, profiles, startChat])
+
+  const handleChatInProject = useCallback(async (projectPath: string) => {
+    const activeCount = chatInstances.filter((i) => i.status === 'active').length
+    if (activeCount >= appSettings.maxChatInstances) {
+      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
+      return
+    }
+    const defaultProfile = defaultProfileId ? profiles.find((p) => p.id === defaultProfileId && p.enabled) : null
+    if (defaultProfile) {
+      await startChat({ cwd: projectPath }, defaultProfile)
+    } else {
+      setPendingChatConfig({ cwd: projectPath, resumeSessionId: undefined })
+    }
+  }, [chatInstances, appSettings.maxChatInstances, defaultProfileId, profiles, startChat])
+
+  const handleContinueChat = useCallback(async (projectPath: string, sessionId: string) => {
+    const activeCount = chatInstances.filter((i) => i.status === 'active').length
+    if (activeCount >= appSettings.maxChatInstances) {
+      window.alert(`Maximum of ${appSettings.maxChatInstances} active chats reached. Close one to start a new session.`)
+      return
+    }
+    const defaultProfile = defaultProfileId ? profiles.find((p) => p.id === defaultProfileId && p.enabled) : null
+    if (defaultProfile) {
+      await startChat({ cwd: projectPath, resumeSessionId: sessionId }, defaultProfile)
+    } else {
+      setPendingChatConfig({ cwd: projectPath, resumeSessionId: sessionId })
+    }
+  }, [chatInstances, appSettings.maxChatInstances, defaultProfileId, profiles, startChat])
+
+  const handleProfileSelected = useCallback(async (profile: Profile, remember: boolean) => {
+    const pending = pendingChatConfig
+    setPendingChatConfig(null)
+    if (!pending) return
+
+    if (remember) {
+      setDefaultProfileId(profile.id)
+      await window.electronAPI.setPreferences({ defaultProfileId: profile.id })
+    }
+
+    await startChat(pending, profile)
+  }, [pendingChatConfig, startChat])
+
+  const handleClearDefaultProfile = useCallback(async () => {
+    setDefaultProfileId(null)
+    await window.electronAPI.setPreferences({ defaultProfileId: undefined })
+  }, [])
 
   const handleProfilePickerCancel = useCallback(() => {
     setPendingChatConfig(null)
@@ -398,8 +429,12 @@ export default function App(): JSX.Element {
           {/* Results Counter */}
           <div className="px-4 py-2 border-b border-neutral-800">
             <div className="text-xs text-neutral-500">
-              Showing <span className="font-medium text-neutral-400">{sortedResults.length}</span> of{' '}
-              <span className="font-medium text-neutral-400">{results.length}</span> conversations
+              {sortedResults.length === results.length ? (
+                <>Showing <span className="font-medium text-neutral-400">{sortedResults.length}</span> conversations</>
+              ) : (
+                <>Showing <span className="font-medium text-neutral-400">{sortedResults.length}</span> of{' '}
+                <span className="font-medium text-neutral-400">{results.length}</span> conversations</>
+              )}
             </div>
           </div>
 
@@ -410,7 +445,7 @@ export default function App(): JSX.Element {
                 <div className="text-center">
                   <div className="text-neutral-500 animate-pulse mb-2">
                     {scanProgress
-                      ? `Scanning... ${scanProgress.scanned}/${scanProgress.total} conversations`
+                      ? `Scanning... ${scanProgress.scanned}/${scanProgress.total} files`
                       : 'Loading conversations...'}
                   </div>
                   {scanProgress && scanProgress.total > 0 && (
@@ -464,6 +499,9 @@ export default function App(): JSX.Element {
                   profiles={profiles}
                   onFilterByProfile={handleFilterByProfile}
                   onProfilesSaved={handleProfilesSaved}
+                  onClose={() => setRightPanel(selectedConversation ? 'conversation' : 'empty')}
+                  defaultProfileId={defaultProfileId}
+                  onClearDefaultProfile={handleClearDefaultProfile}
                 />
               )
             }

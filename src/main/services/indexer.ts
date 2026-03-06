@@ -167,6 +167,38 @@ export class SearchIndexer {
     return this.documents.size
   }
 
+  getDailyStats(granularity: 'day' | 'week' | 'month', limit: number): Array<{ date: string; conversations: number; messages: number }> {
+    const buckets = new Map<string, { conversations: number; messages: number }>()
+
+    for (const doc of this.documents.values()) {
+      const d = new Date(doc.timestamp)
+      let key: string
+
+      if (granularity === 'day') {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      } else if (granularity === 'week') {
+        const dayOfWeek = d.getDay()
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+        const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff)
+        key = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
+      } else {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      }
+
+      const existing = buckets.get(key) ?? { conversations: 0, messages: 0 }
+      buckets.set(key, {
+        conversations: existing.conversations + 1,
+        messages: existing.messages + doc.messageCount
+      })
+    }
+
+    return Array.from(buckets.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .slice(0, limit)
+      .reverse()
+      .map(([date, stats]) => ({ date, ...stats }))
+  }
+
   getStatsByAccount(): Record<string, { messages: number; projects: number }> {
     const acc: Record<string, { messages: number; projects: Set<string> }> = {}
     for (const doc of this.documents.values()) {

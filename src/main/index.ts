@@ -228,7 +228,7 @@ async function initializeSearch(profiles: Profile[]): Promise<void> {
 function setupIpcHandlers(): void {
   ipcMain.handle('search', async (_event, query: string, filters?: { project?: string; limit?: number }) => {
     if (!indexer) return []
-    return indexer.search(query, filters?.limit || 50, filters?.project)
+    return indexer.search(query, filters?.limit || 10000, filters?.project)
   })
 
   ipcMain.handle('get-conversation', async (_event, id: string) => {
@@ -380,6 +380,11 @@ function setupIpcHandlers(): void {
       active: manager?.isActive() ?? false,
       pid: manager?.getPid()
     }
+  })
+
+  ipcMain.handle('get-daily-stats', async (_event, granularity: string, limit: number) => {
+    if (!indexer) return []
+    return indexer.getDailyStats(granularity as 'day' | 'week' | 'month', limit)
   })
 
   ipcMain.handle('get-profiles-usage', async () => {

@@ -20,8 +20,7 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
       setSearching(true)
       try {
         const searchResults = await window.electronAPI.search(searchQuery, {
-          project: projectFilter,
-          limit: 100
+          project: projectFilter
         })
         setResults(searchResults)
       } catch (err) {

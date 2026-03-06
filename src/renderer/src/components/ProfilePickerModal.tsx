@@ -1,12 +1,15 @@
+import { useState } from 'react'
 import type { Profile } from '../../../shared/types'
 
 interface ProfilePickerModalProps {
   profiles: Profile[]
-  onSelect: (profile: Profile) => void
+  onSelect: (profile: Profile, remember: boolean) => void
   onCancel: () => void
 }
 
 export default function ProfilePickerModal({ profiles, onSelect, onCancel }: ProfilePickerModalProps): JSX.Element {
+  const [remember, setRemember] = useState(false)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
@@ -20,7 +23,7 @@ export default function ProfilePickerModal({ profiles, onSelect, onCancel }: Pro
           {profiles.filter((p) => p.enabled).map((profile) => (
             <button
               key={profile.id}
-              onClick={() => onSelect(profile)}
+              onClick={() => onSelect(profile, remember)}
               className="flex flex-col items-start text-left p-4 bg-neutral-900 border border-neutral-700 hover:border-claude-orange hover:bg-neutral-800 rounded-lg transition-colors group"
             >
               <div className="flex items-center gap-2 mb-2">
@@ -32,7 +35,16 @@ export default function ProfilePickerModal({ profiles, onSelect, onCancel }: Pro
           ))}
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-claude-orange"
+            />
+            <span className="text-xs text-neutral-500">Remember my choice</span>
+          </label>
           <button
             onClick={onCancel}
             className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors px-3 py-1.5"

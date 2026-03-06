@@ -8,10 +8,12 @@ import type {
   PtySpawnOptions,
   PtyStatus,
   Profile,
-  AppSettings
+  AppSettings,
+  StatsGranularity,
+  PeriodStat
 } from '../shared/types'
 
-export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings }
+export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, StatsGranularity, PeriodStat }
 
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
@@ -37,6 +39,7 @@ export interface ElectronAPI {
   getSettings: () => Promise<AppSettings>
   setSettings: (settings: Partial<AppSettings>) => Promise<boolean>
   selectDirectory: () => Promise<string | null>
+  getDailyStats: (granularity: StatsGranularity, limit: number) => Promise<PeriodStat[]>
   getProfilesUsage: () => Promise<Record<string, { conversations: number; lastUsed: string | null; tokensThisMonth: number }>>
   getProfiles: () => Promise<Profile[]>
   saveProfiles: (profiles: Profile[]) => Promise<boolean>
@@ -84,6 +87,7 @@ const api: ElectronAPI = {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  getDailyStats: (granularity, limit) => ipcRenderer.invoke('get-daily-stats', granularity, limit),
   getProfilesUsage: () => ipcRenderer.invoke('get-profiles-usage'),
   getProfiles: () => ipcRenderer.invoke('get-profiles'),
   saveProfiles: (profiles) => ipcRenderer.invoke('save-profiles', profiles),

@@ -55,7 +55,7 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
   }
 
   return (
-    <div className="flex flex-col h-full bg-claude-darker">
+    <div className="bg-claude-darker">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
         <div>
@@ -76,7 +76,7 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
       </div>
 
       {/* Cards grid */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="p-6">
         {saving && (
           <div className="text-xs text-neutral-500 animate-pulse mb-4">Saving and rebuilding index…</div>
         )}
