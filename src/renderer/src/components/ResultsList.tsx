@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { Profile, SearchResult } from '../../../shared/types'
+import type { ClaudeProfile, SearchResult } from '../../../shared/types'
 
 interface ResultsListProps {
   results: SearchResult[]
@@ -10,7 +10,7 @@ interface ResultsListProps {
   activeCwd: string | null
   activeChatSessionId: string | undefined
   isClaudeTyping: boolean
-  activeChatProfile: Profile | null
+  activeChatProfile: ClaudeProfile | null
   accountFilter: string | null
   onClearAccountFilter: () => void
 }
@@ -105,7 +105,7 @@ interface ResultItemProps {
   activeCwd: string | null
   activeChatSessionId: string | undefined
   isClaudeTyping: boolean
-  activeChatProfile: Profile | null
+  activeChatProfile: ClaudeProfile | null
 }
 
 function ResultItem({ result, isSelected, onSelect, query, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile }: ResultItemProps): JSX.Element {
@@ -171,10 +171,11 @@ function ResultItem({ result, isSelected, onSelect, query, activeCwd, activeChat
   )
 }
 
-function LiveProfileBadge({ profile }: { profile: Profile }): JSX.Element {
+function LiveProfileBadge({ profile }: { profile: ClaudeProfile }): JSX.Element {
+  const emoji = profile === 'work' ? '💼' : '🏠'
   return (
     <span className="text-[9px] font-medium text-neutral-400">
-      {profile.emoji}
+      {emoji}
     </span>
   )
 }

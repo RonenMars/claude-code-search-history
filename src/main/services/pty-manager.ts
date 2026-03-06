@@ -1,5 +1,6 @@
 import * as pty from 'node-pty'
 import { platform, homedir } from 'os'
+import { join } from 'path'
 import type { PtySpawnOptions } from '../../shared/types'
 
 export class PtyManager {
@@ -45,8 +46,10 @@ export class PtyManager {
         // Unset CLAUDECODE to avoid "nested session" error
         CLAUDECODE: ''
       }
-      if (options.configDir) {
-        spawnEnv.CLAUDE_CONFIG_DIR = options.configDir.replace(/^~/, homedir())
+      if (options.profile === 'work') {
+        spawnEnv.CLAUDE_CONFIG_DIR = join(homedir(), '.claude-work')
+      } else if (options.profile === 'personal') {
+        spawnEnv.CLAUDE_CONFIG_DIR = join(homedir(), '.claude-personal')
       }
 
       const proc = pty.spawn(shell, args, {

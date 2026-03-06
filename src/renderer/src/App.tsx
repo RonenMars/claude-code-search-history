@@ -449,7 +449,7 @@ export default function App(): JSX.Element {
                 activeCwd={chatInstances.find(i => i.instanceId === activeChatInstanceId)?.cwd ?? null}
                 activeChatSessionId={chatInstances.find(i => i.instanceId === activeChatInstanceId)?.resumeSessionId}
                 isClaudeTyping={chatInstances.some(i => i.isClaudeTyping)}
-                activeChatProfile={chatInstances.find(i => i.instanceId === activeChatInstanceId)?.profile as unknown as Profile | null ?? null}
+                activeChatProfile={chatInstances.find(i => i.instanceId === activeChatInstanceId)?.profile ?? null}
                 accountFilter={accountFilter}
                 onClearAccountFilter={() => setAccountFilter(null)}
               />
