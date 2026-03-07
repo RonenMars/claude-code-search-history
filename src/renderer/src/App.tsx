@@ -73,8 +73,8 @@ export default function App(): JSX.Element {
   const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isResizing.current = true;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
 
     const onMouseMove = (moveEvent: MouseEvent): void => {
       if (!isResizing.current) return;
@@ -84,14 +84,14 @@ export default function App(): JSX.Element {
 
     const onMouseUp = (): void => {
       isResizing.current = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
     };
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
   }, []);
 
   const { query, setQuery, results, searching, hasSearched, refresh } =
@@ -152,7 +152,7 @@ export default function App(): JSX.Element {
     });
 
     return cleanupProgress;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter and sort results
@@ -447,22 +447,19 @@ export default function App(): JSX.Element {
     await window.electronAPI.setPreferences({ defaultProfileId: undefined });
   }, []);
 
-  const handleGoToRootProject = useCallback(
-    async (rootProjectPath: string) => {
-      try {
-        const conversation =
-          await window.electronAPI.getLatestConversation(rootProjectPath);
-        if (conversation) {
-          setSelectedConversation(conversation);
-          setActiveChatInstanceId(null);
-          setRightPanel("conversation");
-        }
-      } catch (err) {
-        console.error("Failed to load root project conversation:", err);
+  const handleGoToRootProject = useCallback(async (rootProjectPath: string) => {
+    try {
+      const conversation =
+        await window.electronAPI.getLatestConversation(rootProjectPath);
+      if (conversation) {
+        setSelectedConversation(conversation);
+        setActiveChatInstanceId(null);
+        setRightPanel("conversation");
       }
-    },
-    [],
-  );
+    } catch (err) {
+      console.error("Failed to load root project conversation:", err);
+    }
+  }, []);
 
   const handleCreateWorktree = useCallback(
     async (rootPath: string, worktreePath: string, branch: string) => {
@@ -518,6 +515,12 @@ export default function App(): JSX.Element {
     },
     [appSettings],
   );
+
+  const isScanning =
+    isLoading ||
+    isIndexing ||
+    !hasSearched ||
+    (searching && results.length === 0);
 
   const handleProfilesSaved = useCallback(
     async (updated: Profile[]) => {
@@ -643,8 +646,10 @@ export default function App(): JSX.Element {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="flex flex-col border-r border-neutral-800 bg-claude-dark relative" style={{ width: sidebarWidth, minWidth: 240, maxWidth: 800 }}>
-
+        <div
+          className="flex flex-col border-r border-neutral-800 bg-claude-dark relative"
+          style={{ width: sidebarWidth, minWidth: 240, maxWidth: 800 }}
+        >
           <ActiveChatList
             instances={chatInstances}
             activeChatInstanceId={activeChatInstanceId}
@@ -677,7 +682,23 @@ export default function App(): JSX.Element {
           {/* Results Counter */}
           <div className="px-4 py-2 border-b border-neutral-800">
             <div className="text-xs text-neutral-500">
-              {sortedResults.length === results.length ? (
+              {isScanning ? (
+                scanProgress ? (
+                  <>
+                    Loading{" "}
+                    <span className="font-medium text-neutral-400">
+                      {scanProgress.scanned}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-neutral-400">
+                      {scanProgress.total}
+                    </span>{" "}
+                    conversations
+                  </>
+                ) : (
+                  <span className="animate-pulse">Loading conversations…</span>
+                )
+              ) : sortedResults.length === results.length ? (
                 <>
                   Showing{" "}
                   <span className="font-medium text-neutral-400">
@@ -703,7 +724,10 @@ export default function App(): JSX.Element {
 
           {/* Results */}
           <div className="flex-1 overflow-hidden">
-            {isLoading || isIndexing || !hasSearched || (searching && results.length === 0) ? (
+            {isLoading ||
+            isIndexing ||
+            !hasSearched ||
+            (searching && results.length === 0) ? (
               <div className="flex flex-col h-full">
                 {scanProgress ? (
                   <div className="flex flex-col items-center justify-center h-full">
@@ -724,7 +748,10 @@ export default function App(): JSX.Element {
                 ) : (
                   <div className="flex flex-col">
                     {Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className="p-4 border-b border-neutral-800 animate-pulse">
+                      <div
+                        key={i}
+                        className="p-4 border-b border-neutral-800 animate-pulse"
+                      >
                         <div className="flex items-center justify-between mb-2">
                           <div className="h-3 w-24 bg-neutral-800 rounded" />
                           <div className="h-3 w-16 bg-neutral-800 rounded" />
@@ -770,7 +797,9 @@ export default function App(): JSX.Element {
           {/* Resize handle */}
           <div
             className={`absolute top-0 right-0 w-1 h-full transition-colors z-10 ${isLoading || isIndexing ? "cursor-default" : "cursor-col-resize hover:bg-claude-orange/40 active:bg-claude-orange/60"}`}
-            onMouseDown={isLoading || isIndexing ? undefined : handleSidebarMouseDown}
+            onMouseDown={
+              isLoading || isIndexing ? undefined : handleSidebarMouseDown
+            }
           />
         </div>
 
@@ -815,7 +844,16 @@ export default function App(): JSX.Element {
               );
             }
             if (rightPanel === "worktrees") {
-              return <WorktreesPanel onChatInWorktree={handleChatInProject} onClose={() => setRightPanel(selectedConversation ? "conversation" : "empty")} />;
+              return (
+                <WorktreesPanel
+                  onChatInWorktree={handleChatInProject}
+                  onClose={() =>
+                    setRightPanel(
+                      selectedConversation ? "conversation" : "empty",
+                    )
+                  }
+                />
+              );
             }
             if (rightPanel === "profiles") {
               return (
