@@ -43,7 +43,7 @@ export default function MessageNavigation({
 
     const commitEdit = (): void => {
         const parsed = parseInt(inputValue, 10)
-        if (!isNaN(parsed)) {
+        if (!Number.isNaN(parsed)) {
             const clamped = Math.max(1, Math.min(parsed, totalMessages))
             onNavigate(clamped - 1)
         }
