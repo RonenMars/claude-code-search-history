@@ -94,8 +94,8 @@ export default function App(): JSX.Element {
     document.addEventListener('mouseup', onMouseUp);
   }, []);
 
-  const { query, setQuery, results, searching, refresh } =
-    useSearch(selectedProject);
+  const { query, setQuery, results, searching, hasSearched, refresh } =
+    useSearch(selectedProject, !isIndexing);
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
@@ -163,7 +163,7 @@ export default function App(): JSX.Element {
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    let filtered = results.filter((result) => {
+    const filtered = results.filter((result) => {
       if (dateRange === "all") return true;
       const resultDate = new Date(result.timestamp);
 
@@ -703,35 +703,39 @@ export default function App(): JSX.Element {
 
           {/* Results */}
           <div className="flex-1 overflow-hidden">
-            {isLoading || isIndexing || (searching && results.length === 0) ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <div className="text-center">
-                  {scanProgress ? (
+            {isLoading || isIndexing || !hasSearched || (searching && results.length === 0) ? (
+              <div className="flex flex-col h-full">
+                {scanProgress ? (
+                  <div className="flex flex-col items-center justify-center h-full">
                     <div className="text-neutral-500 animate-pulse mb-2">
                       {`Scanning... ${scanProgress.scanned}/${scanProgress.total} files`}
                     </div>
-                  ) : (
-                    <>
-                      <div className="mb-3 flex justify-center">
-                        <svg className="animate-spin h-6 w-6 text-claude-orange" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
+                    {scanProgress.total > 0 && (
+                      <div className="w-48 mx-auto h-1 bg-neutral-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-claude-orange transition-all duration-300"
+                          style={{
+                            width: `${(scanProgress.scanned / scanProgress.total) * 100}%`,
+                          }}
+                        />
                       </div>
-                      <div className="text-neutral-400 text-sm font-medium">Loading...</div>
-                    </>
-                  )}
-                  {scanProgress && scanProgress.total > 0 && (
-                    <div className="w-48 mx-auto h-1 bg-neutral-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-claude-orange transition-all duration-300"
-                        style={{
-                          width: `${(scanProgress.scanned / scanProgress.total) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="p-4 border-b border-neutral-800 animate-pulse">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="h-3 w-24 bg-neutral-800 rounded" />
+                          <div className="h-3 w-16 bg-neutral-800 rounded" />
+                        </div>
+                        <div className="h-3 w-48 bg-neutral-800/60 rounded mb-2" />
+                        <div className="h-3 w-full bg-neutral-800/40 rounded mb-1" />
+                        <div className="h-3 w-3/4 bg-neutral-800/40 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <ResultsList
@@ -788,6 +792,7 @@ export default function App(): JSX.Element {
                   onExit={() => {
                     /* handled by global onPtyExit effect */
                   }}
+                  onClose={() => setActiveChatInstanceId(null)}
                 />
               );
             }

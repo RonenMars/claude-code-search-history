@@ -6,13 +6,15 @@ interface UseSearchReturn {
   setQuery: (query: string) => void
   results: SearchResult[]
   searching: boolean
+  hasSearched: boolean
   refresh: () => void
 }
 
-export function useSearch(projectFilter?: string): UseSearchReturn {
+export function useSearch(projectFilter?: string, enabled = true): UseSearchReturn {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
-  const [searching, setSearching] = useState(false)
+  const [searching, setSearching] = useState(true)
+  const [hasSearched, setHasSearched] = useState(false)
   const debounceRef = useRef<NodeJS.Timeout>()
 
   const performSearch = useCallback(
@@ -28,6 +30,7 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
         setResults([])
       } finally {
         setSearching(false)
+        setHasSearched(true)
       }
     },
     [projectFilter]
@@ -35,6 +38,8 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
 
   // Single debounced effect handles both query and projectFilter changes
   useEffect(() => {
+    if (!enabled) return
+
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
     }
@@ -48,7 +53,7 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
         clearTimeout(debounceRef.current)
       }
     }
-  }, [query, performSearch])
+  }, [query, performSearch, enabled])
 
   const refresh = useCallback(() => {
     performSearch(query)
@@ -59,6 +64,7 @@ export function useSearch(projectFilter?: string): UseSearchReturn {
     setQuery,
     results,
     searching,
+    hasSearched,
     refresh
   }
 }

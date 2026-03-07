@@ -10,9 +10,10 @@ interface ChatTerminalProps {
   profile?: ClaudeProfile
   configDir?: string
   onExit: (code: number) => void
+  onClose: () => void
 }
 
-export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile, configDir, onExit }: ChatTerminalProps): JSX.Element {
+export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile, configDir, onExit, onClose }: ChatTerminalProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -146,6 +147,15 @@ export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile
               {stopping ? 'Force Stop' : 'Stop'}
             </button>
           )}
+          <button
+            onClick={onClose}
+            className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
+            title="Close terminal view"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
 
