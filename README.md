@@ -320,6 +320,10 @@ pnpm test:e2e:debug    # Build and run with Playwright Inspector (step through a
 
 > **Note:** E2E tests use Playwright's `_electron` API, which drives the real Chromium bundled inside Electron. This means they always run in Chromium — cross-browser testing (Firefox, WebKit) does not apply to Electron apps.
 
+## Acknowledgments
+
+- Icons provided by [SVG Repo](https://www.svgrepo.com) under the MIT license.
+
 ## License
 
 MIT
