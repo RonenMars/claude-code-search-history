@@ -161,6 +161,53 @@ describe('ResultsList', () => {
     })
   })
 
+  describe('new chat button', () => {
+    it('renders a new-chat button for each result item', () => {
+      const results = [
+        buildSearchResult({ projectName: 'project-a', projectPath: '/dev/a' }),
+        buildSearchResult({ projectName: 'project-b', projectPath: '/dev/b' }),
+      ]
+      renderList({ results })
+      expect(screen.getByTitle('New chat in project-a')).toBeInTheDocument()
+      expect(screen.getByTitle('New chat in project-b')).toBeInTheDocument()
+    })
+
+    it('calls onNewChat with projectPath when clicked', async () => {
+      const onNewChat = vi.fn()
+      const results = [buildSearchResult({ projectPath: '/dev/my-project', projectName: 'my-project' })]
+      renderList({ results, onNewChat })
+
+      await userEvent.click(screen.getByTitle('New chat in my-project'))
+      expect(onNewChat).toHaveBeenCalledWith('/dev/my-project')
+    })
+
+    it('does not call onSelect when new-chat button is clicked', async () => {
+      const onSelect = vi.fn()
+      const onNewChat = vi.fn()
+      const results = [buildSearchResult({ projectPath: '/dev/proj', projectName: 'proj' })]
+      renderList({ results, onSelect, onNewChat })
+
+      await userEvent.click(screen.getByTitle('New chat in proj'))
+      expect(onNewChat).toHaveBeenCalledTimes(1)
+      expect(onSelect).not.toHaveBeenCalled()
+    })
+
+    it('renders new-chat button in grouped mode after expanding', async () => {
+      const onNewChat = vi.fn()
+      const results = [
+        buildSearchResult({ projectPath: '/dev/a', projectName: 'project-a' }),
+      ]
+      renderList({ results, groupByProject: true, onNewChat })
+
+      // Expand the group
+      await userEvent.click(screen.getByText('project-a'))
+      expect(screen.getByTitle('New chat in project-a')).toBeInTheDocument()
+
+      await userEvent.click(screen.getByTitle('New chat in project-a'))
+      expect(onNewChat).toHaveBeenCalledWith('/dev/a')
+    })
+  })
+
   describe('grouped list', () => {
     it('groups results by project when groupByProject is true', () => {
       const results = [
