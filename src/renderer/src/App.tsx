@@ -322,6 +322,7 @@ export default function App(): JSX.Element {
         status: "active",
         exitCode: null,
         resumeSessionId: config.resumeSessionId,
+        configDir: profile.configDir,
         isClaudeTyping: false,
       };
       setChatInstances((prev) => [...prev, newInstance]);
@@ -387,7 +388,7 @@ export default function App(): JSX.Element {
   );
 
   const handleContinueChat = useCallback(
-    async (projectPath: string, sessionId: string) => {
+    async (projectPath: string, sessionId: string, account?: string) => {
       const activeCount = chatInstances.filter(
         (i) => i.status === "active",
       ).length;
@@ -397,13 +398,18 @@ export default function App(): JSX.Element {
         );
         return;
       }
+      // Prefer the conversation's own profile so CLAUDE_CONFIG_DIR matches
+      const conversationProfile = account
+        ? profiles.find((p) => p.id === account && p.enabled)
+        : null;
       const defaultProfile = defaultProfileId
         ? profiles.find((p) => p.id === defaultProfileId && p.enabled)
         : null;
-      if (defaultProfile) {
+      const profile = conversationProfile || defaultProfile;
+      if (profile) {
         await startChat(
           { cwd: projectPath, resumeSessionId: sessionId },
-          defaultProfile,
+          profile,
         );
       } else {
         setPendingChatConfig({ cwd: projectPath, resumeSessionId: sessionId });
@@ -698,13 +704,23 @@ export default function App(): JSX.Element {
           {/* Results */}
           <div className="flex-1 overflow-hidden">
             {isLoading || isIndexing ? (
-              <div className="flex items-center justify-center h-32">
+              <div className="flex flex-col items-center justify-center h-full">
                 <div className="text-center">
-                  <div className="text-neutral-500 animate-pulse mb-2">
-                    {scanProgress
-                      ? `Scanning... ${scanProgress.scanned}/${scanProgress.total} files`
-                      : "Loading conversations..."}
-                  </div>
+                  {scanProgress ? (
+                    <div className="text-neutral-500 animate-pulse mb-2">
+                      {`Scanning... ${scanProgress.scanned}/${scanProgress.total} files`}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-3 flex justify-center">
+                        <svg className="animate-spin h-6 w-6 text-claude-orange" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      </div>
+                      <div className="text-neutral-400 text-sm font-medium">Loading...</div>
+                    </>
+                  )}
                   {scanProgress && scanProgress.total > 0 && (
                     <div className="w-48 mx-auto h-1 bg-neutral-800 rounded-full overflow-hidden">
                       <div
@@ -767,6 +783,7 @@ export default function App(): JSX.Element {
                   cwd={activeInstance.cwd}
                   resumeSessionId={activeInstance.resumeSessionId}
                   profile={activeInstance.profile ?? undefined}
+                  configDir={activeInstance.configDir}
                   onExit={() => {
                     /* handled by global onPtyExit effect */
                   }}

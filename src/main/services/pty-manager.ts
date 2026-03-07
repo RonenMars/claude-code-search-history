@@ -46,7 +46,9 @@ export class PtyManager {
         // Unset CLAUDECODE to avoid "nested session" error
         CLAUDECODE: ''
       }
-      if (options.profile === 'work') {
+      if (options.configDir) {
+        spawnEnv.CLAUDE_CONFIG_DIR = options.configDir.replace(/^~/, homedir())
+      } else if (options.profile === 'work') {
         spawnEnv.CLAUDE_CONFIG_DIR = join(homedir(), '.claude-work')
       } else if (options.profile === 'personal') {
         spawnEnv.CLAUDE_CONFIG_DIR = join(homedir(), '.claude-personal')

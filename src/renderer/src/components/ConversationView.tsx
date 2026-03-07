@@ -28,7 +28,7 @@ import type {
 interface ConversationViewProps {
   conversation: Conversation;
   query: string;
-  onContinueChat?: (projectPath: string, sessionId: string) => void;
+  onContinueChat?: (projectPath: string, sessionId: string, account?: string) => void;
   gitInfo?: Record<string, GitInfo>;
   onGoToRootProject?: (rootProjectPath: string) => void;
   onCreateWorktree?: (
@@ -351,6 +351,7 @@ export default function ConversationView({
                   onContinueChat(
                     conversation.projectPath,
                     conversation.sessionId,
+                    conversation.account,
                   )
                 }
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-md transition-colors"

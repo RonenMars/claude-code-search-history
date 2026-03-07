@@ -238,6 +238,7 @@ export interface PtySpawnOptions {
   cwd: string
   resumeSessionId?: string
   profile?: ClaudeProfile
+  configDir?: string
 }
 
 export interface PtyStatus {
@@ -252,11 +253,13 @@ export interface ChatInstance {
   status: 'active' | 'exited'
   exitCode: number | null
   resumeSessionId?: string
+  configDir?: string
   isClaudeTyping: boolean
 }
 
 export interface AppSettings {
   maxChatInstances: number
+  groupByProject: boolean
 }
 
 // ─── Git Worktree Types ──────────────────────────────────────────────

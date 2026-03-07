@@ -8,10 +8,11 @@ interface ChatTerminalProps {
   cwd: string
   resumeSessionId?: string
   profile?: ClaudeProfile
+  configDir?: string
   onExit: (code: number) => void
 }
 
-export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile, onExit }: ChatTerminalProps): JSX.Element {
+export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile, configDir, onExit }: ChatTerminalProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -83,7 +84,7 @@ export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile
     })
 
     // Spawn the claude process
-    window.electronAPI.ptySpawn({ instanceId, cwd, resumeSessionId, profile }).then((result) => {
+    window.electronAPI.ptySpawn({ instanceId, cwd, resumeSessionId, profile, configDir }).then((result) => {
       if (!result.success) {
         terminal.write(`\x1b[31mFailed to start: ${result.error}\x1b[0m\r\n`)
         setExited(-1)
@@ -116,7 +117,7 @@ export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [instanceId, cwd, resumeSessionId, profile])
+  }, [instanceId, cwd, resumeSessionId, profile, configDir])
 
   return (
     <div className="flex flex-col h-full">
