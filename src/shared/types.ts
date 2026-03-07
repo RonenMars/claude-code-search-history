@@ -72,6 +72,7 @@ export interface UserPreferences {
   dateRange: DateRangeOption
   selectedProject: string
   defaultProfileId?: string
+  sidebarWidth?: number
 }
 
 // ─── Tool Result Types ──────────────────────────────────────────────

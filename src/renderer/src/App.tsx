@@ -65,8 +65,38 @@ export default function App(): JSX.Element {
   const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
   const [gitInfo, setGitInfo] = useState<Record<string, GitInfo>>({});
 
+  // Sidebar resize state
+  const [sidebarWidth, setSidebarWidth] = useState(384); // w-96 = 384px
+  const isResizing = useRef(false);
+
+  const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (moveEvent: MouseEvent): void => {
+      if (!isResizing.current) return;
+      const newWidth = Math.min(Math.max(moveEvent.clientX, 240), 800);
+      setSidebarWidth(newWidth);
+    };
+
+    const onMouseUp = (): void => {
+      isResizing.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, []);
+
   const { query, setQuery, results, searching, refresh } =
     useSearch(selectedProject);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   useEffect(() => {
     const loadData = async (): Promise<void> => {
@@ -95,11 +125,9 @@ export default function App(): JSX.Element {
           window.electronAPI.getGitInfo().then(setGitInfo).catch(console.error);
         }
 
-        // Restore saved preferences
-        if (prefs.sortBy) setSortBy(prefs.sortBy);
-        if (prefs.dateRange) setDateRange(prefs.dateRange);
-        if (prefs.selectedProject) setSelectedProject(prefs.selectedProject);
+        // Restore saved preferences (non-filter prefs only)
         if (prefs.defaultProfileId) setDefaultProfileId(prefs.defaultProfileId);
+        if (prefs.sidebarWidth) setSidebarWidth(prefs.sidebarWidth);
       } catch (err) {
         console.error("Failed to initialize:", err);
       } finally {
@@ -113,7 +141,7 @@ export default function App(): JSX.Element {
     window.electronAPI.onIndexReady(() => {
       setIsIndexing(false);
       loadData();
-      refresh();
+      refreshRef.current();
       window.electronAPI.getGitInfo().then(setGitInfo).catch(console.error);
     });
 
@@ -123,7 +151,8 @@ export default function App(): JSX.Element {
     });
 
     return cleanupProgress;
-  }, [refresh]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filter and sort results
   const sortedResults = useMemo(() => {
@@ -184,7 +213,7 @@ export default function App(): JSX.Element {
       clearTimeout(prefsDebounceRef.current);
     }
     prefsDebounceRef.current = setTimeout(() => {
-      window.electronAPI.setPreferences({ sortBy, dateRange, selectedProject });
+      window.electronAPI.setPreferences({ sidebarWidth });
     }, 500);
 
     return () => {
@@ -192,7 +221,7 @@ export default function App(): JSX.Element {
         clearTimeout(prefsDebounceRef.current);
       }
     };
-  }, [sortBy, dateRange, selectedProject]);
+  }, [sidebarWidth]);
 
   useEffect(() => {
     const cleanup = window.electronAPI.onPtyData((instanceId) => {
@@ -511,7 +540,8 @@ export default function App(): JSX.Element {
         <div className="titlebar-no-drag flex items-center gap-3 text-xs text-neutral-500">
           <button
             onClick={handleNewChat}
-            className="hover:text-neutral-300 transition-colors flex items-center gap-1"
+            disabled={isLoading}
+            className="hover:text-neutral-300 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
             title="New Claude Code chat"
           >
             <svg
@@ -531,7 +561,8 @@ export default function App(): JSX.Element {
           </button>
           <button
             onClick={() => setRightPanel("worktrees")}
-            className="hover:text-neutral-300 transition-colors"
+            disabled={isLoading}
+            className="hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
             title="Git worktrees"
           >
             <svg
@@ -553,7 +584,8 @@ export default function App(): JSX.Element {
           </button>
           <button
             onClick={() => setRightPanel("settings")}
-            className="hover:text-neutral-300 transition-colors"
+            disabled={isLoading}
+            className="hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
             title="Settings"
           >
             <svg
@@ -604,7 +636,8 @@ export default function App(): JSX.Element {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-96 flex flex-col border-r border-neutral-800 bg-claude-dark">
+        <div className="flex flex-col border-r border-neutral-800 bg-claude-dark relative" style={{ width: sidebarWidth, minWidth: 240, maxWidth: 800 }}>
+
           <ActiveChatList
             instances={chatInstances}
             activeChatInstanceId={activeChatInstanceId}
@@ -630,6 +663,7 @@ export default function App(): JSX.Element {
               profiles={profiles}
               accountFilter={accountFilter}
               onAccountFilterChange={setAccountFilter}
+              disabled={isLoading}
             />
           </div>
 
@@ -710,6 +744,11 @@ export default function App(): JSX.Element {
               />
             )}
           </div>
+          {/* Resize handle */}
+          <div
+            className={`absolute top-0 right-0 w-1 h-full transition-colors z-10 ${isLoading ? "cursor-default" : "cursor-col-resize hover:bg-claude-orange/40 active:bg-claude-orange/60"}`}
+            onMouseDown={isLoading ? undefined : handleSidebarMouseDown}
+          />
         </div>
 
         {/* Right panel: Chat, Profiles, Conversation, or empty */}
@@ -751,7 +790,7 @@ export default function App(): JSX.Element {
               );
             }
             if (rightPanel === "worktrees") {
-              return <WorktreesPanel onChatInWorktree={handleChatInProject} />;
+              return <WorktreesPanel onChatInWorktree={handleChatInProject} onClose={() => setRightPanel(selectedConversation ? "conversation" : "empty")} />;
             }
             if (rightPanel === "profiles") {
               return (
