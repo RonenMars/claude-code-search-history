@@ -322,7 +322,7 @@ pnpm test:e2e:debug    # Build and run with Playwright Inspector (step through a
 
 ## Acknowledgments
 
-- Icons provided by [SVG Repo](https://www.svgrepo.com) under the MIT license.
+- Tree view icon from [Font Awesome Free](https://fontawesome.com) under the [CC BY 4.0 license](https://fontawesome.com/license/free).
 
 ## License
 
