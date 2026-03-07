@@ -257,9 +257,11 @@ export interface ChatInstance {
   isClaudeTyping: boolean
 }
 
+export type DisplayMode = 'list' | 'grouped' | 'tree'
+
 export interface AppSettings {
   maxChatInstances: number
-  groupByProject: boolean
+  displayMode: DisplayMode
 }
 
 // ─── Git Worktree Types ──────────────────────────────────────────────

@@ -52,13 +52,21 @@ function getSettingsPath(): string {
 
 const DEFAULT_SETTINGS: AppSettings = {
   maxChatInstances: 3,
-  groupByProject: false,
+  displayMode: "list",
 };
 
 async function loadSettings(): Promise<AppSettings> {
   try {
     const data = await readFile(getSettingsPath(), "utf-8");
     const parsed = JSON.parse(data);
+    // Migrate legacy groupByProject/fileTreeView to displayMode
+    if (!parsed.displayMode && (parsed.groupByProject || parsed.fileTreeView)) {
+      parsed.displayMode = parsed.fileTreeView
+        ? "tree"
+        : parsed.groupByProject
+          ? "grouped"
+          : "list";
+    }
     return { ...DEFAULT_SETTINGS, ...parsed };
   } catch {
     return { ...DEFAULT_SETTINGS };

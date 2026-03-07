@@ -18,7 +18,7 @@ vi.mock('./ProfilesPanel', () => ({
 }))
 
 describe('SettingsModal', () => {
-  const defaultSettings = buildAppSettings({ maxChatInstances: 3, groupByProject: false })
+  const defaultSettings = buildAppSettings({ maxChatInstances: 3 })
   const defaultProfile = buildProfile()
   const workProfile = buildWorkProfile()
 
@@ -56,30 +56,11 @@ describe('SettingsModal', () => {
     expect(input).toHaveValue(5)
   })
 
-  it('renders group by project toggle with current value (off)', () => {
-    renderModal({ settings: buildAppSettings({ groupByProject: false }) })
-    const toggle = screen.getByRole('switch')
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
-  })
-
-  it('renders group by project toggle with current value (on)', () => {
-    renderModal({ settings: buildAppSettings({ groupByProject: true }) })
-    const toggle = screen.getByRole('switch')
-    expect(toggle).toHaveAttribute('aria-checked', 'true')
-  })
-
   it('calls onSave when max instances is changed', () => {
     const { props } = renderModal()
     const input = screen.getByRole('spinbutton')
     fireEvent.change(input, { target: { value: '7' } })
     expect(props.onSave).toHaveBeenCalledWith({ maxChatInstances: 7 })
-  })
-
-  it('calls onSave when group by project toggle is clicked', async () => {
-    const { props } = renderModal()
-    const toggle = screen.getByRole('switch')
-    await userEvent.click(toggle)
-    expect(props.onSave).toHaveBeenCalledWith({ groupByProject: true })
   })
 
   it('calls onClose when close button is clicked', async () => {
@@ -124,9 +105,8 @@ describe('SettingsModal', () => {
     expect(screen.getByTestId('system-stats')).toBeInTheDocument()
   })
 
-  it('renders Display and Chat section headings', () => {
+  it('renders Chat section heading', () => {
     renderModal()
-    expect(screen.getByText('Display')).toBeInTheDocument()
     expect(screen.getByText('Chat')).toBeInTheDocument()
   })
 })

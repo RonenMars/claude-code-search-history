@@ -228,7 +228,7 @@ export function buildGrepToolResult(overrides: Partial<GrepToolResult> = {}): Gr
 export function buildAppSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   return {
     maxChatInstances: 3,
-    groupByProject: false,
+    displayMode: 'list',
     ...overrides,
   }
 }

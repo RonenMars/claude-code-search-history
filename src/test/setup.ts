@@ -24,7 +24,7 @@ if (typeof window !== 'undefined') {
     ptyStatus: vi.fn().mockResolvedValue({ active: false }),
     onPtyData: vi.fn(() => noop),
     onPtyExit: vi.fn(() => noop),
-    getSettings: vi.fn().mockResolvedValue({ maxChatInstances: 3, groupByProject: false }),
+    getSettings: vi.fn().mockResolvedValue({ maxChatInstances: 3, displayMode: 'list' }),
     setSettings: vi.fn().mockResolvedValue(true),
     selectDirectory: vi.fn().mockResolvedValue(null),
     getDailyStats: vi.fn().mockResolvedValue([]),
