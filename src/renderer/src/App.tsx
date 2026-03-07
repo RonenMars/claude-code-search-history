@@ -11,6 +11,7 @@ import SettingsModal from "./components/SettingsModal";
 import ProfilesPanel from "./components/ProfilesPanel";
 import ActiveChatList from "./components/ActiveChatList";
 import WorktreesPanel from "./components/WorktreesPanel";
+import DisplayModePicker from "./components/DisplayModePicker";
 import type {
   Conversation,
   SortOption,
@@ -51,7 +52,7 @@ export default function App(): JSX.Element {
   >(null);
   const [appSettings, setAppSettings] = useState<AppSettings>({
     maxChatInstances: 3,
-    groupByProject: false,
+    displayMode: "list",
   });
   const typingTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
@@ -679,8 +680,8 @@ export default function App(): JSX.Element {
             />
           </div>
 
-          {/* Results Counter */}
-          <div className="px-4 py-2 border-b border-neutral-800">
+          {/* Results Counter + Display Mode */}
+          <div className="px-4 py-2 border-b border-neutral-800 flex items-center justify-between">
             <div className="text-xs text-neutral-500">
               {isScanning ? (
                 scanProgress ? (
@@ -720,6 +721,11 @@ export default function App(): JSX.Element {
                 </>
               )}
             </div>
+            <DisplayModePicker
+              value={appSettings.displayMode}
+              onChange={(mode) => handleSaveSettings({ displayMode: mode })}
+              disabled={isScanning}
+            />
           </div>
 
           {/* Results */}
@@ -790,7 +796,7 @@ export default function App(): JSX.Element {
                 }
                 accountFilter={accountFilter}
                 profiles={profiles}
-                groupByProject={appSettings.groupByProject}
+                displayMode={appSettings.displayMode}
               />
             )}
           </div>

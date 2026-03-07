@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { ClaudeProfile, GitInfo, Profile, SearchResult } from '../../../shared/types'
+import type { ClaudeProfile, DisplayMode, GitInfo, Profile, SearchResult } from '../../../shared/types'
 
 interface ResultsListProps {
   results: SearchResult[]
@@ -15,7 +15,7 @@ interface ResultsListProps {
   activeChatProfile: ClaudeProfile | null
   accountFilter: string | null
   profiles: Profile[]
-  groupByProject: boolean
+  displayMode: DisplayMode
 }
 
 export default function ResultsList({
@@ -31,7 +31,7 @@ export default function ResultsList({
   activeChatProfile,
   accountFilter,
   profiles,
-  groupByProject
+  displayMode
 }: ResultsListProps): JSX.Element {
   const enabledProfiles = profiles.filter((p) => p.enabled)
   const showProfileBadge = enabledProfiles.length > 1
@@ -48,41 +48,30 @@ export default function ResultsList({
     )
   }
 
-  if (groupByProject) {
-    return (
-      <GroupedResultsList
-        results={filteredResults}
-        selectedId={selectedId}
-        onSelect={onSelect}
-        onNewChat={onNewChat}
-        query={query}
-        gitInfo={gitInfo}
-        activeCwd={activeCwd}
-        activeChatSessionId={activeChatSessionId}
-        isClaudeTyping={isClaudeTyping}
-        activeChatProfile={activeChatProfile}
-        showProfileBadge={showProfileBadge}
-        enabledProfiles={enabledProfiles}
-      />
-    )
+  const internalProps: InternalListProps = {
+    results: filteredResults,
+    selectedId,
+    onSelect,
+    onNewChat,
+    query,
+    gitInfo,
+    activeCwd,
+    activeChatSessionId,
+    isClaudeTyping,
+    activeChatProfile,
+    showProfileBadge,
+    enabledProfiles
   }
 
-  return (
-    <FlatResultsList
-      results={filteredResults}
-      selectedId={selectedId}
-      onSelect={onSelect}
-      onNewChat={onNewChat}
-      query={query}
-      gitInfo={gitInfo}
-      activeCwd={activeCwd}
-      activeChatSessionId={activeChatSessionId}
-      isClaudeTyping={isClaudeTyping}
-      activeChatProfile={activeChatProfile}
-      showProfileBadge={showProfileBadge}
-      enabledProfiles={enabledProfiles}
-    />
-  )
+  if (displayMode === 'tree') {
+    return <FileTreeResultsList {...internalProps} />
+  }
+
+  if (displayMode === 'grouped') {
+    return <GroupedResultsList {...internalProps} />
+  }
+
+  return <FlatResultsList {...internalProps} />
 }
 
 // ─── Flat list (original behavior) ──────────────────────────────────
@@ -298,6 +287,266 @@ function GroupedResultsList({
         })}
       </div>
     </div>
+  )
+}
+
+// ─── File tree view ─────────────────────────────────────────────────
+
+interface TreeNode {
+  name: string
+  fullPath: string
+  children: Map<string, TreeNode>
+  conversations: SearchResult[]
+  totalConversations: number
+}
+
+function buildFileTree(results: SearchResult[]): TreeNode {
+  const root: TreeNode = {
+    name: '',
+    fullPath: '',
+    children: new Map(),
+    conversations: [],
+    totalConversations: 0
+  }
+
+  for (const result of results) {
+    const parts = result.projectPath.split('/').filter(Boolean)
+    let current = root
+    let pathSoFar = ''
+
+    for (const part of parts) {
+      pathSoFar += '/' + part
+      if (!current.children.has(part)) {
+        current.children.set(part, {
+          name: part,
+          fullPath: pathSoFar,
+          children: new Map(),
+          conversations: [],
+          totalConversations: 0
+        })
+      }
+      current = current.children.get(part)!
+    }
+
+    current.conversations.push(result)
+  }
+
+  // Count total conversations per node
+  function countConversations(node: TreeNode): number {
+    let total = node.conversations.length
+    for (const child of node.children.values()) {
+      total += countConversations(child)
+    }
+    node.totalConversations = total
+    return total
+  }
+  countConversations(root)
+
+  return root
+}
+
+function compactTree(node: TreeNode): TreeNode {
+  // Recursively compact children first
+  const compactedChildren = new Map<string, TreeNode>()
+  for (const [key, child] of node.children) {
+    compactedChildren.set(key, compactTree(child))
+  }
+  node.children = compactedChildren
+
+  // Compact: if this node has exactly one child and no conversations of its own,
+  // merge the child into this node (collapse single-child chains)
+  if (node.children.size === 1 && node.conversations.length === 0 && node.name !== '') {
+    const [, onlyChild] = Array.from(node.children.entries())[0]
+    node.name = node.name + '/' + onlyChild.name
+    node.fullPath = onlyChild.fullPath
+    node.children = onlyChild.children
+    node.conversations = onlyChild.conversations
+    node.totalConversations = onlyChild.totalConversations
+  }
+
+  return node
+}
+
+function FileTreeResultsList({
+  results,
+  selectedId,
+  onSelect,
+  onNewChat,
+  query,
+  gitInfo,
+  activeCwd,
+  activeChatSessionId,
+  isClaudeTyping,
+  activeChatProfile,
+  showProfileBadge,
+  enabledProfiles
+}: InternalListProps): JSX.Element {
+  const [selectedDir, setSelectedDir] = useState<string | null>(null)
+
+  const tree = useMemo(() => {
+    const raw = buildFileTree(results)
+    return compactTree(raw)
+  }, [results])
+
+  // Start with root-level children expanded
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => {
+    const raw = buildFileTree(results)
+    const compacted = compactTree(raw)
+    return new Set(Array.from(compacted.children.values()).map((n) => n.fullPath))
+  })
+
+  const toggleDir = useCallback((path: string) => {
+    setExpandedDirs((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) {
+        next.delete(path)
+      } else {
+        next.add(path)
+      }
+      return next
+    })
+  }, [])
+
+  // When a dir is selected, show its conversations
+  const dirConversations = useMemo(() => {
+    if (!selectedDir) return []
+    return results.filter((r) => r.projectPath === selectedDir)
+  }, [results, selectedDir])
+
+  // Must be above the conditional return to satisfy Rules of Hooks
+  const sortedRootChildren = useMemo(() => {
+    return Array.from(tree.children.values()).sort((a, b) => b.totalConversations - a.totalConversations)
+  }, [tree])
+
+  if (selectedDir && dirConversations.length > 0) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Back button */}
+        <button
+          onClick={() => setSelectedDir(null)}
+          className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-800 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="truncate font-medium text-claude-orange">{selectedDir.split('/').pop()}</span>
+          <span className="text-neutral-600 ml-auto shrink-0">{dirConversations.length} {dirConversations.length === 1 ? 'chat' : 'chats'}</span>
+        </button>
+        <div className="flex-1 overflow-y-auto">
+          {dirConversations.map((result) => (
+            <ResultItem
+              key={result.id}
+              result={result}
+              isSelected={result.id === selectedId}
+              onSelect={() => onSelect(result.id)}
+              onNewChat={onNewChat}
+              query={query}
+              gitInfo={gitInfo}
+              activeCwd={activeCwd}
+              activeChatSessionId={activeChatSessionId}
+              isClaudeTyping={isClaudeTyping}
+              activeChatProfile={activeChatProfile}
+              profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === result.account) : undefined}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-full overflow-y-auto">
+        {sortedRootChildren.map((node) => (
+          <FileTreeNode
+            key={node.fullPath}
+            node={node}
+            depth={0}
+            expandedDirs={expandedDirs}
+            onToggle={toggleDir}
+            onSelectDir={setSelectedDir}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+interface FileTreeNodeProps {
+  node: TreeNode
+  depth: number
+  expandedDirs: Set<string>
+  onToggle: (path: string) => void
+  onSelectDir: (path: string) => void
+}
+
+function FileTreeNode({ node, depth, expandedDirs, onToggle, onSelectDir }: FileTreeNodeProps): JSX.Element {
+  const hasChildren = node.children.size > 0
+  const hasConversations = node.conversations.length > 0
+  const isExpanded = expandedDirs.has(node.fullPath)
+
+  const sortedChildren = useMemo(() => {
+    return Array.from(node.children.values()).sort((a, b) => b.totalConversations - a.totalConversations)
+  }, [node.children])
+
+  return (
+    <>
+      <div
+        className="group/tree w-full text-left px-4 py-2 border-b border-neutral-800/50 hover:bg-neutral-800/50 transition-colors flex items-center gap-1.5 cursor-pointer"
+        style={{ paddingLeft: `${16 + depth * 16}px` }}
+        onClick={() => onToggle(node.fullPath)}
+      >
+        <span className="shrink-0 w-4 flex items-center justify-center text-neutral-500">
+          {hasChildren && (
+            <svg
+              className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+        </span>
+        <svg className="w-3.5 h-3.5 shrink-0 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {isExpanded ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          )}
+        </svg>
+        <span className={`text-xs truncate ${hasConversations ? 'text-claude-orange font-medium' : 'text-neutral-300'}`}>
+          {node.name}
+        </span>
+        {hasConversations && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelectDir(node.fullPath)
+            }}
+            className="shrink-0 opacity-0 group-hover/tree:opacity-100 text-neutral-500 hover:text-claude-orange transition-all p-0.5"
+            title={`Open ${node.conversations.length} conversations`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5-5 5M6 12h12" />
+            </svg>
+          </button>
+        )}
+        <span className="ml-auto shrink-0 text-[10px] text-neutral-600">
+          {node.totalConversations}
+        </span>
+      </div>
+      {isExpanded && sortedChildren.map((child) => (
+        <FileTreeNode
+          key={child.fullPath}
+          node={child}
+          depth={depth + 1}
+          expandedDirs={expandedDirs}
+          onToggle={onToggle}
+          onSelectDir={onSelectDir}
+        />
+      ))}
+    </>
   )
 }
 

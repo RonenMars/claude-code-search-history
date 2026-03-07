@@ -34,7 +34,7 @@ const defaultProps = {
   activeChatProfile: null as 'work' | 'personal' | null,
   accountFilter: null as string | null,
   profiles: [buildProfile()],
-  groupByProject: false,
+  displayMode: 'list' as const,
 }
 
 function renderList(overrides = {}) {
@@ -197,7 +197,7 @@ describe('ResultsList', () => {
       const results = [
         buildSearchResult({ projectPath: '/dev/a', projectName: 'project-a' }),
       ]
-      renderList({ results, groupByProject: true, onNewChat })
+      renderList({ results, displayMode: 'grouped', onNewChat })
 
       // Expand the group
       await userEvent.click(screen.getByText('project-a'))
@@ -209,13 +209,13 @@ describe('ResultsList', () => {
   })
 
   describe('grouped list', () => {
-    it('groups results by project when groupByProject is true', () => {
+    it('groups results by project when displayMode is grouped', () => {
       const results = [
         buildSearchResult({ projectPath: '/dev/a', projectName: 'project-a' }),
         buildSearchResult({ projectPath: '/dev/a', projectName: 'project-a' }),
         buildSearchResult({ projectPath: '/dev/b', projectName: 'project-b' }),
       ]
-      renderList({ results, groupByProject: true })
+      renderList({ results, displayMode: 'grouped' })
       // Group headers with conversation counts
       expect(screen.getByText('2 chats')).toBeInTheDocument()
       expect(screen.getByText('1 chat')).toBeInTheDocument()
