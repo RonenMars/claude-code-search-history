@@ -703,7 +703,7 @@ export default function App(): JSX.Element {
 
           {/* Results */}
           <div className="flex-1 overflow-hidden">
-            {isLoading || isIndexing ? (
+            {isLoading || isIndexing || (searching && results.length === 0) ? (
               <div className="flex flex-col items-center justify-center h-full">
                 <div className="text-center">
                   {scanProgress ? (
@@ -738,6 +738,7 @@ export default function App(): JSX.Element {
                 results={sortedResults}
                 selectedId={selectedConversation?.id || null}
                 onSelect={handleSelectResult}
+                onNewChat={handleChatInProject}
                 query={query}
                 gitInfo={gitInfo}
                 activeCwd={

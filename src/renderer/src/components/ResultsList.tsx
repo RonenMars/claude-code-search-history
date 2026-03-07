@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClaudeProfile, GitInfo, Profile, SearchResult } from '../../../shared/types'
 
@@ -6,6 +6,7 @@ interface ResultsListProps {
   results: SearchResult[]
   selectedId: string | null
   onSelect: (id: string) => void
+  onNewChat: (projectPath: string) => void
   query: string
   gitInfo: Record<string, GitInfo>
   activeCwd: string | null
@@ -14,12 +15,14 @@ interface ResultsListProps {
   activeChatProfile: ClaudeProfile | null
   accountFilter: string | null
   profiles: Profile[]
+  groupByProject: boolean
 }
 
 export default function ResultsList({
   results,
   selectedId,
   onSelect,
+  onNewChat,
   query,
   gitInfo,
   activeCwd,
@@ -27,22 +30,15 @@ export default function ResultsList({
   isClaudeTyping,
   activeChatProfile,
   accountFilter,
-  profiles
+  profiles,
+  groupByProject
 }: ResultsListProps): JSX.Element {
   const enabledProfiles = profiles.filter((p) => p.enabled)
   const showProfileBadge = enabledProfiles.length > 1
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const filteredResults = accountFilter
     ? results.filter((r) => r.account === accountFilter)
     : results
-
-  const virtualizer = useVirtualizer({
-    count: filteredResults.length,
-    getScrollElement: () => scrollContainerRef.current,
-    estimateSize: () => 100,
-    overscan: 3
-  })
 
   if (filteredResults.length === 0) {
     return (
@@ -51,6 +47,83 @@ export default function ResultsList({
       </div>
     )
   }
+
+  if (groupByProject) {
+    return (
+      <GroupedResultsList
+        results={filteredResults}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        onNewChat={onNewChat}
+        query={query}
+        gitInfo={gitInfo}
+        activeCwd={activeCwd}
+        activeChatSessionId={activeChatSessionId}
+        isClaudeTyping={isClaudeTyping}
+        activeChatProfile={activeChatProfile}
+        showProfileBadge={showProfileBadge}
+        enabledProfiles={enabledProfiles}
+      />
+    )
+  }
+
+  return (
+    <FlatResultsList
+      results={filteredResults}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      onNewChat={onNewChat}
+      query={query}
+      gitInfo={gitInfo}
+      activeCwd={activeCwd}
+      activeChatSessionId={activeChatSessionId}
+      isClaudeTyping={isClaudeTyping}
+      activeChatProfile={activeChatProfile}
+      showProfileBadge={showProfileBadge}
+      enabledProfiles={enabledProfiles}
+    />
+  )
+}
+
+// ─── Flat list (original behavior) ──────────────────────────────────
+
+interface InternalListProps {
+  results: SearchResult[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+  onNewChat: (projectPath: string) => void
+  query: string
+  gitInfo: Record<string, GitInfo>
+  activeCwd: string | null
+  activeChatSessionId: string | undefined
+  isClaudeTyping: boolean
+  activeChatProfile: ClaudeProfile | null
+  showProfileBadge: boolean
+  enabledProfiles: Profile[]
+}
+
+function FlatResultsList({
+  results,
+  selectedId,
+  onSelect,
+  onNewChat,
+  query,
+  gitInfo,
+  activeCwd,
+  activeChatSessionId,
+  isClaudeTyping,
+  activeChatProfile,
+  showProfileBadge,
+  enabledProfiles
+}: InternalListProps): JSX.Element {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: results.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 100,
+    overscan: 3
+  })
 
   const virtualItems = virtualizer.getVirtualItems()
 
@@ -72,16 +145,17 @@ export default function ResultsList({
               ref={virtualizer.measureElement}
             >
               <ResultItem
-                result={filteredResults[virtualRow.index]}
-                isSelected={filteredResults[virtualRow.index].id === selectedId}
-                onSelect={() => onSelect(filteredResults[virtualRow.index].id)}
+                result={results[virtualRow.index]}
+                isSelected={results[virtualRow.index].id === selectedId}
+                onSelect={() => onSelect(results[virtualRow.index].id)}
+                onNewChat={onNewChat}
                 query={query}
                 gitInfo={gitInfo}
                 activeCwd={activeCwd}
                 activeChatSessionId={activeChatSessionId}
                 isClaudeTyping={isClaudeTyping}
                 activeChatProfile={activeChatProfile}
-                profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === filteredResults[virtualRow.index].account) : undefined}
+                profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === results[virtualRow.index].account) : undefined}
               />
             </div>
           ))}
@@ -92,10 +166,148 @@ export default function ResultsList({
   )
 }
 
+// ─── Grouped list (accordion by project) ────────────────────────────
+
+interface ProjectGroup {
+  projectPath: string
+  projectName: string
+  latestTimestamp: string
+  conversationCount: number
+  conversations: SearchResult[]
+}
+
+function GroupedResultsList({
+  results,
+  selectedId,
+  onSelect,
+  onNewChat,
+  query,
+  gitInfo,
+  activeCwd,
+  activeChatSessionId,
+  isClaudeTyping,
+  activeChatProfile,
+  showProfileBadge,
+  enabledProfiles
+}: InternalListProps): JSX.Element {
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
+
+  const groups = useMemo(() => {
+    const groupMap = new Map<string, ProjectGroup>()
+
+    for (const result of results) {
+      const existing = groupMap.get(result.projectPath)
+      if (existing) {
+        existing.conversations.push(result)
+        existing.conversationCount++
+        if (result.timestamp > existing.latestTimestamp) {
+          existing.latestTimestamp = result.timestamp
+        }
+      } else {
+        groupMap.set(result.projectPath, {
+          projectPath: result.projectPath,
+          projectName: result.projectName,
+          latestTimestamp: result.timestamp,
+          conversationCount: 1,
+          conversations: [result]
+        })
+      }
+    }
+
+    // Sort groups by latest timestamp (most recent first)
+    const sorted = Array.from(groupMap.values()).sort(
+      (a, b) => new Date(b.latestTimestamp).getTime() - new Date(a.latestTimestamp).getTime()
+    )
+
+    // Sort conversations within each group by timestamp (most recent first)
+    for (const group of sorted) {
+      group.conversations.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+    }
+
+    return sorted
+  }, [results])
+
+  const toggleProject = useCallback((projectPath: string) => {
+    setExpandedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectPath)) {
+        next.delete(projectPath)
+      } else {
+        next.add(projectPath)
+      }
+      return next
+    })
+  }, [])
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-full overflow-y-auto">
+        {groups.map((group) => {
+          const isExpanded = expandedProjects.has(group.projectPath)
+          const groupGitInfo = gitInfo[group.projectPath]
+
+          return (
+            <div key={group.projectPath}>
+              {/* Project header */}
+              <button
+                onClick={() => toggleProject(group.projectPath)}
+                className="w-full text-left px-4 py-3 border-b border-neutral-800 hover:bg-neutral-800/50 transition-colors flex items-center gap-2"
+              >
+                <svg
+                  className={`w-3 h-3 text-neutral-500 shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <span className="text-xs font-medium text-claude-orange truncate">
+                  {group.projectName}
+                </span>
+                <GitBadge info={groupGitInfo} />
+                <span className="ml-auto shrink-0 text-[10px] text-neutral-500">
+                  {group.conversationCount} {group.conversationCount === 1 ? 'chat' : 'chats'}
+                </span>
+                <span className="shrink-0 text-[10px] text-neutral-600">
+                  {formatDate(group.latestTimestamp)}
+                </span>
+              </button>
+
+              {/* Expanded conversations */}
+              {isExpanded && group.conversations.map((result) => (
+                <div key={result.id} className="pl-4">
+                  <ResultItem
+                    result={result}
+                    isSelected={result.id === selectedId}
+                    onSelect={() => onSelect(result.id)}
+                    onNewChat={onNewChat}
+                    query={query}
+                    gitInfo={gitInfo}
+                    activeCwd={activeCwd}
+                    activeChatSessionId={activeChatSessionId}
+                    isClaudeTyping={isClaudeTyping}
+                    activeChatProfile={activeChatProfile}
+                    profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === result.account) : undefined}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Shared sub-components ──────────────────────────────────────────
+
 interface ResultItemProps {
   result: SearchResult
   isSelected: boolean
   onSelect: () => void
+  onNewChat: (projectPath: string) => void
   query: string
   gitInfo: Record<string, GitInfo>
   activeCwd: string | null
@@ -105,7 +317,10 @@ interface ResultItemProps {
   profileBadge: Profile | undefined
 }
 
-function ResultItem({ result, isSelected, onSelect, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge }: ResultItemProps): JSX.Element {
+function ResultItem({ result, isSelected, onSelect, onNewChat, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge }: ResultItemProps): JSX.Element {
+  // Note: dangerouslySetInnerHTML is safe here — content passes through
+  // escapeHtml() which sanitizes all HTML entities before highlightText()
+  // wraps matched terms in <span> tags using the escaped content.
   const highlightedPreview = useMemo(() => {
     if (!query) return escapeHtml(result.preview)
     return highlightText(result.preview, query)
@@ -129,7 +344,7 @@ function ResultItem({ result, isSelected, onSelect, query, gitInfo, activeCwd, a
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left p-4 transition-colors hover:bg-neutral-800/50 border-b border-neutral-800 ${isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
+      className={`group/item w-full text-left p-4 transition-colors hover:bg-neutral-800/50 border-b border-neutral-800 ${isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
         }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
@@ -154,6 +369,18 @@ function ResultItem({ result, isSelected, onSelect, query, gitInfo, activeCwd, a
           ) : null}
           {isActive && activeChatProfile && <LiveProfileBadge profile={activeChatProfile} />}
           <span className="text-xs text-neutral-500 whitespace-nowrap">{formattedDate}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onNewChat(result.projectPath)
+            }}
+            className="opacity-0 group-hover/item:opacity-100 text-neutral-500 hover:text-claude-orange transition-all p-0.5"
+            title={`New chat in ${result.projectName}`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
         </div>
       </div>
       {result.sessionName && (
