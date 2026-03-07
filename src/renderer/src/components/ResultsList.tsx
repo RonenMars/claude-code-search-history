@@ -219,7 +219,7 @@ function GitBadge({ info }: { info: GitInfo | undefined }): JSX.Element | null {
   if (info.type === 'worktree') {
     return (
       <span className="shrink-0" title={`Worktree: ${info.branch || 'unknown'}`}>
-        <svg className="w-3 h-3 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-3 h-3 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <circle cx="6" cy="6" r="2" strokeWidth={2} />
           <circle cx="6" cy="18" r="2" strokeWidth={2} />
           <circle cx="18" cy="6" r="2" strokeWidth={2} />
@@ -230,7 +230,7 @@ function GitBadge({ info }: { info: GitInfo | undefined }): JSX.Element | null {
   }
   return (
     <span className="shrink-0" title="Git repo">
-      <svg className="w-3 h-3 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 3v12M18 9a6 6 0 01-6 6H6" />
         <circle cx="6" cy="18" r="3" strokeWidth={2} />
         <circle cx="6" cy="3" r="3" strokeWidth={2} />
