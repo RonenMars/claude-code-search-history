@@ -47,3 +47,6 @@ coverage/
 .github/copilot/
 .kittify/.dashboard
 .worktrees/
+
+# Playrwight E2E Tests
+test-results/
