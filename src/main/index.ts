@@ -9,7 +9,6 @@ import { ConversationScanner } from "./services/scanner";
 import { SearchIndexer } from "./services/indexer";
 import { PtyManager } from "./services/pty-manager";
 import type {
-  Conversation,
   PtySpawnOptions,
   Profile,
   ProfilesConfig,
@@ -408,6 +407,9 @@ function setupIpcHandlers(): void {
       }
     });
     manager.setExitHandler((code) => {
+      // Only clean up and notify if this manager is still the active one for this instanceId.
+      // A stale manager (killed by a StrictMode re-mount) must not remove or notify for its replacement.
+      if (ptyManagers.get(options.instanceId) !== manager) return;
       ptyManagers.delete(options.instanceId);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("pty-exit", {

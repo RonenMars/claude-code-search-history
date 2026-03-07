@@ -15,8 +15,6 @@ import MessageContent from "./MessageContent";
 import ToolResultCard from "./ToolResultCard";
 import ToolInvocationBadge from "./ToolInvocationBadge";
 import type {
-  ToolResult,
-  ToolUseBlock,
   Conversation,
   ConversationMessage,
   MessageMetadata,
