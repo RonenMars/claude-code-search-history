@@ -29,6 +29,9 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 
+# Test coverage
+coverage/
+
 # Added by Spec Kitty CLI (auto-managed)
 .claude/
 .codex/

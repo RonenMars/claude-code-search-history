@@ -1,0 +1,5 @@
+{"type":"user","cwd":"/Users/test/dev/project","sessionId":"sess-bad","timestamp":"2025-01-15T10:00:00Z","message":{"content":"Good message"}}
+not valid json at all
+{"type":"assistant","timestamp":"2025-01-15T10:00:05Z","message":{"content":"Response to good message"}}
+{truncated json
+{"type":"user","timestamp":"2025-01-15T10:00:10Z","message":{"content":"Another valid message"}}

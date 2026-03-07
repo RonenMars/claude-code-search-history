@@ -1,0 +1,2 @@
+{"type":"user","cwd":"/Users/test/dev/project","sessionId":"sess-tags","timestamp":"2025-01-15T10:00:00Z","message":{"content":"<system-reminder>You are Claude</system-reminder>Please help me with <thinking>internal thought</thinking>my code<fast_mode_info>some info</fast_mode_info>"}}
+{"type":"assistant","timestamp":"2025-01-15T10:00:05Z","message":{"content":"Sure, I can help with your code."}}

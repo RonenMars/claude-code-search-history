@@ -20,6 +20,8 @@ import type {
   CreateWorktreeResult,
 } from "../shared/types";
 import { execFileNoThrow } from "./utils/execFileNoThrow";
+import { formatAsMarkdown, formatAsText } from "./formatters";
+import { parseWorktrees } from "./worktree-parser";
 
 let mainWindow: BrowserWindow | null = null;
 let scanner: ConversationScanner | null = null;
@@ -51,6 +53,7 @@ function getSettingsPath(): string {
 
 const DEFAULT_SETTINGS: AppSettings = {
   maxChatInstances: 3,
+  groupByProject: false,
 };
 
 async function loadSettings(): Promise<AppSettings> {
@@ -632,115 +635,6 @@ function setupIpcHandlers(): void {
       return { success: true };
     },
   );
-}
-
-function parseWorktrees(stdout: string): Worktree[] {
-  const blocks = stdout.trim().split(/\n\n+/);
-
-  const parseBlock = (
-    block: string,
-  ): { path: string; head: string; branch: string } | null => {
-    const lines = block.split("\n");
-    const get = (prefix: string): string =>
-      lines
-        .find((l) => l.startsWith(prefix))
-        ?.slice(prefix.length)
-        .trim() ?? "";
-    const path = get("worktree ");
-    if (!path) return null;
-    const head = get("HEAD ").slice(0, 7);
-    const rawBranch = get("branch ");
-    const isDetached = lines.some((l) => l === "detached");
-    const branch = isDetached
-      ? "(detached)"
-      : rawBranch.replace(/^refs\/heads\//, "");
-    return { path, head, branch };
-  };
-
-  // Block 0 is always the main worktree — its path is the canonical projectPath
-  const mainEntry = parseBlock(blocks[0]);
-  if (!mainEntry) return [];
-  const projectPath = mainEntry.path;
-  const projectName = basename(projectPath);
-
-  return blocks
-    .map((block, index) => {
-      const entry = parseBlock(block);
-      if (!entry) return null;
-      return {
-        path: entry.path,
-        head: entry.head,
-        branch: entry.branch,
-        isMain: index === 0,
-        projectPath,
-        projectName,
-      } satisfies Worktree;
-    })
-    .filter((w): w is Worktree => w !== null);
-}
-
-function formatAsMarkdown(conversation: Conversation): string {
-  const timestamp = conversation.timestamp
-    ? new Date(conversation.timestamp).toLocaleString()
-    : "Unknown";
-
-  const lines: string[] = [
-    `# Conversation Export`,
-    "",
-    `**Project:** ${conversation.projectName || "Unknown"}`,
-    `**Session:** ${conversation.sessionId || "Unknown"}`,
-    `**Date:** ${timestamp}`,
-    `**Messages:** ${conversation.messageCount || 0}`,
-    "",
-    "---",
-    "",
-  ];
-
-  for (const message of conversation.messages || []) {
-    const role = message.type === "user" ? "## You" : "## Claude";
-    const time = message.timestamp
-      ? ` *(${new Date(message.timestamp).toLocaleTimeString()})*`
-      : "";
-    lines.push(`${role}${time}`);
-    lines.push("");
-    lines.push(message.content || "");
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
-
-function formatAsText(conversation: Conversation): string {
-  const timestamp = conversation.timestamp
-    ? new Date(conversation.timestamp).toLocaleString()
-    : "Unknown";
-
-  const lines: string[] = [
-    "CONVERSATION EXPORT",
-    "===================",
-    "",
-    `Project: ${conversation.projectName || "Unknown"}`,
-    `Session: ${conversation.sessionId || "Unknown"}`,
-    `Date: ${timestamp}`,
-    `Messages: ${conversation.messageCount || 0}`,
-    "",
-    "---",
-    "",
-  ];
-
-  for (const message of conversation.messages || []) {
-    const role = message.type === "user" ? "[You]" : "[Claude]";
-    const time = message.timestamp
-      ? ` (${new Date(message.timestamp).toLocaleTimeString()})`
-      : "";
-    lines.push(`${role}${time}`);
-    lines.push(message.content || "");
-    lines.push("");
-    lines.push("---");
-    lines.push("");
-  }
-
-  return lines.join("\n");
 }
 
 app.whenReady().then(async () => {
