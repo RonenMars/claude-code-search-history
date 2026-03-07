@@ -51,6 +51,7 @@ export default function App(): JSX.Element {
   >(null);
   const [appSettings, setAppSettings] = useState<AppSettings>({
     maxChatInstances: 3,
+    groupByProject: false,
   });
   const typingTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
@@ -741,13 +742,14 @@ export default function App(): JSX.Element {
                 }
                 accountFilter={accountFilter}
                 profiles={profiles}
+                groupByProject={appSettings.groupByProject}
               />
             )}
           </div>
           {/* Resize handle */}
           <div
-            className={`absolute top-0 right-0 w-1 h-full transition-colors z-10 ${isLoading ? "cursor-default" : "cursor-col-resize hover:bg-claude-orange/40 active:bg-claude-orange/60"}`}
-            onMouseDown={isLoading ? undefined : handleSidebarMouseDown}
+            className={`absolute top-0 right-0 w-1 h-full transition-colors z-10 ${isLoading || isIndexing ? "cursor-default" : "cursor-col-resize hover:bg-claude-orange/40 active:bg-claude-orange/60"}`}
+            onMouseDown={isLoading || isIndexing ? undefined : handleSidebarMouseDown}
           />
         </div>
 
