@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react'
-import type { SortOption, DateRangeOption } from '../../../shared/types'
+import type { SortOption, DateRangeOption, Profile } from '../../../shared/types'
 
 interface FilterPanelProps {
   projects: string[]
@@ -10,6 +10,10 @@ interface FilterPanelProps {
   dateRange: DateRangeOption
   onDateRangeChange: (range: DateRangeOption) => void
   onChatInProject: (projectPath: string) => void
+  profiles: Profile[]
+  accountFilter: string | null
+  onAccountFilterChange: (profileId: string | null) => void
+  disabled?: boolean
 }
 
 export default function FilterPanel({
@@ -20,10 +24,17 @@ export default function FilterPanel({
   onSortChange,
   dateRange,
   onDateRangeChange,
-  onChatInProject
+  onChatInProject,
+  profiles,
+  accountFilter,
+  onAccountFilterChange,
+  disabled
 }: FilterPanelProps): JSX.Element {
+  const enabledProfiles = profiles.filter((p) => p.enabled)
+  const activeProfile = accountFilter ? enabledProfiles.find((p) => p.id === accountFilter) : null
+
   return (
-    <div className="mt-3 space-y-2">
+    <div className={`mt-3 space-y-2${disabled ? " opacity-50 pointer-events-none" : ""}`}>
       {/* Project Filter — autocomplete */}
       <ProjectAutocomplete
         projects={projects}
@@ -70,6 +81,36 @@ export default function FilterPanel({
           <option value="month">Last 30 Days</option>
         </select>
       </div>
+
+      {/* Profile Filter */}
+      {enabledProfiles.length > 1 && (
+        <div className="relative">
+          <select
+            value={accountFilter ?? ''}
+            onChange={(e) => onAccountFilterChange(e.target.value || null)}
+            className="custom-select w-full pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
+            title="Filter by profile"
+          >
+            <option value="">All Profiles</option>
+            {enabledProfiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.emoji} {p.label}
+              </option>
+            ))}
+          </select>
+          {activeProfile && (
+            <button
+              onClick={() => onAccountFilterChange(null)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+              title="Clear profile filter"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -191,7 +232,8 @@ function ProjectAutocomplete({
         {/* Chevron / clear button */}
         {selectedProject && !isOpen ? (
           <button
-            onClick={(e) => {
+            onMouseDown={(e) => {
+              e.preventDefault()
               e.stopPropagation()
               selectProject('')
             }}
