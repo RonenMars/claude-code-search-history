@@ -45,9 +45,9 @@ export default function ConversationView({
   onCreateWorktree,
 }: ConversationViewProps): JSX.Element {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
 
   // Worktree creation form state
   const [showWorktreeForm, setShowWorktreeForm] = useState(false);
@@ -283,14 +283,14 @@ export default function ConversationView({
     chatSearchOpen,
   ]);
 
-  // Close export menu when clicking outside
+  // Close actions menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent): void {
       if (
-        exportMenuRef.current &&
-        !exportMenuRef.current.contains(event.target as Node)
+        actionsMenuRef.current &&
+        !actionsMenuRef.current.contains(event.target as Node)
       ) {
-        setShowExportMenu(false);
+        setShowActionsMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -298,7 +298,7 @@ export default function ConversationView({
   }, []);
 
   const handleExport = async (format: ExportFormat): Promise<void> => {
-    setShowExportMenu(false);
+    setShowActionsMenu(false);
     setExportStatus("Exporting...");
 
     try {
@@ -342,36 +342,6 @@ export default function ConversationView({
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {/* Continue Chat */}
-            {onContinueChat && (
-              <button
-                onClick={() =>
-                  onContinueChat(
-                    conversation.projectPath,
-                    conversation.sessionId,
-                    conversation.account,
-                  )
-                }
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-md transition-colors"
-                title="Continue this conversation in a live terminal"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                Continue Chat
-              </button>
-            )}
-
             {/* Worktree navigation — only for worktree conversations */}
             {isWorktree && rootPath && (
               <>
@@ -418,80 +388,170 @@ export default function ConversationView({
               </>
             )}
 
-            {/* In-chat Search Toggle */}
-            <button
-              onClick={() => {
-                if (chatSearchOpen) {
-                  closeChatSearch();
-                } else {
-                  setChatSearchOpen(true);
-                  setTimeout(() => chatSearchInputRef.current?.focus(), 0);
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${
-                chatSearchOpen
-                  ? "text-claude-orange bg-claude-orange/10 border-claude-orange/40"
-                  : "text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
-              }`}
-              title="Search in chat (⌘F)"
-            >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              Find
-            </button>
-
-            {/* Export Button */}
-            <div className="relative" ref={exportMenuRef}>
+            {/* Actions menu (three-dots) — rightmost, height-matched to neighbours */}
+            <div className="relative self-stretch flex" ref={actionsMenuRef}>
               <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
+                onClick={() => setShowActionsMenu((prev) => !prev)}
+                className={`flex items-center justify-center w-7 h-full border rounded transition-colors ${
+                  chatSearchOpen
+                    ? "text-claude-orange bg-claude-orange/10 border-claude-orange/40 hover:bg-claude-orange/20"
+                    : "text-neutral-400 hover:text-neutral-200 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+                }`}
+                title="More actions"
               >
                 <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
+                  className="w-4 h-4"
+                  fill="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                  />
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
                 </svg>
-                {exportStatus || "Export"}
               </button>
 
-              {showExportMenu && (
-                <div className="absolute right-0 mt-1 w-40 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg z-10">
+              {showActionsMenu && (
+                <div className="absolute right-0 top-full mt-1 z-50 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl overflow-hidden min-w-[180px]">
+                  {onContinueChat && (
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        onContinueChat(
+                          conversation.projectPath,
+                          conversation.sessionId,
+                          conversation.account,
+                        );
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                        />
+                      </svg>
+                      <span>Continue Chat</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      if (chatSearchOpen) {
+                        closeChatSearch();
+                      } else {
+                        setChatSearchOpen(true);
+                        setTimeout(
+                          () => chatSearchInputRef.current?.focus(),
+                          0,
+                        );
+                      }
+                      setShowActionsMenu(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
+                      chatSearchOpen
+                        ? "text-claude-orange bg-claude-orange/10"
+                        : "text-neutral-300 hover:bg-neutral-700/50"
+                    }`}
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    <span>Find in Chat</span>
+                    {chatSearchOpen && (
+                      <svg
+                        className="w-3 h-3 ml-auto text-claude-orange"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </button>
+
+                  <div className="border-t border-neutral-700/50 my-1" />
+                  <div className="px-3 py-1 text-[10px] text-neutral-500 uppercase tracking-wide">
+                    {exportStatus ?? "Export"}
+                  </div>
+
                   <button
                     onClick={() => handleExport("markdown")}
-                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700 rounded-t-md"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
                   >
-                    Markdown (.md)
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      />
+                    </svg>
+                    <span>Markdown (.md)</span>
                   </button>
                   <button
                     onClick={() => handleExport("json")}
-                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
                   >
-                    JSON (.json)
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      />
+                    </svg>
+                    <span>JSON (.json)</span>
                   </button>
                   <button
                     onClick={() => handleExport("text")}
-                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-700 rounded-b-md"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
                   >
-                    Plain Text (.txt)
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      />
+                    </svg>
+                    <span>Plain Text (.txt)</span>
                   </button>
                 </div>
               )}
