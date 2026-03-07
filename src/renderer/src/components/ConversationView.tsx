@@ -388,6 +388,20 @@ export default function ConversationView({
               </>
             )}
 
+            {/* Message Navigation */}
+            <MessageNavigation
+              currentIndex={currentMessageIndex}
+              totalMessages={conversation.messages.length}
+              onNavigate={handleNavigate}
+              onJumpToFirst={handleJumpToFirst}
+              onJumpToLast={handleJumpToLast}
+            />
+
+            <div className="text-right text-xs text-neutral-500">
+              <div>{formatFullDate(conversation.timestamp)}</div>
+              <div className="mt-1">{conversation.messageCount} messages</div>
+            </div>
+
             {/* Actions menu (three-dots) — rightmost, height-matched to neighbours */}
             <div className="relative self-stretch flex" ref={actionsMenuRef}>
               <button
@@ -555,20 +569,6 @@ export default function ConversationView({
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* Message Navigation */}
-            <MessageNavigation
-              currentIndex={currentMessageIndex}
-              totalMessages={conversation.messages.length}
-              onNavigate={handleNavigate}
-              onJumpToFirst={handleJumpToFirst}
-              onJumpToLast={handleJumpToLast}
-            />
-
-            <div className="text-right text-xs text-neutral-500">
-              <div>{formatFullDate(conversation.timestamp)}</div>
-              <div className="mt-1">{conversation.messageCount} messages</div>
             </div>
           </div>
         </div>
