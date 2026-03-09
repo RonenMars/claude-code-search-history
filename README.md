@@ -85,15 +85,15 @@ Each chat instance gets its own `PtyManager` class that owns a single `node-pty`
 
 A `Map<string, PtyManager>` keyed by `instanceId` (UUID) tracks all active chat sessions. IPC handlers expose five operations:
 
-| IPC Channel    | Direction        | Purpose |
-|---------------|-----------------|---------|
-| `pty-spawn`   | renderer → main | Create a new PTY. Kills any stale manager with the same `instanceId` first. Enforces `maxChatInstances` limit from settings. |
-| `pty-input`   | renderer → main | Forward keystrokes to the correct PTY by `instanceId`. |
-| `pty-resize`  | renderer → main | Forward terminal resize events by `instanceId`. |
-| `pty-kill`    | renderer → main | Gracefully kill a PTY and remove from the registry. |
-| `pty-status`  | renderer → main | Query whether a PTY is still active and get its PID. |
-| `pty-data`    | main → renderer | Stream PTY stdout/stderr to the renderer, tagged with `instanceId`. |
-| `pty-exit`    | main → renderer | Notify the renderer when a process exits, with `instanceId` and exit code. |
+| IPC Channel  | Direction       | Purpose                                                                                                                      |
+| ------------ | --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `pty-spawn`  | renderer → main | Create a new PTY. Kills any stale manager with the same `instanceId` first. Enforces `maxChatInstances` limit from settings. |
+| `pty-input`  | renderer → main | Forward keystrokes to the correct PTY by `instanceId`.                                                                       |
+| `pty-resize` | renderer → main | Forward terminal resize events by `instanceId`.                                                                              |
+| `pty-kill`   | renderer → main | Gracefully kill a PTY and remove from the registry.                                                                          |
+| `pty-status` | renderer → main | Query whether a PTY is still active and get its PID.                                                                         |
+| `pty-data`   | main → renderer | Stream PTY stdout/stderr to the renderer, tagged with `instanceId`.                                                          |
+| `pty-exit`   | main → renderer | Notify the renderer when a process exits, with `instanceId` and exit code.                                                   |
 
 The exit handler registered on each `PtyManager` includes an identity guard: it only deletes from the map and sends `pty-exit` to the renderer if the manager is still the active one for that `instanceId`. This prevents a race condition where React StrictMode's double-mount causes a stale manager's async exit callback to remove a newly-created replacement manager from the registry.
 
