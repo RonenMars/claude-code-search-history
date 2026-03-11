@@ -388,35 +388,6 @@ export default function ConversationView({
               </>
             )}
 
-            {/* Continue Chat button — visible directly in header when handler provided */}
-            {onContinueChat && (
-              <button
-                onClick={() =>
-                  onContinueChat(
-                    conversation.projectPath,
-                    conversation.sessionId,
-                    conversation.account,
-                  )
-                }
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
-                title="Continue this conversation in Claude"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                Continue
-              </button>
-            )}
 
             {/* Message Navigation */}
             <MessageNavigation
@@ -436,11 +407,10 @@ export default function ConversationView({
             <div className="relative self-stretch flex" ref={actionsMenuRef}>
               <button
                 onClick={() => setShowActionsMenu((prev) => !prev)}
-                className={`flex items-center justify-center w-7 h-full border rounded transition-colors ${
-                  chatSearchOpen
+                className={`flex items-center justify-center w-7 h-full border rounded transition-colors ${chatSearchOpen
                     ? "text-claude-orange bg-claude-orange/10 border-claude-orange/40 hover:bg-claude-orange/20"
                     : "text-neutral-400 hover:text-neutral-200 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
-                }`}
+                  }`}
                 title="More actions"
               >
                 <svg
@@ -498,11 +468,10 @@ export default function ConversationView({
                       }
                       setShowActionsMenu(false);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
-                      chatSearchOpen
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${chatSearchOpen
                         ? "text-claude-orange bg-claude-orange/10"
                         : "text-neutral-300 hover:bg-neutral-700/50"
-                    }`}
+                      }`}
                   >
                     <svg
                       className="w-3.5 h-3.5"
@@ -1310,8 +1279,8 @@ function MetadataTooltip({
               metadata.stopReason !== undefined ||
               metadata.version ||
               (metadata.toolUses && metadata.toolUses.length > 0)) && (
-              <div className="border-t border-neutral-700 my-1.5" />
-            )}
+                <div className="border-t border-neutral-700 my-1.5" />
+              )}
             {metadata.model && <Row label="Model" value={metadata.model} />}
             {metadata.gitBranch && (
               <Row label="Branch" value={metadata.gitBranch} />
