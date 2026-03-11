@@ -2,11 +2,30 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+## Reference Implementation
+
+This plan was originally written for the **Electron app** at `claude-search/` (`/Users/ronen/Desktop/dev/personal/claude-search/`). The target project is the **VS Code extension** at `vscode-claude-code-manager/` (`/Users/ronen/Desktop/dev/personal/vscode-claude-code-manager/`).
+
+Both projects share the same core search engine (scanner, indexer, FlexSearch). The VS Code extension's search feature should be **ported from** the Electron app's implementation, adapting for the VS Code platform:
+
+| Electron app (reference)              | VS Code extension (target)                          |
+|---------------------------------------|-----------------------------------------------------|
+| `src/main/services/scanner.ts`        | `src/core/scanner.ts`                               |
+| `src/main/services/indexer.ts`        | `src/core/indexer.ts`                                |
+| `src/main/index.ts` (ipcMain)         | `src/services/HistoryService.ts` + `src/extension.ts` (webview message protocol) |
+| `src/preload/index.ts` (contextBridge)| `src/webview/vscodeApi.ts` (postMessage shim)       |
+| `src/shared/types.ts`                 | `src/core/types.ts`                                 |
+| `src/renderer/src/components/`        | `src/webview/components/`                            |
+| Tailwind CSS classes                  | Inline styles with VS Code CSS variables             |
+| `electron-vite build`                 | `node esbuild.js`                                   |
+
+**When implementing each task:** read the corresponding file in the Electron app as a reference, then adapt the code for the VS Code extension's existing patterns and conventions.
+
 **Goal:** Fix memory bloat, speed up startup, consolidate types, and add UX polish (state persistence, virtualized results, progress indicator, error boundary, bug fixes).
 
 **Architecture:** Two-tier storage (metadata in memory, full conversations lazy-loaded from disk with LRU cache). Parallel file scanning. All shared types in one file. Preferences persisted to JSON.
 
-**Tech Stack:** Electron 28, React 18, TypeScript, @tanstack/react-virtual, FlexSearch, Tailwind CSS
+**Tech Stack (target):** VS Code Extension API, React 18, TypeScript, @tanstack/react-virtual, FlexSearch, inline styles (no Tailwind)
 
 ---
 
