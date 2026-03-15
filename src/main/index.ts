@@ -25,6 +25,7 @@ import { parseWorktrees } from "./worktree-parser";
 let mainWindow: BrowserWindow | null = null;
 let scanner: ConversationScanner | null = null;
 let indexer: SearchIndexer | null = null;
+let indexerReady = false;
 const ptyManagers = new Map<string, PtyManager>();
 
 function getPrefsPath(): string {
@@ -89,8 +90,10 @@ const DEFAULT_PROFILE: Profile = {
   enabled: true,
 };
 
+const SHARED_PROFILES_PATH = join(homedir(), ".config", "threadbase", "profiles.json");
+
 function getProfilesPath(): string {
-  return join(app.getPath("userData"), "profiles.json");
+  return SHARED_PROFILES_PATH;
 }
 
 async function loadProfilesConfig(): Promise<ProfilesConfig> {
@@ -107,12 +110,28 @@ async function loadProfilesConfig(): Promise<ProfilesConfig> {
 }
 
 async function saveProfilesConfig(config: ProfilesConfig): Promise<void> {
-  const dir = app.getPath("userData");
-  await mkdir(dir, { recursive: true });
+  await mkdir(join(homedir(), ".config", "threadbase"), { recursive: true });
   await writeFile(getProfilesPath(), JSON.stringify(config, null, 2), "utf-8");
 }
 
 async function ensureProfilesExist(): Promise<ProfilesConfig> {
+  // One-time migration: if shared file is missing but old userData file exists, migrate it
+  const legacyPath = join(app.getPath("userData"), "profiles.json");
+  try {
+    await readFile(getProfilesPath(), "utf-8");
+  } catch {
+    try {
+      const legacyData = await readFile(legacyPath, "utf-8");
+      const legacyParsed = JSON.parse(legacyData) as ProfilesConfig;
+      if (Array.isArray(legacyParsed.profiles) && legacyParsed.profiles.length > 0) {
+        await saveProfilesConfig(legacyParsed);
+        return legacyParsed;
+      }
+    } catch {
+      // No legacy file either — fall through to write defaults
+    }
+  }
+
   try {
     const data = await readFile(getProfilesPath(), "utf-8");
     try {
@@ -253,6 +272,7 @@ function createWindow(): void {
 async function initializeSearch(profiles: Profile[]): Promise<void> {
   scanner = new ConversationScanner(profiles);
   indexer = new SearchIndexer();
+  indexerReady = false;
 
   scanner.setProgressCallback((scanned, total) => {
     mainWindow?.webContents.send("scan-progress", { scanned, total });
@@ -264,6 +284,7 @@ async function initializeSearch(profiles: Profile[]): Promise<void> {
 
   console.log("Building search index...");
   await indexer.buildIndex(metas);
+  indexerReady = true;
   console.log("Search index ready");
 }
 
@@ -515,7 +536,7 @@ function setupIpcHandlers(): void {
     return filePaths[0];
   });
 
-  ipcMain.handle("is-index-ready", () => indexer !== null);
+  ipcMain.handle("is-index-ready", () => indexerReady);
 
   ipcMain.handle("get-worktrees", async (): Promise<Worktree[]> => {
     if (!scanner) return [];
