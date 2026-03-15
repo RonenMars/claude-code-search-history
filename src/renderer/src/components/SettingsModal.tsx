@@ -16,6 +16,7 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ settings, onSave, profiles, onFilterByProfile, onProfilesSaved, onClose, defaultProfileId, onClearDefaultProfile }: SettingsModalProps): JSX.Element {
   const [maxChatInstances, setMaxChatInstances] = useState(settings.maxChatInstances)
+  const [profilesDir, setProfilesDir] = useState(settings.profilesDir ?? '')
 
   const handleMaxChange = useCallback((value: number) => {
     const clamped = Math.min(10, Math.max(1, value))
@@ -77,6 +78,52 @@ export default function SettingsModal({ settings, onSave, profiles, onFilterByPr
           ) : (
             <span className="text-xs text-neutral-600">None — picker shown each time</span>
           )}
+        </div>
+      </div>
+
+      {/* Storage section */}
+      <div className="px-8 py-5 border-b border-neutral-800">
+        <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">Storage</h3>
+        <div className="flex items-start justify-between max-w-xl gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-neutral-200">Profiles folder</p>
+            <p className="text-xs text-neutral-500 mt-0.5">Folder containing <code className="text-neutral-400">profiles.json</code>. Shared across all Claude Code apps.</p>
+            <p className="text-xs text-neutral-600 mt-1">Default: ~/.config/threadbase</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <input
+              type="text"
+              readOnly
+              value={profilesDir}
+              placeholder="~/.config/threadbase"
+              className="w-52 bg-neutral-900 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-400 focus:outline-none cursor-default truncate"
+              title={profilesDir || '~/.config/threadbase'}
+            />
+            <button
+              onClick={async () => {
+                const dir = await window.electronAPI.selectDirectory()
+                if (dir) {
+                  setProfilesDir(dir)
+                  onSave({ profilesDir: dir })
+                }
+              }}
+              className="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md text-neutral-300 transition-colors whitespace-nowrap"
+            >
+              Browse…
+            </button>
+            {profilesDir && (
+              <button
+                onClick={() => {
+                  setProfilesDir('')
+                  onSave({ profilesDir: '' })
+                }}
+                className="text-xs text-neutral-600 hover:text-red-400 transition-colors"
+                title="Reset to default"
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

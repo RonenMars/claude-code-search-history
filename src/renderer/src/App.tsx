@@ -262,11 +262,11 @@ export default function App(): JSX.Element {
         prev.map((inst) =>
           inst.instanceId === instanceId
             ? {
-                ...inst,
-                status: "exited",
-                exitCode: code,
-                isClaudeTyping: false,
-              }
+              ...inst,
+              status: "exited",
+              exitCode: code,
+              isClaudeTyping: false,
+            }
             : inst,
         ),
       );
@@ -683,42 +683,28 @@ export default function App(): JSX.Element {
           {/* Results Counter + Display Mode */}
           <div className="px-4 py-2 border-b border-neutral-800 flex items-center justify-between">
             <div className="text-xs text-neutral-500">
-              {isScanning ? (
-                scanProgress ? (
+              {!isScanning && sortedResults.length > 0 && (
+                sortedResults.length === results.length ? (
                   <>
-                    Loading{" "}
+                    Showing{" "}
                     <span className="font-medium text-neutral-400">
-                      {scanProgress.scanned}
-                    </span>{" "}
-                    of{" "}
-                    <span className="font-medium text-neutral-400">
-                      {scanProgress.total}
+                      {sortedResults.length}
                     </span>{" "}
                     conversations
                   </>
                 ) : (
-                  <span className="animate-pulse">Loading conversations…</span>
+                  <>
+                    Showing{" "}
+                    <span className="font-medium text-neutral-400">
+                      {sortedResults.length}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-neutral-400">
+                      {results.length}
+                    </span>{" "}
+                    conversations
+                  </>
                 )
-              ) : sortedResults.length === results.length ? (
-                <>
-                  Showing{" "}
-                  <span className="font-medium text-neutral-400">
-                    {sortedResults.length}
-                  </span>{" "}
-                  conversations
-                </>
-              ) : (
-                <>
-                  Showing{" "}
-                  <span className="font-medium text-neutral-400">
-                    {sortedResults.length}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-medium text-neutral-400">
-                    {results.length}
-                  </span>{" "}
-                  conversations
-                </>
               )}
             </div>
             <DisplayModePicker
@@ -730,10 +716,7 @@ export default function App(): JSX.Element {
 
           {/* Results */}
           <div className="flex-1 overflow-hidden">
-            {isLoading ||
-            isIndexing ||
-            !hasSearched ||
-            (searching && results.length === 0) ? (
+            {isScanning ? (
               <div className="flex flex-col h-full">
                 {scanProgress ? (
                   <div className="flex flex-col items-center justify-center h-full">

@@ -262,6 +262,7 @@ export type DisplayMode = 'list' | 'grouped' | 'tree'
 export interface AppSettings {
   maxChatInstances: number
   displayMode: DisplayMode
+  profilesDir?: string  // custom folder containing profiles.json; defaults to ~/.config/threadbase
 }
 
 // ─── Git Worktree Types ──────────────────────────────────────────────

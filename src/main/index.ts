@@ -90,10 +90,13 @@ const DEFAULT_PROFILE: Profile = {
   enabled: true,
 };
 
-const SHARED_PROFILES_PATH = join(homedir(), ".config", "threadbase", "profiles.json");
+const DEFAULT_PROFILES_DIR = join(homedir(), ".config", "threadbase");
+
+// Mutable — overridden at startup (and on settings change) by settings.profilesDir
+let activeProfilesDir = DEFAULT_PROFILES_DIR;
 
 function getProfilesPath(): string {
-  return SHARED_PROFILES_PATH;
+  return join(activeProfilesDir, "profiles.json");
 }
 
 async function loadProfilesConfig(): Promise<ProfilesConfig> {
@@ -110,7 +113,7 @@ async function loadProfilesConfig(): Promise<ProfilesConfig> {
 }
 
 async function saveProfilesConfig(config: ProfilesConfig): Promise<void> {
-  await mkdir(join(homedir(), ".config", "threadbase"), { recursive: true });
+  await mkdir(activeProfilesDir, { recursive: true });
   await writeFile(getProfilesPath(), JSON.stringify(config, null, 2), "utf-8");
 }
 
@@ -407,6 +410,13 @@ function setupIpcHandlers(): void {
     "set-settings",
     async (_event, settings: Partial<AppSettings>) => {
       await saveSettings(settings);
+      if (settings.profilesDir !== undefined) {
+        activeProfilesDir = settings.profilesDir || DEFAULT_PROFILES_DIR;
+        const profilesConfig = await ensureProfilesExist();
+        const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled);
+        await initializeSearch(enabledProfiles);
+        mainWindow?.webContents.send("index-ready");
+      }
       return true;
     },
   );
@@ -677,6 +687,12 @@ app.whenReady().then(async () => {
 
   setupIpcHandlers();
   createWindow();
+
+  // Apply profilesDir from settings before loading profiles
+  const startupSettings = await loadSettings();
+  if (startupSettings.profilesDir) {
+    activeProfilesDir = startupSettings.profilesDir;
+  }
 
   // Load profiles (or write defaults), then initialize search
   const profilesConfig = await ensureProfilesExist();
