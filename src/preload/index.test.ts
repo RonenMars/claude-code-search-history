@@ -47,6 +47,7 @@ describe('Preload API Contract', () => {
       { method: 'isIndexReady', channel: 'is-index-ready' },
       { method: 'getGitInfo', channel: 'get-git-info' },
       { method: 'createWorktree', channel: 'create-worktree' },
+      { method: 'showContextMenu', channel: 'context-menu:show' },
     ]
 
     for (const { method, channel } of expectedChannels) {
@@ -72,6 +73,10 @@ describe('Preload API Contract', () => {
     it('onPtyExit listens to pty-exit', () => {
       expect(preloadSource).toContain("'pty-exit'")
     })
+
+    it('onContinueChatFromMenu listens to context-menu:continue-chat', () => {
+      expect(preloadSource).toContain("'context-menu:continue-chat'")
+    })
   })
 
   describe('IPC method types', () => {
@@ -87,6 +92,10 @@ describe('Preload API Contract', () => {
     it('search uses ipcRenderer.invoke (request-response)', () => {
       expect(preloadSource).toMatch(/search.*ipcRenderer\.invoke/)
     })
+
+    it('showContextMenu uses ipcRenderer.send (fire-and-forget)', () => {
+      expect(preloadSource).toMatch(/showContextMenu.*ipcRenderer\.send/)
+    })
   })
 
   describe('listener cleanup', () => {
@@ -101,6 +110,10 @@ describe('Preload API Contract', () => {
 
     it('onPtyExit returns cleanup function', () => {
       expect(preloadSource).toContain("removeListener('pty-exit'")
+    })
+
+    it('onContinueChatFromMenu returns cleanup function', () => {
+      expect(preloadSource).toContain("removeListener('context-menu:continue-chat'")
     })
   })
 

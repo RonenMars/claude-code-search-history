@@ -26,6 +26,7 @@ const defaultProps = {
   selectedId: null,
   onSelect: vi.fn(),
   onNewChat: vi.fn(),
+  onContextMenu: vi.fn(),
   query: '',
   gitInfo: {},
   activeCwd: null,
@@ -44,6 +45,7 @@ function renderList(overrides = {}) {
 describe('ResultsList', () => {
   beforeEach(() => {
     vi.mocked(defaultProps.onSelect).mockClear()
+    vi.mocked(defaultProps.onContextMenu).mockClear()
   })
 
   describe('empty state', () => {
@@ -219,6 +221,62 @@ describe('ResultsList', () => {
       // Group headers with conversation counts
       expect(screen.getByText('2 chats')).toBeInTheDocument()
       expect(screen.getByText('1 chat')).toBeInTheDocument()
+    })
+  })
+
+  describe('context menu', () => {
+    it('calls onContextMenu with correct data on right-click', async () => {
+      const onContextMenu = vi.fn()
+      const results = [
+        buildSearchResult({
+          id: '/home/user/.claude/projects/proj/session-123.jsonl',
+          sessionId: 'session-123',
+          projectPath: '/home/user/dev/proj',
+          projectName: 'proj',
+          sessionName: 'my-session',
+          account: 'default',
+        }),
+      ]
+      renderList({ results, onContextMenu })
+
+      const buttons = screen.getAllByRole('button')
+      await userEvent.pointer({ target: buttons[0], keys: '[MouseRight]' })
+
+      expect(onContextMenu).toHaveBeenCalledWith({
+        id: '/home/user/.claude/projects/proj/session-123.jsonl',
+        sessionId: 'session-123',
+        sessionPath: '/home/user/.claude/projects/proj/session-123.jsonl',
+        title: 'my-session',
+        projectPath: '/home/user/dev/proj',
+        account: 'default',
+      })
+    })
+
+    it('uses projectName as title when sessionName is empty', async () => {
+      const onContextMenu = vi.fn()
+      const results = [
+        buildSearchResult({
+          id: '/path/to/file.jsonl',
+          sessionName: '',
+          projectName: 'my-project',
+          projectPath: '/dev/my-project',
+        }),
+      ]
+      renderList({ results, onContextMenu })
+
+      const buttons = screen.getAllByRole('button')
+      await userEvent.pointer({ target: buttons[0], keys: '[MouseRight]' })
+
+      expect(onContextMenu).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'my-project' })
+      )
+    })
+
+    it('does not call onContextMenu when right-clicking outside result items', () => {
+      const onContextMenu = vi.fn()
+      renderList({ results: [], onContextMenu })
+      // No result buttons rendered — onContextMenu should not have been called
+      expect(onContextMenu).not.toHaveBeenCalled()
     })
   })
 })

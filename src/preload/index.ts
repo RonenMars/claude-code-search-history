@@ -19,6 +19,15 @@ import type {
 
 export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, StatsGranularity, PeriodStat, Worktree, GitInfo, CreateWorktreeOptions, CreateWorktreeResult }
 
+export interface ContextMenuData {
+  id: string
+  sessionId: string
+  sessionPath: string
+  title: string
+  projectPath: string
+  account?: string
+}
+
 export interface ElectronAPI {
   search: (query: string, filters?: { project?: string; limit?: number }) => Promise<SearchResult[]>
   getConversation: (id: string) => Promise<Conversation | null>
@@ -31,6 +40,9 @@ export interface ElectronAPI {
   setPreferences: (prefs: Partial<UserPreferences>) => Promise<boolean>
   onIndexReady: (callback: () => void) => void
   onScanProgress: (callback: (progress: { scanned: number; total: number }) => void) => (() => void)
+  // Context menu
+  showContextMenu: (data: ContextMenuData) => void
+  onContinueChatFromMenu: (callback: (payload: { projectPath: string; sessionId: string; account?: string }) => void) => () => void
   // PTY
   ptySpawn: (options: PtySpawnOptions) => Promise<{ success: boolean; error?: string }>
   ptyInput: (instanceId: string, data: string) => void
@@ -71,6 +83,15 @@ const api: ElectronAPI = {
     }
     ipcRenderer.on('scan-progress', handler)
     return () => ipcRenderer.removeListener('scan-progress', handler)
+  },
+  // Context menu
+  showContextMenu: (data) => ipcRenderer.send('context-menu:show', data),
+  onContinueChatFromMenu: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: { projectPath: string; sessionId: string; account?: string }): void => {
+      callback(payload)
+    }
+    ipcRenderer.on('context-menu:continue-chat', handler)
+    return () => ipcRenderer.removeListener('context-menu:continue-chat', handler)
   },
   // PTY
   ptySpawn: (options) => ipcRenderer.invoke('pty-spawn', options),
