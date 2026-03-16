@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClaudeProfile, DisplayMode, GitInfo, Profile, SearchResult } from '../../../shared/types'
+import SpeedSearch from './SpeedSearch'
 
 interface ContextMenuData {
   id: string
@@ -47,43 +48,109 @@ export default function ResultsList({
   const enabledProfiles = profiles.filter((p) => p.enabled)
   const showProfileBadge = enabledProfiles.length > 1
 
-  const filteredResults = accountFilter
+  const [speedSearchQuery, setSpeedSearchQuery] = useState('')
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const resetDismissTimer = useCallback(() => {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    dismissTimerRef.current = setTimeout(() => {
+      setSpeedSearchQuery('')
+    }, 1500)
+  }, [])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Do not intercept Cmd/Ctrl+* or Alt+* combinations
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    // Do not intercept function keys
+    if (e.key.startsWith('F') && e.key.length >= 2 && !isNaN(Number(e.key.slice(1)))) return
+    // Do not intercept navigation keys (reserved for list navigation)
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Tab'].includes(e.key)) return
+
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+      setSpeedSearchQuery('')
+      return
+    }
+
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      setSpeedSearchQuery((prev) => {
+        const next = prev.slice(0, -1)
+        if (next.length > 0) resetDismissTimer()
+        else if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+        return next
+      })
+      return
+    }
+
+    // Printable character
+    if (e.key.length === 1) {
+      e.preventDefault()
+      setSpeedSearchQuery((prev) => prev + e.key)
+      resetDismissTimer()
+    }
+  }, [resetDismissTimer])
+
+  const accountFiltered = accountFilter
     ? results.filter((r) => r.account === accountFilter)
     : results
 
-  if (filteredResults.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
-        {query ? 'No results found' : 'Start typing to search'}
-      </div>
-    )
-  }
+  const filteredResults = speedSearchQuery
+    ? accountFiltered.filter((r) =>
+        (r.sessionName || r.projectName).toLowerCase().includes(speedSearchQuery.toLowerCase())
+      )
+    : accountFiltered
 
-  const internalProps: InternalListProps = {
-    results: filteredResults,
-    selectedId,
-    onSelect,
-    onNewChat,
-    onContextMenu,
-    query,
-    gitInfo,
-    activeCwd,
-    activeChatSessionId,
-    isClaudeTyping,
-    activeChatProfile,
-    showProfileBadge,
-    enabledProfiles
-  }
+  const isEmpty = filteredResults.length === 0
 
-  if (displayMode === 'tree') {
-    return <FileTreeResultsList {...internalProps} />
-  }
+  return (
+    <div
+      className="flex flex-col h-full relative outline-none"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
+      {isEmpty ? (
+        <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
+          {speedSearchQuery
+            ? `No results for "${speedSearchQuery}"`
+            : query
+              ? 'No results found'
+              : 'Start typing to search'}
+        </div>
+      ) : (
+        (() => {
+          const internalProps: InternalListProps = {
+            results: filteredResults,
+            selectedId,
+            onSelect,
+            onNewChat,
+            onContextMenu,
+            query,
+            gitInfo,
+            activeCwd,
+            activeChatSessionId,
+            isClaudeTyping,
+            activeChatProfile,
+            showProfileBadge,
+            enabledProfiles,
+          }
 
-  if (displayMode === 'grouped') {
-    return <GroupedResultsList {...internalProps} />
-  }
-
-  return <FlatResultsList {...internalProps} />
+          if (displayMode === 'tree') return <FileTreeResultsList {...internalProps} />
+          if (displayMode === 'grouped') return <GroupedResultsList {...internalProps} />
+          return <FlatResultsList {...internalProps} />
+        })()
+      )}
+      <SpeedSearch
+        query={speedSearchQuery}
+        onQueryChange={setSpeedSearchQuery}
+        onDismiss={() => {
+          if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+          setSpeedSearchQuery('')
+        }}
+      />
+    </div>
+  )
 }
 
 // ─── Flat list (original behavior) ──────────────────────────────────
