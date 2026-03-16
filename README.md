@@ -30,6 +30,8 @@ A native macOS Electron application for searching, browsing, and interacting wit
 - **Last Message Indicator** — Shows whether the last message was from user or assistant.
 - **Live Chat Indicators** — Active chat sessions show "Live", "Typing...", or "Awaiting Reply" badges with colored dots.
 - **Session Names** — Displays session name/preview with timestamp and message count.
+- **Context Menus** — Right-click any conversation item to reveal: Copy Session ID, Resume in Terminal, Resume in New Window, Open Project Folder in Finder.
+- **Speed Search** — Press `Cmd+F` (or `Ctrl+F`) when the conversation list has focus to open a floating filter overlay. Type to filter results by prefix match across title and project name. Arrow keys navigate matches; `Escape` dismisses.
 
 ### Conversation Viewer
 
@@ -222,10 +224,11 @@ Full conversation content is loaded on demand when you select a conversation, an
 
 ## Keyboard Shortcuts
 
-- `Cmd/Ctrl + F`: Focus search input
-- `Escape`: Clear search / unfocus
-- Arrow keys: Navigate project autocomplete dropdown
+- `Cmd/Ctrl + F`: Focus search input (or open Speed Search overlay when the conversation list is focused)
+- `Escape`: Clear search / unfocus / dismiss Speed Search
+- Arrow keys: Navigate project autocomplete dropdown or Speed Search matches
 - Click message counter in navigation bar to jump to a specific message by number
+- Right-click conversation item: context menu (Copy Session ID, Resume in Terminal, Resume in New Window, Open Project)
 
 ## Tech Stack
 
