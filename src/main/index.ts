@@ -1,6 +1,6 @@
 app.commandLine.appendSwitch("remote-debugging-port", "9222");
 
-import { app, shell, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu, clipboard } from "electron";
 import { readFile, writeFile, mkdir, readdir, stat } from "fs/promises";
 import { join, basename } from "path";
 import { homedir } from "os";
@@ -674,6 +674,104 @@ function setupIpcHandlers(): void {
         };
       }
       return { success: true };
+    },
+  );
+
+  // ─── Context Menu Handler ──────────────────────────────────────────
+
+  ipcMain.on(
+    "context-menu:show",
+    (
+      event,
+      data: {
+        id: string;
+        sessionId: string;
+        sessionPath: string;
+        title: string;
+        projectPath: string;
+        account?: string;
+      },
+    ) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (!win) return;
+
+      const doExport = async (format: "markdown" | "json" | "text"): Promise<void> => {
+        if (!scanner) return;
+        const conversation = await scanner.getConversation(data.id);
+        if (!conversation) return;
+
+        const extensions: Record<string, string> = {
+          markdown: "md",
+          json: "json",
+          text: "txt",
+        };
+
+        const sessionPrefix =
+          conversation.sessionId?.slice(0, 8) || Date.now().toString();
+        const { canceled, filePath } = await dialog.showSaveDialog(win, {
+          title: "Export Conversation",
+          defaultPath: `conversation-${sessionPrefix}.${extensions[format]}`,
+          filters: [
+            {
+              name: format.charAt(0).toUpperCase() + format.slice(1),
+              extensions: [extensions[format]],
+            },
+          ],
+        });
+
+        if (canceled || !filePath) return;
+
+        let content: string;
+        if (format === "json") {
+          content = JSON.stringify(conversation, null, 2);
+        } else if (format === "markdown") {
+          content = formatAsMarkdown(conversation);
+        } else {
+          content = formatAsText(conversation);
+        }
+
+        try {
+          await writeFile(filePath, content, "utf-8");
+        } catch (error) {
+          console.error("Export failed:", error);
+        }
+      };
+
+      const menu = Menu.buildFromTemplate([
+        {
+          label: "Copy Session ID",
+          click: () => clipboard.writeText(data.sessionId),
+        },
+        {
+          label: "Export as Markdown",
+          click: () => doExport("markdown"),
+        },
+        {
+          label: "Export as JSON",
+          click: () => doExport("json"),
+        },
+        {
+          label: "Export as Plain Text",
+          click: () => doExport("text"),
+        },
+        { type: "separator" },
+        {
+          label: "Reveal in Finder",
+          click: () => shell.showItemInFolder(data.sessionPath),
+        },
+        {
+          label: "Open in New Chat",
+          click: () => {
+            event.sender.send("context-menu:continue-chat", {
+              projectPath: data.projectPath,
+              sessionId: data.sessionId,
+              account: data.account,
+            });
+          },
+        },
+      ]);
+
+      menu.popup({ window: win });
     },
   );
 }

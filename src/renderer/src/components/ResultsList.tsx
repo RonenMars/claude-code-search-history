@@ -2,11 +2,21 @@ import { useMemo, useRef, useState, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClaudeProfile, DisplayMode, GitInfo, Profile, SearchResult } from '../../../shared/types'
 
+interface ContextMenuData {
+  id: string
+  sessionId: string
+  sessionPath: string
+  title: string
+  projectPath: string
+  account?: string
+}
+
 interface ResultsListProps {
   results: SearchResult[]
   selectedId: string | null
   onSelect: (id: string) => void
   onNewChat: (projectPath: string) => void
+  onContextMenu: (data: ContextMenuData) => void
   query: string
   gitInfo: Record<string, GitInfo>
   activeCwd: string | null
@@ -23,6 +33,7 @@ export default function ResultsList({
   selectedId,
   onSelect,
   onNewChat,
+  onContextMenu,
   query,
   gitInfo,
   activeCwd,
@@ -53,6 +64,7 @@ export default function ResultsList({
     selectedId,
     onSelect,
     onNewChat,
+    onContextMenu,
     query,
     gitInfo,
     activeCwd,
@@ -81,6 +93,7 @@ interface InternalListProps {
   selectedId: string | null
   onSelect: (id: string) => void
   onNewChat: (projectPath: string) => void
+  onContextMenu: (data: ContextMenuData) => void
   query: string
   gitInfo: Record<string, GitInfo>
   activeCwd: string | null
@@ -96,6 +109,7 @@ function FlatResultsList({
   selectedId,
   onSelect,
   onNewChat,
+  onContextMenu,
   query,
   gitInfo,
   activeCwd,
@@ -138,6 +152,7 @@ function FlatResultsList({
                 isSelected={results[virtualRow.index].id === selectedId}
                 onSelect={() => onSelect(results[virtualRow.index].id)}
                 onNewChat={onNewChat}
+                onContextMenu={onContextMenu}
                 query={query}
                 gitInfo={gitInfo}
                 activeCwd={activeCwd}
@@ -174,6 +189,7 @@ function GroupedResultsList({
   selectedId,
   onSelect,
   onNewChat,
+  onContextMenu,
   query,
   gitInfo,
   activeCwd,
@@ -309,6 +325,7 @@ function GroupedResultsList({
                         isSelected={item.result.id === selectedId}
                         onSelect={() => onSelect(item.result.id)}
                         onNewChat={onNewChat}
+                        onContextMenu={onContextMenu}
                         query={query}
                         gitInfo={gitInfo}
                         activeCwd={activeCwd}
@@ -427,6 +444,7 @@ function FileTreeResultsList({
   selectedId,
   onSelect,
   onNewChat,
+  onContextMenu,
   query,
   gitInfo,
   activeCwd,
@@ -518,6 +536,7 @@ function FileTreeResultsList({
                     isSelected={dirConversations[virtualRow.index].id === selectedId}
                     onSelect={() => onSelect(dirConversations[virtualRow.index].id)}
                     onNewChat={onNewChat}
+                    onContextMenu={onContextMenu}
                     query={query}
                     gitInfo={gitInfo}
                     activeCwd={activeCwd}
@@ -645,6 +664,7 @@ interface ResultItemProps {
   isSelected: boolean
   onSelect: () => void
   onNewChat: (projectPath: string) => void
+  onContextMenu: (data: ContextMenuData) => void
   query: string
   gitInfo: Record<string, GitInfo>
   activeCwd: string | null
@@ -654,7 +674,7 @@ interface ResultItemProps {
   profileBadge: Profile | undefined
 }
 
-function ResultItem({ result, isSelected, onSelect, onNewChat, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge }: ResultItemProps): JSX.Element {
+function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge }: ResultItemProps): JSX.Element {
   // Note: dangerouslySetInnerHTML is safe here — content passes through
   // escapeHtml() which sanitizes all HTML entities before highlightText()
   // wraps matched terms in <span> tags using the escaped content.
@@ -681,6 +701,17 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, query, gitInfo, a
   return (
     <button
       onClick={onSelect}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onContextMenu({
+          id: result.id,
+          sessionId: result.sessionId,
+          sessionPath: result.id,
+          title: result.sessionName || result.projectName,
+          projectPath: result.projectPath,
+          account: result.account,
+        })
+      }}
       className={`group/item w-full text-left p-4 transition-colors hover:bg-neutral-800/50 border-b border-neutral-800 ${isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
         }`}
     >

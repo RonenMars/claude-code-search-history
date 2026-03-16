@@ -274,6 +274,14 @@ export default function App(): JSX.Element {
     return cleanup;
   }, []);
 
+  useEffect(() => {
+    const cleanup = window.electronAPI.onContinueChatFromMenu((payload) => {
+      handleContinueChat(payload.projectPath, payload.sessionId, payload.account);
+    });
+    return cleanup;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleContinueChat]);
+
   const handleSelectResult = useCallback(async (id: string) => {
     try {
       const conversation = await window.electronAPI.getConversation(id);
@@ -473,6 +481,20 @@ export default function App(): JSX.Element {
         window.electronAPI.getGitInfo().then(setGitInfo).catch(console.error);
       }
       return result;
+    },
+    [],
+  );
+
+  const handleContextMenu = useCallback(
+    (data: {
+      id: string;
+      sessionId: string;
+      sessionPath: string;
+      title: string;
+      projectPath: string;
+      account?: string;
+    }) => {
+      window.electronAPI.showContextMenu(data);
     },
     [],
   );
@@ -759,6 +781,7 @@ export default function App(): JSX.Element {
                 selectedId={selectedConversation?.id || null}
                 onSelect={handleSelectResult}
                 onNewChat={handleChatInProject}
+                onContextMenu={handleContextMenu}
                 query={query}
                 gitInfo={gitInfo}
                 activeCwd={

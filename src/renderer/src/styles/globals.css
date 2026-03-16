@@ -1,6 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-claude-orange: #D97706;
+  --color-claude-dark: #1a1a1a;
+  --color-claude-darker: #0d0d0d;
+}
 
 * {
   margin: 0;
