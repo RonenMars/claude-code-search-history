@@ -224,6 +224,116 @@ describe('ResultsList', () => {
     })
   })
 
+  describe('speed search', () => {
+    it('shows all results when no key has been pressed', () => {
+      const results = [
+        buildSearchResult({ sessionName: 'fix-auth-bug' }),
+        buildSearchResult({ sessionName: 'refactor-db' }),
+      ]
+      renderList({ results })
+      expect(screen.getByText('fix-auth-bug')).toBeInTheDocument()
+      expect(screen.getByText('refactor-db')).toBeInTheDocument()
+    })
+
+    it('filters results by sessionName substring when a key is typed', async () => {
+      const results = [
+        buildSearchResult({ sessionName: 'fix-auth-bug' }),
+        buildSearchResult({ sessionName: 'refactor-db' }),
+      ]
+      const { container } = renderList({ results })
+
+      const listContainer = container.querySelector('[tabindex="0"]')!
+      await userEvent.type(listContainer, 'fix')
+
+      expect(screen.getByText('fix-auth-bug')).toBeInTheDocument()
+      expect(screen.queryByText('refactor-db')).not.toBeInTheDocument()
+    })
+
+    it('falls back to projectName when sessionName is empty', async () => {
+      const results = [
+        buildSearchResult({ sessionName: '', projectName: 'my-api-project' }),
+        buildSearchResult({ sessionName: '', projectName: 'frontend-app' }),
+      ]
+      const { container } = renderList({ results })
+
+      const listContainer = container.querySelector('[tabindex="0"]')!
+      await userEvent.type(listContainer, 'api')
+
+      expect(screen.getByText('my-api-project')).toBeInTheDocument()
+      expect(screen.queryByText('frontend-app')).not.toBeInTheDocument()
+    })
+
+    it('clears the speed search on Escape', async () => {
+      const results = [
+        buildSearchResult({ sessionName: 'fix-auth-bug' }),
+        buildSearchResult({ sessionName: 'refactor-db' }),
+      ]
+      const { container } = renderList({ results })
+
+      const listContainer = container.querySelector('[tabindex="0"]')!
+      await userEvent.type(listContainer, 'fix')
+      // Now Escape
+      await userEvent.keyboard('{Escape}')
+
+      // Both items visible again
+      expect(screen.getByText('fix-auth-bug')).toBeInTheDocument()
+      expect(screen.getByText('refactor-db')).toBeInTheDocument()
+    })
+
+    it('trims last character on Backspace', async () => {
+      const results = [
+        buildSearchResult({ sessionName: 'fix-auth-bug' }),
+        buildSearchResult({ sessionName: 'refactor-db' }),
+      ]
+      const { container } = renderList({ results })
+
+      const listContainer = container.querySelector('[tabindex="0"]')!
+      await userEvent.type(listContainer, 'fixz')
+      // 'fixz' matches nothing because no sessionName contains 'fixz'
+      expect(screen.queryByText('fix-auth-bug')).not.toBeInTheDocument()
+
+      // Backspace removes 'z', leaving 'fix'
+      await userEvent.type(listContainer, '{Backspace}')
+      expect(screen.getByText('fix-auth-bug')).toBeInTheDocument()
+    })
+
+    it('does not intercept Cmd+F', async () => {
+      const results = [buildSearchResult({ sessionName: 'something' })]
+      const { container } = renderList({ results })
+
+      const listContainer = container.querySelector('[tabindex="0"]')!
+      // Cmd+F should not append 'f' to speed search
+      await userEvent.keyboard('{Meta>}f{/Meta}')
+
+      // Speed search overlay should NOT be visible (no speed-search-query element)
+      expect(screen.queryByTestId('speed-search-query')).not.toBeInTheDocument()
+    })
+
+    it('shows no-results message with speed search query when filtered list is empty', async () => {
+      const results = [buildSearchResult({ sessionName: 'fix-auth-bug' })]
+      const { container } = renderList({ results })
+
+      const listContainer = container.querySelector('[tabindex="0"]')!
+      await userEvent.type(listContainer, 'zzz')
+
+      expect(screen.getByText('No results for "zzz"')).toBeInTheDocument()
+    })
+
+    it('composes with accountFilter (speed search applies on top)', async () => {
+      const results = [
+        buildSearchResult({ account: 'work', sessionName: 'work-feature', projectName: 'proj' }),
+        buildSearchResult({ account: 'personal', sessionName: 'personal-side', projectName: 'proj' }),
+      ]
+      const { container } = renderList({ results, accountFilter: 'work' })
+
+      const listContainer = container.querySelector('[tabindex="0"]')!
+      await userEvent.type(listContainer, 'work')
+
+      expect(screen.getByText('work-feature')).toBeInTheDocument()
+      expect(screen.queryByText('personal-side')).not.toBeInTheDocument()
+    })
+  })
+
   describe('context menu', () => {
     it('calls onContextMenu with correct data on right-click', async () => {
       const onContextMenu = vi.fn()
