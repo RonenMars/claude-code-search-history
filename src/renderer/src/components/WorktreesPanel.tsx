@@ -309,7 +309,7 @@ function LinkedWorktreeRow({
         <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => onChatInWorktree(worktree.path)}
-            className="text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border-claude-orange/30 flex-shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors"
+            className="text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border-claude-orange/30 shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors"
           >
             Open Chat
           </button>

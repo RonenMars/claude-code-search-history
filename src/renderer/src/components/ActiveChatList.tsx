@@ -62,7 +62,7 @@ export default function ActiveChatList({
 
             {/* Exited badge */}
             {!isActive && (
-              <span className="flex-shrink-0 text-neutral-600">
+              <span className="shrink-0 text-neutral-600">
                 Exited{instance.exitCode !== null ? ` (${instance.exitCode})` : ''}
               </span>
             )}
@@ -70,7 +70,7 @@ export default function ActiveChatList({
             {/* Focus button */}
             <button
               onClick={() => onFocus(instance.instanceId)}
-              className="flex-shrink-0 px-1 text-neutral-500 transition-colors hover:text-neutral-300"
+              className="shrink-0 px-1 text-neutral-500 transition-colors hover:text-neutral-300"
               title="Focus this chat"
             >
               →
@@ -79,7 +79,7 @@ export default function ActiveChatList({
             {/* Close button */}
             <button
               onClick={() => onClose(instance.instanceId)}
-              className="flex-shrink-0 px-1 text-neutral-600 transition-colors hover:text-red-400"
+              className="shrink-0 px-1 text-neutral-600 transition-colors hover:text-red-400"
               title={isActive ? 'Stop and remove' : 'Remove'}
             >
               ✕

@@ -409,8 +409,8 @@ export default function ConversationView({
               <button
                 onClick={() => setShowActionsMenu((prev) => !prev)}
                 className={`flex h-full w-7 items-center justify-center rounded border transition-colors ${chatSearchOpen
-                    ? "text-claude-orange bg-claude-orange/10 border-claude-orange/40 hover:bg-claude-orange/20"
-                    : "border-neutral-700 bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+                  ? "text-claude-orange bg-claude-orange/10 border-claude-orange/40 hover:bg-claude-orange/20"
+                  : "border-neutral-700 bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
                   }`}
                 title="More actions"
               >
@@ -426,7 +426,7 @@ export default function ConversationView({
               </button>
 
               {showActionsMenu && (
-                <div className="absolute top-full right-0 z-50 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
+                <div className="absolute top-full right-0 z-50 mt-1 min-w-45 overflow-hidden rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
                   {onContinueChat && (
                     <button
                       onClick={() => {
@@ -470,8 +470,8 @@ export default function ConversationView({
                       setShowActionsMenu(false);
                     }}
                     className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${chatSearchOpen
-                        ? "text-claude-orange bg-claude-orange/10"
-                        : "text-neutral-300 hover:bg-neutral-700/50"
+                      ? "text-claude-orange bg-claude-orange/10"
+                      : "text-neutral-300 hover:bg-neutral-700/50"
                       }`}
                   >
                     <svg

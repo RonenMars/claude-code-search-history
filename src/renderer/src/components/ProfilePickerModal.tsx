@@ -15,7 +15,7 @@ export default function ProfilePickerModal({ profiles, onSelect, onCancel }: Pro
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
     >
-      <div className="bg-claude-dark w-[480px] rounded-xl border border-neutral-700 p-6 shadow-2xl">
+      <div className="bg-claude-dark w-120 rounded-xl border border-neutral-700 p-6 shadow-2xl">
         <h2 className="mb-1 text-sm font-semibold text-neutral-200">Start New Chat</h2>
         <p className="mb-5 text-xs text-neutral-500">Select which Claude profile to use</p>
 

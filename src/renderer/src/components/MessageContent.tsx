@@ -332,7 +332,7 @@ function JSONBlock({
 
   return (
     <div className="json-block-wrapper group relative my-3">
-      <div className="flex items-center justify-between rounded-t-lg border-x border-t border-purple-700/50 bg-gradient-to-r from-purple-900/20 to-blue-900/20 px-3 py-2">
+      <div className="flex items-center justify-between rounded-t-lg border-x border-t border-purple-700/50 bg-linear-to-r from-purple-900/20 to-blue-900/20 px-3 py-2">
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs text-purple-400">JSON</span>
           <button

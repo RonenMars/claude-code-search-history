@@ -72,12 +72,12 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
                 </span>
               )}
             </div>
-            <div className="mt-0.5 max-w-[200px] truncate font-mono text-[10px] text-neutral-600" title={profile.configDir}>
+            <div className="mt-0.5 max-w-50 truncate font-mono text-[10px] text-neutral-600" title={profile.configDir}>
               {profile.configDir}
             </div>
           </div>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             onClick={onEdit}
             className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-500 transition-colors hover:border-neutral-500 hover:text-neutral-300"

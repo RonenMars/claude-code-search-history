@@ -76,7 +76,7 @@ export default function DisplayModePicker({ value, onChange, disabled }: Display
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 z-50 mt-1 min-w-[120px] overflow-hidden rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
+        <div className="absolute top-full right-0 z-50 mt-1 min-w-30 overflow-hidden rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
           {MODES.map((mode) => (
             <button
               key={mode.value}

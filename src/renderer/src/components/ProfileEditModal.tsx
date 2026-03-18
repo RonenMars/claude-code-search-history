@@ -45,7 +45,7 @@ export default function ProfileEditModal({ profile, isOnlyEnabled, isOnlyScannab
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
     >
-      <div className="bg-claude-dark w-[420px] rounded-xl border border-neutral-700 p-6 shadow-2xl">
+      <div className="bg-claude-dark w-105 rounded-xl border border-neutral-700 p-6 shadow-2xl">
         <h2 className="mb-4 text-sm font-semibold text-neutral-200">
           {isNew ? 'Add Profile' : 'Edit Profile'}
         </h2>

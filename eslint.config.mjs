@@ -5,6 +5,7 @@ import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tailwind from "eslint-plugin-tailwindcss";
+import tailwindCanonical from "eslint-plugin-tailwind-canonical-classes";
 import importX from "eslint-plugin-import-x";
 import unicorn from "eslint-plugin-unicorn";
 import globals from "globals";
@@ -134,6 +135,7 @@ export default tseslint.config(
       // Tailwind
       "tailwindcss/no-custom-classname": "off",
       "tailwindcss/classnames-order": "warn",
+      "tailwindcss/no-unnecessary-arbitrary-value": "error",
 
       // General
       "no-throw-literal": "warn",
@@ -144,13 +146,25 @@ export default tseslint.config(
     },
   },
 
-  // Renderer-specific: browser globals
+  // Renderer-specific: browser globals + canonical Tailwind classes
   {
     files: ["src/renderer/**/*.{ts,tsx}"],
+    plugins: {
+      "tailwind-canonical-classes": tailwindCanonical,
+    },
     languageOptions: {
       globals: {
         ...globals.browser,
       },
+    },
+    rules: {
+      "tailwind-canonical-classes/tailwind-canonical-classes": [
+        "warn",
+        {
+          cssPath: "./src/renderer/src/styles/globals.css",
+          calleeFunctions: ["cn", "clsx"],
+        },
+      ],
     },
   },
 
@@ -161,6 +175,7 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
       "no-console": "off",
       "unicorn/filename-case": "off",
+      "unicorn/no-useless-undefined": "off",
     },
   },
 );

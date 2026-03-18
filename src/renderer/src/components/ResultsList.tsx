@@ -784,7 +784,7 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
     >
       <div className="mb-1 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="text-claude-orange max-w-[200px] truncate text-xs font-medium">
+          <span className="text-claude-orange max-w-50 truncate text-xs font-medium">
             {result.projectName}
           </span>
           <GitBadge info={gitInfo[result.projectPath]} />

@@ -17,7 +17,7 @@ export default memo(function ToolInvocationBadge({ blocks }: ToolInvocationBadge
           {getToolIcon(block.name)}
           <span className="text-neutral-300">{getShortToolName(block.name)}</span>
           {getKeyParam(block) && (
-            <span className="max-w-[200px] truncate text-neutral-500">{getKeyParam(block)}</span>
+            <span className="max-w-50 truncate text-neutral-500">{getKeyParam(block)}</span>
           )}
         </span>
       ))}
