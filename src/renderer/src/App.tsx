@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, JSX } from "react";
 import SearchBar from "./components/SearchBar";
 import ResultsList from "./components/ResultsList";
 import ConversationView from "./components/ConversationView";
@@ -43,7 +43,7 @@ export default function App(): JSX.Element {
     scanned: number;
     total: number;
   } | null>(null);
-  const prefsDebounceRef = useRef<NodeJS.Timeout>();
+  const prefsDebounceRef = useRef<NodeJS.Timeout>(undefined);
 
   // Multi-instance chat state
   const [chatInstances, setChatInstances] = useState<ChatInstance[]>([]);
@@ -274,14 +274,6 @@ export default function App(): JSX.Element {
     return cleanup;
   }, []);
 
-  useEffect(() => {
-    const cleanup = window.electronAPI.onContinueChatFromMenu((payload) => {
-      handleContinueChat(payload.projectPath, payload.sessionId, payload.account);
-    });
-    return cleanup;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleContinueChat]);
-
   const handleSelectResult = useCallback(async (id: string) => {
     try {
       const conversation = await window.electronAPI.getConversation(id);
@@ -432,6 +424,14 @@ export default function App(): JSX.Element {
       startChat,
     ],
   );
+
+  useEffect(() => {
+    const cleanup = window.electronAPI.onContinueChatFromMenu((payload) => {
+      handleContinueChat(payload.projectPath, payload.sessionId, payload.account);
+    });
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleContinueChat]);
 
   const handleProfileSelected = useCallback(
     async (profile: Profile, remember: boolean) => {
