@@ -7,9 +7,9 @@
  * so we verify the contract by checking the type-level API shape and
  * the channel names used.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
-import { join } from 'path'
 
 // Read the preload source to verify channel wiring
 const preloadSource = readFileSync(

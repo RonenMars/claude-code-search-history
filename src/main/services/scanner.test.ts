@@ -1,6 +1,6 @@
-import { mkdtemp, rm, mkdir, copyFile, writeFile } from 'fs/promises'
-import { join } from 'path'
-import { tmpdir } from 'os'
+import { mkdtemp, rm, mkdir, copyFile, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { ConversationScanner } from './scanner'
 import type { Profile } from '../../shared/types'
 
@@ -225,7 +225,7 @@ describe('ConversationScanner', () => {
     it('returns empty string for falsy content', () => {
       const extract = (scanner as any).extractContent.bind(scanner)
       expect(extract(null)).toBe('')
-      expect(extract(undefined)).toBe('')
+      expect(extract()).toBe('')
       expect(extract('')).toBe('')
     })
 

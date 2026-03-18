@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState, useCallback, type JSX } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { ClaudeProfile, DisplayMode, GitInfo, Profile, SearchResult } from '../../../shared/types'
+import { useMemo, useRef, useState, useCallback, type JSX } from 'react'
 import SpeedSearch from './SpeedSearch'
+import type { ClaudeProfile, DisplayMode, GitInfo, Profile, SearchResult } from '../../../shared/types'
 
 interface ContextMenuData {
   id: string
@@ -106,12 +106,12 @@ export default function ResultsList({
 
   return (
     <div
-      className="flex flex-col h-full relative outline-none"
+      className="relative flex h-full flex-col outline-none"
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
       {isEmpty ? (
-        <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
+        <div className="flex h-32 items-center justify-center text-sm text-neutral-500">
           {speedSearchQuery
             ? `No results for "${speedSearchQuery}"`
             : query
@@ -198,7 +198,7 @@ function FlatResultsList({
   const virtualItems = virtualizer.getVirtualItems()
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
     <div ref={scrollContainerRef} className="h-full overflow-y-auto">
       <div
         className="relative w-full"
@@ -341,7 +341,7 @@ function GroupedResultsList({
   const virtualItems = virtualizer.getVirtualItems()
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto">
         <div
           className="relative w-full"
@@ -362,17 +362,17 @@ function GroupedResultsList({
                       return (
                         <button
                           onClick={() => toggleProject(group.projectPath)}
-                          className="w-full text-left px-4 py-3 border-b border-neutral-800 hover:bg-neutral-800/50 transition-colors flex items-center gap-2"
+                          className="flex w-full items-center gap-2 border-b border-neutral-800 px-4 py-3 text-left transition-colors hover:bg-neutral-800/50"
                         >
                           <svg
-                            className={`w-3 h-3 text-neutral-500 shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                            className={`h-3 w-3 shrink-0 text-neutral-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
-                          <span className="text-xs font-medium text-claude-orange truncate">
+                          <span className="text-claude-orange truncate text-xs font-medium">
                             {group.projectName}
                           </span>
                           <GitBadge info={gitInfo[group.projectPath]} />
@@ -438,7 +438,7 @@ function buildFileTree(results: SearchResult[]): TreeNode {
     let pathSoFar = ''
 
     for (const part of parts) {
-      pathSoFar += '/' + part
+      pathSoFar += `/${  part}`
       if (!current.children.has(part)) {
         current.children.set(part, {
           name: part,
@@ -480,7 +480,7 @@ function compactTree(node: TreeNode): TreeNode {
   // merge the child into this node (collapse single-child chains)
   if (node.children.size === 1 && node.conversations.length === 0 && node.name !== '') {
     const [, onlyChild] = Array.from(node.children.entries())[0]
-    node.name = node.name + '/' + onlyChild.name
+    node.name = `${node.name  }/${  onlyChild.name}`
     node.fullPath = onlyChild.fullPath
     node.children = onlyChild.children
     node.conversations = onlyChild.conversations
@@ -578,17 +578,17 @@ function FileTreeResultsList({
   if (selectedDir && dirConversations.length > 0) {
     const drillVirtualItems = drillVirtualizer.getVirtualItems()
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex h-full flex-col">
         {/* Back button */}
         <button
           onClick={() => setSelectedDir(null)}
-          className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-800 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 transition-colors"
+          className="flex items-center gap-2 border-b border-neutral-800 px-4 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-neutral-800/50 hover:text-neutral-200"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          <span className="truncate font-medium text-claude-orange">{selectedDir.split('/').pop()}</span>
-          <span className="text-neutral-600 ml-auto shrink-0">{dirConversations.length} {dirConversations.length === 1 ? 'chat' : 'chats'}</span>
+          <span className="text-claude-orange truncate font-medium">{selectedDir.split('/').pop()}</span>
+          <span className="ml-auto shrink-0 text-neutral-600">{dirConversations.length} {dirConversations.length === 1 ? 'chat' : 'chats'}</span>
         </button>
         <div ref={drillScrollRef} className="flex-1 overflow-y-auto">
           <div className="relative w-full" style={{ height: drillVirtualizer.getTotalSize() }}>
@@ -624,7 +624,7 @@ function FileTreeResultsList({
   const treeVirtualItems = treeVirtualizer.getVirtualItems()
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <div ref={treeScrollRef} className="h-full overflow-y-auto">
         <div className="relative w-full" style={{ height: treeVirtualizer.getTotalSize() }}>
           <div
@@ -669,14 +669,14 @@ function FileTreeRow({ node, depth, expandedDirs, onToggle, onSelectDir }: FileT
 
   return (
     <div
-      className="group/tree w-full text-left px-4 py-2 border-b border-neutral-800/50 hover:bg-neutral-800/50 transition-colors flex items-center gap-1.5 cursor-pointer"
+      className="group/tree flex w-full cursor-pointer items-center gap-1.5 border-b border-neutral-800/50 px-4 py-2 text-left transition-colors hover:bg-neutral-800/50"
       style={{ paddingLeft: `${16 + depth * 16}px` }}
       onClick={isLeaf ? () => onSelectDir(node.fullPath) : () => onToggle(node.fullPath)}
     >
-      <span className="shrink-0 w-4 flex items-center justify-center text-neutral-500">
+      <span className="flex w-4 shrink-0 items-center justify-center text-neutral-500">
         {hasChildren && (
           <svg
-            className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+            className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -686,11 +686,11 @@ function FileTreeRow({ node, depth, expandedDirs, onToggle, onSelectDir }: FileT
         )}
       </span>
       {isLeaf ? (
-        <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="#4CAF50">
+        <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="#4CAF50">
           <path d="M14.56 7.44C14.28 7.16 13.9 7 13.5 7H13V4c0-1.1-.9-2-2-2H3c-1.1 0-2 .9-2 2v5c0 1.1.9 2 2 2v1c0 .82.93 1.29 1.59.81L7 11.05v.45A1.499 1.499 0 0 0 8.5 13h1.79l1.86 1.85c.04.05.1.09.16.11.06.03.12.04.19.04s.13-.01.19-.04c.09-.04.17-.1.23-.18.05-.08.08-.18.08-.28V13h.5a1.499 1.499 0 0 0 1.5-1.5v-3c0-.4-.16-.78-.44-1.06ZM6.75 10 4 12v-2H3c-.55 0-1-.45-1-1V4c0-.55.45-1 1-1h8c.55 0 1 .45 1 1v3H8.5A1.499 1.499 0 0 0 7 8.5V10h-.25ZM14 11.5c0 .13-.05.26-.15.35a.47.47 0 0 1-.35.15h-1a.47.47 0 0 0-.35.15.47.47 0 0 0-.15.35v.79l-1.15-1.14a.355.355 0 0 0-.16-.11.406.406 0 0 0-.19-.04h-2a.47.47 0 0 1-.35-.15.47.47 0 0 1-.15-.35v-3c0-.13.05-.26.15-.35.09-.1.22-.15.35-.15h5c.13 0 .26.05.35.15.1.09.15.22.15.35v3Z"/>
         </svg>
       ) : (
-        <svg className="w-3.5 h-3.5 shrink-0 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-3.5 w-3.5 shrink-0 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           {isExpanded ? (
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
@@ -700,7 +700,7 @@ function FileTreeRow({ node, depth, expandedDirs, onToggle, onSelectDir }: FileT
           )}
         </svg>
       )}
-      <span className={`text-xs truncate ${hasConversations ? 'text-claude-orange font-medium' : 'text-neutral-300'}`}>
+      <span className={`truncate text-xs ${hasConversations ? 'text-claude-orange font-medium' : 'text-neutral-300'}`}>
         {node.name}
       </span>
       {isMixed && (
@@ -709,10 +709,10 @@ function FileTreeRow({ node, depth, expandedDirs, onToggle, onSelectDir }: FileT
             e.stopPropagation()
             onSelectDir(node.fullPath)
           }}
-          className="shrink-0 opacity-0 group-hover/tree:opacity-100 text-neutral-500 hover:text-claude-orange transition-all p-0.5"
+          className="hover:text-claude-orange shrink-0 p-0.5 text-neutral-500 opacity-0 transition-all group-hover/tree:opacity-100"
           title={`Open ${node.conversations.length} conversation${node.conversations.length === 1 ? '' : 's'} in ${node.name}`}
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
             <path d="M14.56 7.44C14.28 7.16 13.9 7 13.5 7H13V4c0-1.1-.9-2-2-2H3c-1.1 0-2 .9-2 2v5c0 1.1.9 2 2 2v1c0 .82.93 1.29 1.59.81L7 11.05v.45A1.499 1.499 0 0 0 8.5 13h1.79l1.86 1.85c.04.05.1.09.16.11.06.03.12.04.19.04s.13-.01.19-.04c.09-.04.17-.1.23-.18.05-.08.08-.18.08-.28V13h.5a1.499 1.499 0 0 0 1.5-1.5v-3c0-.4-.16-.78-.44-1.06ZM6.75 10 4 12v-2H3c-.55 0-1-.45-1-1V4c0-.55.45-1 1-1h8c.55 0 1 .45 1 1v3H8.5A1.499 1.499 0 0 0 7 8.5V10h-.25ZM14 11.5c0 .13-.05.26-.15.35a.47.47 0 0 1-.35.15h-1a.47.47 0 0 0-.35.15.47.47 0 0 0-.15.35v.79l-1.15-1.14a.355.355 0 0 0-.16-.11.406.406 0 0 0-.19-.04h-2a.47.47 0 0 1-.35-.15.47.47 0 0 1-.15-.35v-3c0-.13.05-.26.15-.35.09-.1.22-.15.35-.15h5c.13 0 .26.05.35.15.1.09.15.22.15.35v3Z"/>
           </svg>
         </button>
@@ -779,12 +779,12 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
           account: result.account,
         })
       }}
-      className={`group/item w-full text-left p-4 transition-colors hover:bg-neutral-800/50 border-b border-neutral-800 ${isSelected ? 'bg-neutral-800 border-l-2 border-claude-orange' : ''
+      className={`group/item w-full border-b border-neutral-800 p-4 text-left transition-colors hover:bg-neutral-800/50 ${isSelected ? 'border-claude-orange border-l-2 bg-neutral-800' : ''
         }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-xs font-medium text-claude-orange truncate max-w-[200px]">
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="text-claude-orange max-w-[200px] truncate text-xs font-medium">
             {result.projectName}
           </span>
           <GitBadge info={gitInfo[result.projectPath]} />
@@ -794,7 +794,7 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex shrink-0 items-center gap-1.5">
           {isTyping ? (
             <TypingIndicator />
           ) : isActive ? (
@@ -803,32 +803,32 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
             <AwaitingReplyBadge />
           ) : null}
           {isActive && activeChatProfile && <LiveProfileBadge profile={activeChatProfile} />}
-          <span className="text-xs text-neutral-500 whitespace-nowrap">{formattedDate}</span>
+          <span className="text-xs whitespace-nowrap text-neutral-500">{formattedDate}</span>
           <button
             onClick={(e) => {
               e.stopPropagation()
               onNewChat(result.projectPath)
             }}
-            className="opacity-0 group-hover/item:opacity-100 text-neutral-500 hover:text-claude-orange transition-all p-0.5"
+            className="hover:text-claude-orange p-0.5 text-neutral-500 opacity-0 transition-all group-hover/item:opacity-100"
             title={`New chat in ${result.projectName}`}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
         </div>
       </div>
       {result.sessionName && (
-        <p className="text-xs text-neutral-400 mb-1 truncate">{result.sessionName}</p>
+        <p className="mb-1 truncate text-xs text-neutral-400">{result.sessionName}</p>
       )}
       {result.sessionId && (
         <p
-          className="text-[10px] font-mono text-neutral-500 mb-1 truncate"
+          className="mb-1 truncate font-mono text-[10px] text-neutral-500"
           dangerouslySetInnerHTML={{ __html: highlightedSessionId }}
         />
       )}
       <p
-        className="text-sm text-neutral-300 line-clamp-2"
+        className="line-clamp-2 text-sm text-neutral-300"
         dangerouslySetInnerHTML={{ __html: highlightedPreview }}
       />
       <div className="mt-2 text-xs text-neutral-500">{result.messageCount} messages</div>
@@ -848,7 +848,7 @@ function LiveProfileBadge({ profile }: { profile: ClaudeProfile }): JSX.Element 
 function LiveBadge(): JSX.Element {
   return (
     <span className="flex items-center gap-1 text-[10px] font-medium text-green-400">
-      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
       Live
     </span>
   )
@@ -856,11 +856,11 @@ function LiveBadge(): JSX.Element {
 
 function TypingIndicator(): JSX.Element {
   return (
-    <span className="flex items-center gap-1 text-[10px] font-medium text-claude-orange">
+    <span className="text-claude-orange flex items-center gap-1 text-[10px] font-medium">
       <span className="flex gap-0.5">
-        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce" />
-        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:150ms]" />
-        <span className="w-1 h-1 rounded-full bg-claude-orange animate-bounce [animation-delay:300ms]" />
+        <span className="bg-claude-orange h-1 w-1 animate-bounce rounded-full" />
+        <span className="bg-claude-orange h-1 w-1 animate-bounce rounded-full [animation-delay:150ms]" />
+        <span className="bg-claude-orange h-1 w-1 animate-bounce rounded-full [animation-delay:300ms]" />
       </span>
       Typing…
     </span>
@@ -870,7 +870,7 @@ function TypingIndicator(): JSX.Element {
 function AwaitingReplyBadge(): JSX.Element {
   return (
     <span className="flex items-center gap-1 text-[10px] font-medium text-amber-400">
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
       Awaiting reply
     </span>
   )
@@ -881,7 +881,7 @@ function GitBadge({ info }: { info: GitInfo | undefined }): JSX.Element | null {
   if (info.type === 'worktree') {
     return (
       <span className="shrink-0" title={`Worktree: ${info.branch || 'unknown'}`}>
-        <svg className="w-3 h-3 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-3 w-3 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <circle cx="6" cy="6" r="2" strokeWidth={2} />
           <circle cx="6" cy="18" r="2" strokeWidth={2} />
           <circle cx="18" cy="6" r="2" strokeWidth={2} />
@@ -892,7 +892,7 @@ function GitBadge({ info }: { info: GitInfo | undefined }): JSX.Element | null {
   }
   return (
     <span className="shrink-0" title="Git repo">
-      <svg className="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-3 w-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 3v12M18 9a6 6 0 01-6 6H6" />
         <circle cx="6" cy="18" r="3" strokeWidth={2} />
         <circle cx="6" cy="3" r="3" strokeWidth={2} />

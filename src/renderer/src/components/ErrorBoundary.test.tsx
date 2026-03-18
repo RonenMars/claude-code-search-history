@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import type { JSX } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { JSX } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import ErrorBoundary from './ErrorBoundary'
 

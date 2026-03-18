@@ -1,8 +1,8 @@
-import { readdir, stat } from 'fs/promises'
-import { join } from 'path'
-import { homedir } from 'os'
-import { createReadStream } from 'fs'
-import { createInterface } from 'readline'
+import { createReadStream } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { createInterface } from 'node:readline'
 import type { Account, ConversationMeta, Conversation, ConversationMessage, MessageMetadata, ToolResult, ToolUseBlock, StructuredPatchHunk, Profile } from '../../shared/types'
 
 export class ConversationScanner {
@@ -533,7 +533,7 @@ export class ConversationScanner {
   // System tags injected by Claude Code hooks, IDE integrations, and the runtime.
   // Single regex with backreference ensures matched open/close pairs in one pass.
   private static SYSTEM_TAG_RE = new RegExp(
-    '<(' +
+    `<(${ 
     [
       'system-reminder',
       'command-name',
@@ -554,8 +554,8 @@ export class ConversationScanner {
       'user-prompt-submit-hook',
       'thinking',
       'ask_user'
-    ].join('|') +
-    ')>[\\s\\S]*?<\\/\\1>',
+    ].join('|') 
+    })>[\\s\\S]*?<\\/\\1>`,
     'g'
   )
 
@@ -601,7 +601,7 @@ export class ConversationScanner {
   getLatestForProject(projectPath: string): ConversationMeta | null {
     let latest: ConversationMeta | null = null
     for (const meta of this.metadataCache.values()) {
-      if (meta.projectPath === projectPath || meta.projectPath === projectPath + '/') {
+      if (meta.projectPath === projectPath || meta.projectPath === `${projectPath  }/`) {
         if (!latest || meta.timestamp > latest.timestamp) {
           latest = meta
         }

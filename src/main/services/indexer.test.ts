@@ -239,8 +239,8 @@ describe('SearchIndexer', () => {
   describe('generatePreview', () => {
     it('returns context centered on the match with ellipsis when content is long', async () => {
       // Use real words so FlexSearch forward tokenizer can find them
-      const prefix = Array.from({ length: 20 }, (_, i) => `prefix${i}`).join(' ') + ' '
-      const suffix = ' ' + Array.from({ length: 40 }, (_, i) => `suffix${i}`).join(' ')
+      const prefix = `${Array.from({ length: 20 }, (_, i) => `prefix${i}`).join(' ')  } `
+      const suffix = ` ${  Array.from({ length: 40 }, (_, i) => `suffix${i}`).join(' ')}`
       const content = `${prefix}xylophoneword${suffix}`
       const metas = [buildConversationMeta({ contentSnippet: content })]
 
@@ -262,7 +262,7 @@ describe('SearchIndexer', () => {
     })
 
     it('no leading ellipsis when match is near start of content', async () => {
-      const content = 'KEYWORD' + 'X'.repeat(300)
+      const content = `KEYWORD${  'X'.repeat(300)}`
       const metas = [buildConversationMeta({ contentSnippet: content })]
 
       await indexer.buildIndex(metas)
@@ -327,7 +327,7 @@ describe('SearchIndexer', () => {
 
       const results = indexer.search('')
 
-      expect(results[0].preview).toBe('W'.repeat(200) + '...')
+      expect(results[0].preview).toBe(`${'W'.repeat(200)  }...`)
       expect(results[0].preview.length).toBe(203)
     })
 

@@ -1,26 +1,25 @@
 import { useState, useEffect, useCallback, useMemo, useRef, JSX } from "react";
-import SearchBar from "./components/SearchBar";
-import ResultsList from "./components/ResultsList";
-import ConversationView from "./components/ConversationView";
-import FilterPanel from "./components/FilterPanel";
-import ErrorBoundary from "./components/ErrorBoundary";
-import ChatTerminal from "./components/ChatTerminal";
-import { useSearch } from "./hooks/useSearch";
-import ProfilePickerModal from "./components/ProfilePickerModal";
-import SettingsModal from "./components/SettingsModal";
-import ProfilesPanel from "./components/ProfilesPanel";
+import { v4 as uuidv4 } from "uuid";
 import ActiveChatList from "./components/ActiveChatList";
-import WorktreesPanel from "./components/WorktreesPanel";
+import ChatTerminal from "./components/ChatTerminal";
+import ConversationView from "./components/ConversationView";
 import DisplayModePicker from "./components/DisplayModePicker";
+import ErrorBoundary from "./components/ErrorBoundary";
+import FilterPanel from "./components/FilterPanel";
+import ProfilePickerModal from "./components/ProfilePickerModal";
+import ProfilesPanel from "./components/ProfilesPanel";
+import ResultsList from "./components/ResultsList";
+import SearchBar from "./components/SearchBar";
+import SettingsModal from "./components/SettingsModal";
+import WorktreesPanel from "./components/WorktreesPanel";
+import { useSearch } from "./hooks/useSearch";
 import type {
   Conversation,
   SortOption,
   DateRangeOption,
   Profile,
-  GitInfo,
+  GitInfo, ChatInstance, AppSettings 
 } from "../../shared/types";
-import type { ChatInstance, AppSettings } from "../../shared/types";
-import { v4 as uuidv4 } from "uuid";
 
 type RightPanelView =
   | "conversation"
@@ -153,7 +152,7 @@ export default function App(): JSX.Element {
     });
 
     return cleanupProgress;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Filter and sort results
@@ -430,7 +429,7 @@ export default function App(): JSX.Element {
       handleContinueChat(payload.projectPath, payload.sessionId, payload.account);
     });
     return cleanup;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [handleContinueChat]);
 
   const handleProfileSelected = useCallback(
@@ -572,9 +571,9 @@ export default function App(): JSX.Element {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-claude-darker">
+    <div className="bg-claude-darker flex h-screen flex-col">
       {/* Title bar */}
-      <div className="titlebar-drag h-8 flex items-center justify-between pl-20 pr-4 bg-claude-dark border-b border-neutral-800">
+      <div className="titlebar-drag bg-claude-dark flex h-8 items-center justify-between border-b border-neutral-800 pr-4 pl-20">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-neutral-400">
             Claude Code Search
@@ -584,11 +583,11 @@ export default function App(): JSX.Element {
           <button
             onClick={handleNewChat}
             disabled={isLoading}
-            className="hover:text-neutral-300 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+            className="flex items-center gap-1 transition-colors hover:text-neutral-300 disabled:pointer-events-none disabled:opacity-50"
             title="New Claude Code chat"
           >
             <svg
-              className="w-4 h-4"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -605,11 +604,11 @@ export default function App(): JSX.Element {
           <button
             onClick={() => setRightPanel("worktrees")}
             disabled={isLoading}
-            className="hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            className="transition-colors hover:text-neutral-300 disabled:pointer-events-none disabled:opacity-50"
             title="Git worktrees"
           >
             <svg
-              className="w-4 h-4"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -628,11 +627,11 @@ export default function App(): JSX.Element {
           <button
             onClick={() => setRightPanel("settings")}
             disabled={isLoading}
-            className="hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            className="transition-colors hover:text-neutral-300 disabled:pointer-events-none disabled:opacity-50"
             title="Settings"
           >
             <svg
-              className="w-4 h-4"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -656,11 +655,11 @@ export default function App(): JSX.Element {
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className="hover:text-neutral-300 transition-colors disabled:opacity-50"
+            className="transition-colors hover:text-neutral-300 disabled:opacity-50"
             title="Refresh index"
           >
             <svg
-              className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -680,7 +679,7 @@ export default function App(): JSX.Element {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div
-          className="flex flex-col border-r border-neutral-800 bg-claude-dark relative"
+          className="bg-claude-dark relative flex flex-col border-r border-neutral-800"
           style={{ width: sidebarWidth, minWidth: 240, maxWidth: 800 }}
         >
           <ActiveChatList
@@ -690,7 +689,7 @@ export default function App(): JSX.Element {
             onClose={handleCloseInstance}
           />
           {/* Search */}
-          <div className="p-4 border-b border-neutral-800">
+          <div className="border-b border-neutral-800 p-4">
             <SearchBar
               value={query}
               onChange={setQuery}
@@ -714,7 +713,7 @@ export default function App(): JSX.Element {
           </div>
 
           {/* Results Counter + Display Mode */}
-          <div className="px-4 py-2 border-b border-neutral-800 flex items-center justify-between">
+          <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-2">
             <div className="text-xs text-neutral-500">
               {!isScanning && sortedResults.length > 0 && (
                 sortedResults.length === results.length ? (
@@ -750,16 +749,16 @@ export default function App(): JSX.Element {
           {/* Results */}
           <div className="flex-1 overflow-hidden">
             {isScanning ? (
-              <div className="flex flex-col h-full">
+              <div className="flex h-full flex-col">
                 {scanProgress ? (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <div className="text-neutral-500 animate-pulse mb-2">
+                  <div className="flex h-full flex-col items-center justify-center">
+                    <div className="mb-2 animate-pulse text-neutral-500">
                       {`Scanning... ${scanProgress.scanned}/${scanProgress.total} files`}
                     </div>
                     {scanProgress.total > 0 && (
-                      <div className="w-48 mx-auto h-1 bg-neutral-800 rounded-full overflow-hidden">
+                      <div className="mx-auto h-1 w-48 overflow-hidden rounded-full bg-neutral-800">
                         <div
-                          className="h-full bg-claude-orange transition-all duration-300"
+                          className="bg-claude-orange h-full transition-all duration-300"
                           style={{
                             width: `${(scanProgress.scanned / scanProgress.total) * 100}%`,
                           }}
@@ -772,15 +771,15 @@ export default function App(): JSX.Element {
                     {Array.from({ length: 8 }).map((_, i) => (
                       <div
                         key={i}
-                        className="p-4 border-b border-neutral-800 animate-pulse"
+                        className="animate-pulse border-b border-neutral-800 p-4"
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="h-3 w-24 bg-neutral-800 rounded" />
-                          <div className="h-3 w-16 bg-neutral-800 rounded" />
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="h-3 w-24 rounded bg-neutral-800" />
+                          <div className="h-3 w-16 rounded bg-neutral-800" />
                         </div>
-                        <div className="h-3 w-48 bg-neutral-800/60 rounded mb-2" />
-                        <div className="h-3 w-full bg-neutral-800/40 rounded mb-1" />
-                        <div className="h-3 w-3/4 bg-neutral-800/40 rounded" />
+                        <div className="mb-2 h-3 w-48 rounded bg-neutral-800/60" />
+                        <div className="mb-1 h-3 w-full rounded bg-neutral-800/40" />
+                        <div className="h-3 w-3/4 rounded bg-neutral-800/40" />
                       </div>
                     ))}
                   </div>
@@ -819,7 +818,7 @@ export default function App(): JSX.Element {
           </div>
           {/* Resize handle */}
           <div
-            className={`absolute top-0 right-0 w-1 h-full transition-colors z-10 ${isLoading || isIndexing ? "cursor-default" : "cursor-col-resize hover:bg-claude-orange/40 active:bg-claude-orange/60"}`}
+            className={`absolute top-0 right-0 z-10 h-full w-1 transition-colors ${isLoading || isIndexing ? "cursor-default" : "hover:bg-claude-orange/40 active:bg-claude-orange/60 cursor-col-resize"}`}
             onMouseDown={
               isLoading || isIndexing ? undefined : handleSidebarMouseDown
             }
@@ -902,10 +901,10 @@ export default function App(): JSX.Element {
               );
             }
             return (
-              <div className="flex items-center justify-center h-full text-neutral-500">
+              <div className="flex h-full items-center justify-center text-neutral-500">
                 <div className="text-center">
                   <svg
-                    className="w-16 h-16 mx-auto mb-4 opacity-50"
+                    className="mx-auto mb-4 h-16 w-16 opacity-50"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -920,7 +919,7 @@ export default function App(): JSX.Element {
                   <p>Select a conversation to view</p>
                   <button
                     onClick={handleNewChat}
-                    className="mt-4 px-4 py-2 text-sm text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-lg transition-colors"
+                    className="text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border-claude-orange/30 mt-4 rounded-lg border px-4 py-2 text-sm transition-colors"
                   >
                     Start a new chat
                   </button>

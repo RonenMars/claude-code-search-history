@@ -1,13 +1,12 @@
-app.commandLine.appendSwitch("remote-debugging-port", "9222");
-
-import { app, shell, BrowserWindow, ipcMain, dialog, Menu, clipboard } from "electron";
-import { readFile, writeFile, mkdir, readdir, stat } from "fs/promises";
-import { join, basename } from "path";
-import { homedir } from "os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import { ConversationScanner } from "./services/scanner";
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu, clipboard } from "electron";
+import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join, basename } from "node:path";
+import { formatAsMarkdown, formatAsText } from "./formatters";
 import { SearchIndexer } from "./services/indexer";
 import { PtyManager } from "./services/pty-manager";
+import { ConversationScanner } from "./services/scanner";
 import type {
   PtySpawnOptions,
   Profile,
@@ -19,8 +18,9 @@ import type {
   CreateWorktreeResult,
 } from "../shared/types";
 import { execFileNoThrow } from "./utils/execFileNoThrow";
-import { formatAsMarkdown, formatAsText } from "./formatters";
 import { parseWorktrees } from "./worktree-parser";
+
+app.commandLine.appendSwitch("remote-debugging-port", "9222");
 
 let mainWindow: BrowserWindow | null = null;
 let scanner: ConversationScanner | null = null;

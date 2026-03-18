@@ -10,29 +10,29 @@ export default memo(function EditDiffCard({ result }: { result: EditToolResult }
 
   const dirParts = result.filePath.split('/')
   const basename = dirParts.pop() || ''
-  const directory = dirParts.join('/') + '/'
+  const directory = `${dirParts.join('/')  }/`
 
   return (
     <div className="tool-card">
       <div className="tool-card-header">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
           <FileIcon />
-          <span className="text-neutral-500 text-xs truncate">{directory}</span>
-          <span className="text-neutral-200 text-xs font-semibold">{basename}</span>
+          <span className="truncate text-xs text-neutral-500">{directory}</span>
+          <span className="text-xs font-semibold text-neutral-200">{basename}</span>
         </div>
         <div className="flex items-center gap-1.5">
           {result.userModified && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-700/40">
+            <span className="rounded border border-amber-700/40 bg-amber-900/40 px-1.5 py-0.5 text-[10px] text-amber-400">
               user modified
             </span>
           )}
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-400 border border-blue-700/40">
+          <span className="rounded border border-blue-700/40 bg-blue-900/40 px-1.5 py-0.5 text-[10px] text-blue-400">
             Modified
           </span>
         </div>
       </div>
 
-      <div className="bg-neutral-950 border border-neutral-800 rounded-b-lg overflow-x-auto font-mono text-xs leading-5">
+      <div className="overflow-x-auto rounded-b-lg border border-neutral-800 bg-neutral-950 font-mono text-xs leading-5">
         {result.structuredPatch.map((hunk, hi) => {
           // Compute starting lines for this hunk — only used when expanded
           let oldLine = hunk.oldStart
@@ -42,7 +42,7 @@ export default memo(function EditDiffCard({ result }: { result: EditToolResult }
           return (
             <div key={hi}>
               {hi > 0 && expanded && (
-                <div className="diff-hunk-header text-neutral-500 text-[10px] px-3 py-0.5 bg-neutral-900/50 border-y border-neutral-800/50">
+                <div className="diff-hunk-header border-y border-neutral-800/50 bg-neutral-900/50 px-3 py-0.5 text-[10px] text-neutral-500">
                   @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
                 </div>
               )}
@@ -65,7 +65,7 @@ export default memo(function EditDiffCard({ result }: { result: EditToolResult }
 
                 return (
                   <div key={`${hi}-${li}`} className={`flex ${cls}`}>
-                    <span className="diff-line-num w-10 shrink-0 text-right pr-2 select-none text-neutral-600">
+                    <span className="diff-line-num w-10 shrink-0 pr-2 text-right text-neutral-600 select-none">
                       {lineNum}
                     </span>
                     <span className="diff-line-prefix w-4 shrink-0 text-center select-none">
@@ -82,7 +82,7 @@ export default memo(function EditDiffCard({ result }: { result: EditToolResult }
         {shouldCollapse && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full px-3 py-1.5 text-[10px] text-neutral-500 hover:text-neutral-300 bg-neutral-900/50 border-t border-neutral-800/50 transition-colors"
+            className="w-full border-t border-neutral-800/50 bg-neutral-900/50 px-3 py-1.5 text-[10px] text-neutral-500 transition-colors hover:text-neutral-300"
           >
             {expanded ? '▲ Collapse' : `▼ Show all ${allLines.length} lines`}
           </button>
@@ -94,7 +94,7 @@ export default memo(function EditDiffCard({ result }: { result: EditToolResult }
 
 function FileIcon() {
   return (
-    <svg className="w-3.5 h-3.5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="h-3.5 w-3.5 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   )

@@ -16,33 +16,33 @@ export default memo(function BashTerminalCard({ result }: { result: BashToolResu
   return (
     <div className="tool-card">
       <div className="tool-card-header bg-neutral-900">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-green-500 font-mono text-xs shrink-0">$</span>
-          <span className="text-neutral-300 font-mono text-xs truncate">{getCommandPreview(result)}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 font-mono text-xs text-green-500">$</span>
+          <span className="truncate font-mono text-xs text-neutral-300">{getCommandPreview(result)}</span>
         </div>
         <div className="flex items-center gap-1.5">
           {result.interrupted && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/40 text-red-400 border border-red-700/40">
+            <span className="rounded border border-red-700/40 bg-red-900/40 px-1.5 py-0.5 text-[10px] text-red-400">
               interrupted
             </span>
           )}
         </div>
       </div>
 
-      <div className="terminal-body bg-[#0c0c0c] border border-neutral-800 rounded-b-lg overflow-x-auto">
+      <div className="terminal-body overflow-x-auto rounded-b-lg border border-neutral-800 bg-[#0c0c0c]">
         {visibleStdout && (
-          <pre className="px-3 py-2 font-mono text-xs text-neutral-300 whitespace-pre-wrap break-all leading-5">
+          <pre className="px-3 py-2 font-mono text-xs leading-5 break-all whitespace-pre-wrap text-neutral-300">
             {visibleStdout}
           </pre>
         )}
 
         {result.stderr && !expanded && (
-          <div className="px-3 py-1 text-[10px] text-amber-400/70 border-t border-neutral-800/50">
+          <div className="border-t border-neutral-800/50 px-3 py-1 text-[10px] text-amber-400/70">
             stderr: {stderrLines.length} line{stderrLines.length !== 1 ? 's' : ''} (expand to view)
           </div>
         )}
         {showStderr && (
-          <pre className="px-3 py-2 font-mono text-xs text-amber-400/80 whitespace-pre-wrap break-all leading-5 border-t border-neutral-800/50">
+          <pre className="border-t border-neutral-800/50 px-3 py-2 font-mono text-xs leading-5 break-all whitespace-pre-wrap text-amber-400/80">
             {result.stderr}
           </pre>
         )}
@@ -54,7 +54,7 @@ export default memo(function BashTerminalCard({ result }: { result: BashToolResu
         {shouldCollapse && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full px-3 py-1.5 text-[10px] text-neutral-500 hover:text-neutral-300 bg-neutral-900/30 border-t border-neutral-800/50 transition-colors"
+            className="w-full border-t border-neutral-800/50 bg-neutral-900/30 px-3 py-1.5 text-[10px] text-neutral-500 transition-colors hover:text-neutral-300"
           >
             {expanded ? '▲ Collapse' : `▼ Show all (${totalLines} lines)`}
           </button>
@@ -68,5 +68,5 @@ function getCommandPreview(result: BashToolResult): string {
   // Bash results don't store the command directly — we show first line of stdout as a fallback
   // The command will be shown via ToolInvocationBadge on the assistant message
   const firstLine = result.stdout?.split('\n')[0] || result.stderr?.split('\n')[0] || ''
-  return firstLine.length > 120 ? firstLine.slice(0, 120) + '...' : firstLine || '(no output)'
+  return firstLine.length > 120 ? `${firstLine.slice(0, 120)  }...` : firstLine || '(no output)'
 }

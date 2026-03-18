@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import SettingsModal from './SettingsModal'
-import { buildAppSettings, buildProfile, buildWorkProfile } from '../../../test/factories'
 import type { AppSettings, Profile } from '../../../shared/types'
+import { buildAppSettings, buildProfile, buildWorkProfile } from '../../../test/factories'
 
 // Mock child components that have their own tests or complex side effects
 vi.mock('./SystemStats', () => ({

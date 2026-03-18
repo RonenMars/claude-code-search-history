@@ -41,9 +41,9 @@ export default function WorktreesPanel({
   }, [worktrees]);
 
   return (
-    <div className="h-full overflow-y-auto bg-claude-darker">
+    <div className="bg-claude-darker h-full overflow-y-auto">
       {/* Header */}
-      <div className="px-8 py-6 border-b border-neutral-800 flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-neutral-800 px-8 py-6">
         <h2 className="text-sm font-semibold text-neutral-200">
           Git Worktrees
         </h2>
@@ -51,11 +51,11 @@ export default function WorktreesPanel({
           <button
             onClick={load}
             disabled={loading}
-            className="text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50"
+            className="text-neutral-500 transition-colors hover:text-neutral-300 disabled:opacity-50"
             title="Refresh worktrees"
           >
             <svg
-              className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -70,10 +70,10 @@ export default function WorktreesPanel({
           </button>
           <button
             onClick={onClose}
-            className="text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="text-neutral-500 transition-colors hover:text-neutral-300"
             title="Close worktrees"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -82,18 +82,18 @@ export default function WorktreesPanel({
 
       {/* Body */}
       {loading ? (
-        <div className="flex items-center justify-center h-32">
-          <span className="text-neutral-500 animate-pulse text-sm">
+        <div className="flex h-32 items-center justify-center">
+          <span className="animate-pulse text-sm text-neutral-500">
             Loading worktrees...
           </span>
         </div>
       ) : grouped.length === 0 ? (
-        <div className="flex items-center justify-center h-32">
+        <div className="flex h-32 items-center justify-center">
           <div className="text-center">
-            <p className="text-neutral-500 text-sm">
+            <p className="text-sm text-neutral-500">
               No linked worktrees found
             </p>
-            <p className="text-neutral-600 text-xs mt-1">
+            <p className="mt-1 text-xs text-neutral-600">
               Create one with{" "}
               <code className="font-mono">git worktree add</code>
             </p>
@@ -106,9 +106,9 @@ export default function WorktreesPanel({
             className="border-b border-neutral-800 last:border-0"
           >
             {/* Main worktree — group header */}
-            <div className="px-8 py-3 bg-claude-dark flex items-center gap-2">
+            <div className="bg-claude-dark flex items-center gap-2 px-8 py-3">
               <svg
-                className="w-3.5 h-3.5 text-neutral-500 shrink-0"
+                className="h-3.5 w-3.5 shrink-0 text-neutral-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -121,7 +121,7 @@ export default function WorktreesPanel({
                 />
               </svg>
               <p
-                className="text-xs font-semibold text-neutral-400 uppercase tracking-wider truncate"
+                className="truncate text-xs font-semibold tracking-wider text-neutral-400 uppercase"
                 title={projectPath}
               >
                 {main?.projectName ?? projectPath}
@@ -130,16 +130,16 @@ export default function WorktreesPanel({
                 <>
                   <CopyableText
                     text={main.branch}
-                    className="text-xs text-neutral-600 font-mono shrink-0"
+                    className="shrink-0 font-mono text-xs text-neutral-600"
                   />
                   <CopyableText
                     text={main.head}
-                    className="text-xs text-neutral-600 font-mono shrink-0"
+                    className="shrink-0 font-mono text-xs text-neutral-600"
                   />
                   <button
                     type="button"
                     onClick={() => window.electronAPI.openInFinder(main.path)}
-                    className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
+                    className="shrink-0 rounded p-0.5 text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-neutral-300"
                     title="Open in Finder"
                   >
                     <svg
@@ -147,7 +147,7 @@ export default function WorktreesPanel({
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      className="w-3 h-3"
+                      className="h-3 w-3"
                     >
                       <path
                         strokeLinecap="round"
@@ -204,7 +204,7 @@ function CopyableText({
       <button
         type="button"
         onClick={handleCopy}
-        className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
+        className="shrink-0 rounded p-0.5 text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-neutral-300"
         title={copied ? "Copied!" : `Copy ${text}`}
       >
         {copied ? (
@@ -213,7 +213,7 @@ function CopyableText({
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            className="w-3 h-3"
+            className="h-3 w-3"
           >
             <path
               strokeLinecap="round"
@@ -228,7 +228,7 @@ function CopyableText({
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            className="w-3 h-3"
+            className="h-3 w-3"
           >
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
             <rect x="3" y="3" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
@@ -253,32 +253,32 @@ function LinkedWorktreeRow({
   onChatInWorktree,
 }: LinkedWorktreeRowProps): JSX.Element {
   return (
-    <div className="relative flex items-center hover:bg-neutral-800/30 transition-colors">
+    <div className="relative flex items-center transition-colors hover:bg-neutral-800/30">
       {/* Tree connector */}
-      <div className="shrink-0 w-14 self-stretch relative">
+      <div className="relative w-14 shrink-0 self-stretch">
         <div
-          className="absolute left-8 top-0 w-px bg-neutral-700/50"
+          className="absolute top-0 left-8 w-px bg-neutral-700/50"
           style={{ height: isLast ? "50%" : "100%" }}
         />
-        <div className="absolute left-8 top-1/2 w-3 h-px bg-neutral-700/50" />
+        <div className="absolute top-1/2 left-8 h-px w-3 bg-neutral-700/50" />
       </div>
 
       {/* Content */}
-      <div className="flex items-center gap-3 flex-1 min-w-0 py-3 pr-8">
+      <div className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-8">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="mb-0.5 flex items-center gap-2">
             <CopyableText
               text={worktree.branch}
               className="text-sm font-medium text-neutral-200"
             />
             <CopyableText
               text={worktree.head}
-              className="text-xs text-neutral-600 font-mono shrink-0"
+              className="shrink-0 font-mono text-xs text-neutral-600"
             />
             <button
               type="button"
               onClick={() => window.electronAPI.openInFinder(worktree.path)}
-              className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
+              className="shrink-0 rounded p-0.5 text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-neutral-300"
               title="Open in Finder"
             >
               <svg
@@ -286,7 +286,7 @@ function LinkedWorktreeRow({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                className="w-3 h-3"
+                className="h-3 w-3"
               >
                 <path
                   strokeLinecap="round"
@@ -298,7 +298,7 @@ function LinkedWorktreeRow({
             </button>
           </div>
           <p
-            className="text-xs text-neutral-500 truncate"
+            className="truncate text-xs text-neutral-500"
             title={worktree.path}
           >
             {worktree.path}
@@ -306,10 +306,10 @@ function LinkedWorktreeRow({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => onChatInWorktree(worktree.path)}
-            className="flex-shrink-0 px-3 py-1.5 text-xs text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-lg transition-colors"
+            className="text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border-claude-orange/30 flex-shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors"
           >
             Open Chat
           </button>

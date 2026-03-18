@@ -34,7 +34,7 @@ export default function FilterPanel({
   const activeProfile = accountFilter ? enabledProfiles.find((p) => p.id === accountFilter) : null
 
   return (
-    <div className={`mt-3 space-y-2${disabled ? " opacity-50 pointer-events-none" : ""}`}>
+    <div className={`mt-3 space-y-2${disabled ? " pointer-events-none opacity-50" : ""}`}>
       {/* Project Filter — autocomplete */}
       <ProjectAutocomplete
         projects={projects}
@@ -45,9 +45,9 @@ export default function FilterPanel({
       {selectedProject && (
         <button
           onClick={() => onChatInProject(selectedProject)}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded-lg transition-colors"
+          className="text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border-claude-orange/30 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
           Chat in this project
@@ -59,7 +59,7 @@ export default function FilterPanel({
         <select
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value as SortOption)}
-          className="custom-select flex-1 pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
+          className="custom-select focus:border-claude-orange flex-1 cursor-pointer rounded-lg border border-neutral-700 bg-neutral-900 py-2 pr-8 pl-3 text-sm text-neutral-300 focus:outline-none"
           title="Sort conversations"
         >
           <option value="recent">Most Recent</option>
@@ -72,7 +72,7 @@ export default function FilterPanel({
         <select
           value={dateRange}
           onChange={(e) => onDateRangeChange(e.target.value as DateRangeOption)}
-          className="custom-select flex-1 pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
+          className="custom-select focus:border-claude-orange flex-1 cursor-pointer rounded-lg border border-neutral-700 bg-neutral-900 py-2 pr-8 pl-3 text-sm text-neutral-300 focus:outline-none"
           title="Filter by date"
         >
           <option value="all">All Time</option>
@@ -88,7 +88,7 @@ export default function FilterPanel({
           <select
             value={accountFilter ?? ''}
             onChange={(e) => onAccountFilterChange(e.target.value || null)}
-            className="custom-select w-full pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange cursor-pointer"
+            className="custom-select focus:border-claude-orange w-full cursor-pointer rounded-lg border border-neutral-700 bg-neutral-900 py-2 pr-8 pl-3 text-sm text-neutral-300 focus:outline-none"
             title="Filter by profile"
           >
             <option value="">All Profiles</option>
@@ -101,10 +101,10 @@ export default function FilterPanel({
           {activeProfile && (
             <button
               onClick={() => onAccountFilterChange(null)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+              className="absolute top-1/2 right-2 -translate-y-1/2 text-neutral-500 transition-colors hover:text-neutral-300"
               title="Clear profile filter"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -227,7 +227,7 @@ function ProjectAutocomplete({
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           placeholder="All Projects — type to filter..."
-          className="w-full pl-3 pr-8 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-300 text-sm focus:outline-none focus:border-claude-orange placeholder:text-neutral-500"
+          className="focus:border-claude-orange w-full rounded-lg border border-neutral-700 bg-neutral-900 py-2 pr-8 pl-3 text-sm text-neutral-300 placeholder:text-neutral-500 focus:outline-none"
         />
         {/* Chevron / clear button */}
         {selectedProject && !isOpen ? (
@@ -237,16 +237,16 @@ function ProjectAutocomplete({
               e.stopPropagation()
               selectProject('')
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="absolute top-1/2 right-2 -translate-y-1/2 text-neutral-500 transition-colors hover:text-neutral-300"
             title="Clear filter"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         ) : (
           <svg
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none"
+            className="pointer-events-none absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 text-neutral-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -260,7 +260,7 @@ function ProjectAutocomplete({
       {isOpen && (
         <ul
           ref={listRef}
-          className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-neutral-900 border border-neutral-700 rounded-lg shadow-lg"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-900 shadow-lg"
         >
           {/* "All Projects" option */}
           <li
@@ -270,11 +270,11 @@ function ProjectAutocomplete({
               selectProject('')
             }}
             onMouseEnter={() => setHighlightedIndex(0)}
-            className={`px-3 py-2 text-sm cursor-pointer ${
+            className={`cursor-pointer px-3 py-2 text-sm ${
               highlightedIndex === 0
                 ? 'bg-claude-orange/20 text-neutral-200'
                 : 'text-neutral-400 hover:bg-neutral-800'
-            } ${!selectedProject ? 'font-medium text-claude-orange' : ''}`}
+            } ${!selectedProject ? 'text-claude-orange font-medium' : ''}`}
           >
             All Projects
           </li>
@@ -294,7 +294,7 @@ function ProjectAutocomplete({
               <Fragment key={project}>
                 {showGroupHeader && (
                   <li
-                    className={`px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-600 font-medium select-none pointer-events-none ${i > 0 ? 'border-t border-neutral-800 mt-1 pt-1.5' : 'pt-0.5'}`}
+                    className={`pointer-events-none px-3 py-1 text-[10px] font-medium tracking-wider text-neutral-600 uppercase select-none ${i > 0 ? 'mt-1 border-t border-neutral-800 pt-1.5' : 'pt-0.5'}`}
                   >
                     {getShortPath(parent)}
                   </li>
@@ -306,11 +306,11 @@ function ProjectAutocomplete({
                     selectProject(project)
                   }}
                   onMouseEnter={() => setHighlightedIndex(itemIndex)}
-                  className={`px-3 py-1.5 text-sm cursor-pointer truncate ${
+                  className={`cursor-pointer truncate px-3 py-1.5 text-sm ${
                     isHighlighted
                       ? 'bg-claude-orange/20 text-neutral-200'
                       : 'text-neutral-400 hover:bg-neutral-800'
-                  } ${isSelected ? 'font-medium text-claude-orange' : ''}`}
+                  } ${isSelected ? 'text-claude-orange font-medium' : ''}`}
                   title={project}
                 >
                   <HighlightedPath path={project} query={inputValue} />
@@ -356,5 +356,5 @@ function getParentPath(fullPath: string): string {
 function getShortPath(fullPath: string): string {
   const parts = fullPath.split('/').filter(Boolean)
   if (parts.length <= 3) return fullPath
-  return '.../' + parts.slice(-3).join('/')
+  return `.../${  parts.slice(-3).join('/')}`
 }

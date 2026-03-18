@@ -153,15 +153,15 @@ export class SearchIndexer {
     const end = Math.min(content.length, index + query.length + 120)
 
     let preview = content.slice(start, end)
-    if (start > 0) preview = '...' + preview
-    if (end < content.length) preview = preview + '...'
+    if (start > 0) preview = `...${  preview}`
+    if (end < content.length) preview = `${preview  }...`
 
     return preview
   }
 
   private truncateText(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text
-    return text.slice(0, maxLength) + '...'
+    return `${text.slice(0, maxLength)  }...`
   }
 
   getDocumentCount(): number {

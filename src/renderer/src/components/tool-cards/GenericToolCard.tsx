@@ -27,20 +27,20 @@ export const GenericToolCard = memo(function GenericToolCard({ result }: { resul
     <div className="tool-card">
       <div className="tool-card-header rounded-t-lg">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-neutral-700 font-mono">
+          <span className="rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
             {displayName}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="text-[10px] text-neutral-500 transition-colors hover:text-neutral-300"
           >
             {collapsed ? '▶ Expand' : '▼ Collapse'}
           </button>
           <button
             onClick={handleCopy}
-            className="text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="text-[10px] text-neutral-500 transition-colors hover:text-neutral-300"
           >
             {copied ? '✓' : 'Copy'}
           </button>
@@ -48,7 +48,7 @@ export const GenericToolCard = memo(function GenericToolCard({ result }: { resul
       </div>
 
       {!collapsed && (
-        <pre className="bg-neutral-950 border border-neutral-800 rounded-b-lg p-3 overflow-x-auto max-h-64 overflow-y-auto font-mono text-xs text-neutral-400">
+        <pre className="max-h-64 overflow-auto rounded-b-lg border border-neutral-800 bg-neutral-950 p-3 font-mono text-xs text-neutral-400">
           {formatted}
         </pre>
       )}
@@ -60,17 +60,17 @@ export const TaskAgentCard = memo(function TaskAgentCard({ result }: { result: T
   return (
     <div className="tool-card">
       <div className="tool-card-header rounded-lg">
-        <div className="flex items-center gap-2 min-w-0">
-          <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex min-w-0 items-center gap-2">
+          <svg className="h-3.5 w-3.5 shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-          <span className="text-neutral-300 text-xs">Sub-agent</span>
-          <span className="text-neutral-500 text-[10px] font-mono">{result.agentId}</span>
+          <span className="text-xs text-neutral-300">Sub-agent</span>
+          <span className="font-mono text-[10px] text-neutral-500">{result.agentId}</span>
         </div>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+        <span className={`rounded border px-1.5 py-0.5 text-[10px] ${
           result.status === 'completed'
-            ? 'bg-green-900/40 text-green-400 border-green-700/40'
-            : 'bg-amber-900/40 text-amber-400 border-amber-700/40'
+            ? 'border-green-700/40 bg-green-900/40 text-green-400'
+            : 'border-amber-700/40 bg-amber-900/40 text-amber-400'
         }`}>
           {result.status}
         </span>
@@ -83,14 +83,14 @@ export const TaskCreateCard = memo(function TaskCreateCard({ result }: { result:
   return (
     <div className="tool-card">
       <div className="tool-card-header rounded-lg">
-        <div className="flex items-center gap-2 min-w-0">
-          <svg className="w-3.5 h-3.5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex min-w-0 items-center gap-2">
+          <svg className="h-3.5 w-3.5 shrink-0 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <span className="text-neutral-300 text-xs">Task #{result.taskId}</span>
-          <span className="text-neutral-400 text-xs truncate">{result.subject}</span>
+          <span className="text-xs text-neutral-300">Task #{result.taskId}</span>
+          <span className="truncate text-xs text-neutral-400">{result.subject}</span>
         </div>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-700/40">
+        <span className="rounded border border-green-700/40 bg-green-900/40 px-1.5 py-0.5 text-[10px] text-green-400">
           Created
         </span>
       </div>
@@ -102,18 +102,18 @@ export const TaskUpdateCard = memo(function TaskUpdateCard({ result }: { result:
   return (
     <div className="tool-card">
       <div className="tool-card-header rounded-lg">
-        <div className="flex items-center gap-2 min-w-0">
-          <svg className="w-3.5 h-3.5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex min-w-0 items-center gap-2">
+          <svg className="h-3.5 w-3.5 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <span className="text-neutral-300 text-xs">Task #{result.taskId}</span>
+          <span className="text-xs text-neutral-300">Task #{result.taskId}</span>
           {result.statusChange && (
-            <span className="text-neutral-500 text-xs">
+            <span className="text-xs text-neutral-500">
               {result.statusChange.from} → {result.statusChange.to}
             </span>
           )}
         </div>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-400 border border-blue-700/40">
+        <span className="rounded border border-blue-700/40 bg-blue-900/40 px-1.5 py-0.5 text-[10px] text-blue-400">
           Updated
         </span>
       </div>

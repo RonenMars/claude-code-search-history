@@ -100,16 +100,16 @@ export default function SystemStats(): JSX.Element {
   return (
     <div>
       {/* Controls */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-1">
           {GRANULARITY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setGranularity(opt.value)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
                 granularity === opt.value
                   ? 'bg-claude-orange text-white'
-                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
+                  : 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
               }`}
             >
               {opt.label}
@@ -121,10 +121,10 @@ export default function SystemStats(): JSX.Element {
             <button
               key={m}
               onClick={() => setMetric(m)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors capitalize ${
+              className={`rounded-md px-2.5 py-1 text-xs capitalize transition-colors ${
                 metric === m
                   ? 'bg-neutral-700 text-neutral-100'
-                  : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800'
+                  : 'text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300'
               }`}
             >
               {m}
@@ -136,12 +136,12 @@ export default function SystemStats(): JSX.Element {
       {/* Chart */}
       <div className="relative">
         {loading ? (
-          <div className="h-28 flex items-center justify-center">
-            <span className="text-xs text-neutral-600 animate-pulse">Loading stats...</span>
+          <div className="flex h-28 items-center justify-center">
+            <span className="animate-pulse text-xs text-neutral-600">Loading stats...</span>
           </div>
         ) : (
           <>
-            <div className="flex items-end gap-px h-28">
+            <div className="flex h-28 items-end gap-px">
               {filledData.map((item, i) => {
                 const val = item[metric]
                 const heightPct = maxVal > 0 ? (val / maxVal) * 100 : 0
@@ -149,14 +149,14 @@ export default function SystemStats(): JSX.Element {
                 return (
                   <div
                     key={item.date}
-                    className="relative flex-1 flex flex-col items-center justify-end h-full group cursor-default"
+                    className="group relative flex h-full flex-1 cursor-default flex-col items-center justify-end"
                     onMouseEnter={() => setHoveredIndex(i)}
                     onMouseLeave={() => setHoveredIndex(null)}
                   >
                     {/* Tooltip */}
                     {isHovered && (
-                      <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-                        <div className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200 whitespace-nowrap shadow-lg">
+                      <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2">
+                        <div className="rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-xs whitespace-nowrap text-neutral-200 shadow-lg">
                           <div className="font-medium">{formatLabel(item.date, granularity)}</div>
                           <div className="text-neutral-400">{item.conversations} conv · {item.messages} msg</div>
                         </div>
@@ -174,11 +174,11 @@ export default function SystemStats(): JSX.Element {
             </div>
 
             {/* X-axis labels */}
-            <div className="flex gap-px mt-1">
+            <div className="mt-1 flex gap-px">
               {filledData.map((item, i) => (
-                <div key={item.date} className="flex-1 flex justify-center">
+                <div key={item.date} className="flex flex-1 justify-center">
                   {i % every === 0 && (
-                    <span className="text-[9px] text-neutral-600 whitespace-nowrap">
+                    <span className="text-[9px] whitespace-nowrap text-neutral-600">
                       {formatLabel(item.date, granularity)}
                     </span>
                   )}
@@ -192,10 +192,10 @@ export default function SystemStats(): JSX.Element {
       {/* Totals */}
       <div className="mt-3 flex items-center gap-4 text-xs text-neutral-500">
         <span>
-          <span className="text-neutral-300 font-medium">{totalConversations.toLocaleString()}</span> conversations
+          <span className="font-medium text-neutral-300">{totalConversations.toLocaleString()}</span> conversations
         </span>
         <span>
-          <span className="text-neutral-300 font-medium">{totalMessages.toLocaleString()}</span> messages
+          <span className="font-medium text-neutral-300">{totalMessages.toLocaleString()}</span> messages
         </span>
       </div>
     </div>

@@ -151,8 +151,8 @@ describe('ProfilesPanel', () => {
       />
     )
     const deleteButtons = screen.getAllByText('Delete')
-    deleteButtons.forEach((btn) => {
+    for (const btn of deleteButtons) {
       expect(btn).not.toBeDisabled()
-    })
+    }
   })
 })

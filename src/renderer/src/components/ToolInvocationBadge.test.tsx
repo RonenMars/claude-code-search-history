@@ -104,7 +104,7 @@ describe('ToolInvocationBadge', () => {
       const longCmd = 'find /usr/local/share -name "*.conf" -exec grep -l pattern {} +'
       const block = makeBlock('Bash', { command: longCmd })
       render(<ToolInvocationBadge blocks={[block]} />)
-      const truncated = longCmd.slice(0, 40) + '...'
+      const truncated = `${longCmd.slice(0, 40)  }...`
       expect(screen.getByText(truncated)).toBeInTheDocument()
     })
 

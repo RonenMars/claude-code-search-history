@@ -1,7 +1,7 @@
 import { useState, useEffect, type JSX } from 'react'
-import type { Profile } from '../../../shared/types'
 import ProfileCard from './ProfileCard'
 import ProfileEditModal from './ProfileEditModal'
+import type { Profile } from '../../../shared/types'
 
 interface ProfileUsage {
   conversations: number
@@ -58,18 +58,18 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
   return (
     <div className="bg-claude-darker">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
+      <div className="flex items-center justify-between border-b border-neutral-800 px-6 py-4">
         <div>
           <h1 className="text-sm font-semibold text-neutral-200">Profiles</h1>
-          <p className="text-xs text-neutral-500 mt-0.5">
+          <p className="mt-0.5 text-xs text-neutral-500">
             Each profile uses a separate CLAUDE_CONFIG_DIR — independent auth, history, and memory.
           </p>
         </div>
         <button
           onClick={() => setEditingProfile('new')}
-          className="text-xs text-neutral-300 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded px-3 py-1.5 transition-colors flex items-center gap-1"
+          className="flex items-center gap-1 rounded border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition-colors hover:border-neutral-500 hover:text-white"
         >
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Add Profile
@@ -79,14 +79,14 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
       {/* Cards grid */}
       <div className="p-6">
         {saving && (
-          <div className="text-xs text-neutral-500 animate-pulse mb-4">Saving and rebuilding index…</div>
+          <div className="mb-4 animate-pulse text-xs text-neutral-500">Saving and rebuilding index…</div>
         )}
         {profiles.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-neutral-600 text-sm">
+          <div className="flex h-32 items-center justify-center text-sm text-neutral-600">
             No profiles configured.
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {profiles.map((profile) => (
               <ProfileCard
                 key={profile.id}

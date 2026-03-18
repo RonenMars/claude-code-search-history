@@ -1,3 +1,4 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   useRef,
   useEffect,
@@ -10,11 +11,10 @@ import {
   type JSX,
 } from "react";
 import { createPortal } from "react-dom";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import MessageNavigation from "./MessageNavigation";
 import MessageContent from "./MessageContent";
-import ToolResultCard from "./ToolResultCard";
+import MessageNavigation from "./MessageNavigation";
 import ToolInvocationBadge from "./ToolInvocationBadge";
+import ToolResultCard from "./ToolResultCard";
 import type {
   Conversation,
   ConversationMessage,
@@ -88,8 +88,8 @@ export default function ConversationView({
     setCurrentMessageIndex(lastIndex);
     // Double-raf: wait two paint cycles so the virtualizer can measure sizes
     // before we jump to the end (avoids landing mid-list with estimated sizes)
-    let raf1: number, raf2: number;
-    raf1 = requestAnimationFrame(() => {
+    let raf2: number;
+    const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         virtualizer.scrollToIndex(lastIndex, { align: "end" });
       });
@@ -111,11 +111,11 @@ export default function ConversationView({
     if (!chatSearchQuery) return [];
     const lower = chatSearchQuery.toLowerCase();
     const matches: number[] = [];
-    displayMessages.forEach((msg, i) => {
+    for (const [i, msg] of displayMessages.entries()) {
       if (msg.content.toLowerCase().includes(lower)) {
         matches.push(i);
       }
-    });
+    }
     return matches;
   }, [chatSearchQuery, displayMessages]);
 
@@ -325,20 +325,20 @@ export default function ConversationView({
   const virtualItems = virtualizer.getVirtualItems();
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-neutral-800 bg-claude-dark">
+      <div className="bg-claude-dark border-b border-neutral-800 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-medium text-claude-orange">
+            <h2 className="text-claude-orange text-sm font-medium">
               {conversation.projectName}
             </h2>
             {conversation.sessionName && (
-              <p className="text-xs text-neutral-400 mt-1">
+              <p className="mt-1 text-xs text-neutral-400">
                 {conversation.sessionName}
               </p>
             )}
-            <p className="text-xs text-neutral-500 mt-1 font-mono truncate max-w-xl">
+            <p className="mt-1 max-w-xl truncate font-mono text-xs text-neutral-500">
               {conversation.sessionId}
             </p>
           </div>
@@ -348,11 +348,11 @@ export default function ConversationView({
               <>
                 <button
                   onClick={() => onGoToRootProject?.(rootPath)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
+                  className="flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700"
                   title={`Go to root project: ${rootName}`}
                 >
                   <svg
-                    className="w-3.5 h-3.5"
+                    className="h-3.5 w-3.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -368,11 +368,11 @@ export default function ConversationView({
                 </button>
                 <button
                   onClick={handleOpenWorktreeForm}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
+                  className="flex items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700"
                   title="Create a new worktree"
                 >
                   <svg
-                    className="w-3.5 h-3.5"
+                    className="h-3.5 w-3.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -405,17 +405,17 @@ export default function ConversationView({
             </div>
 
             {/* Actions menu (three-dots) — rightmost, height-matched to neighbours */}
-            <div className="relative self-stretch flex" ref={actionsMenuRef}>
+            <div className="relative flex self-stretch" ref={actionsMenuRef}>
               <button
                 onClick={() => setShowActionsMenu((prev) => !prev)}
-                className={`flex items-center justify-center w-7 h-full border rounded transition-colors ${chatSearchOpen
+                className={`flex h-full w-7 items-center justify-center rounded border transition-colors ${chatSearchOpen
                     ? "text-claude-orange bg-claude-orange/10 border-claude-orange/40 hover:bg-claude-orange/20"
-                    : "text-neutral-400 hover:text-neutral-200 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+                    : "border-neutral-700 bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
                   }`}
                 title="More actions"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
@@ -426,7 +426,7 @@ export default function ConversationView({
               </button>
 
               {showActionsMenu && (
-                <div className="absolute right-0 top-full mt-1 z-50 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl overflow-hidden min-w-[180px]">
+                <div className="absolute top-full right-0 z-50 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-neutral-700 bg-neutral-800 shadow-xl">
                   {onContinueChat && (
                     <button
                       onClick={() => {
@@ -437,10 +437,10 @@ export default function ConversationView({
                           conversation.account,
                         );
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 transition-colors hover:bg-neutral-700/50"
                     >
                       <svg
-                        className="w-3.5 h-3.5"
+                        className="h-3.5 w-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -469,13 +469,13 @@ export default function ConversationView({
                       }
                       setShowActionsMenu(false);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${chatSearchOpen
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${chatSearchOpen
                         ? "text-claude-orange bg-claude-orange/10"
                         : "text-neutral-300 hover:bg-neutral-700/50"
                       }`}
                   >
                     <svg
-                      className="w-3.5 h-3.5"
+                      className="h-3.5 w-3.5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -490,7 +490,7 @@ export default function ConversationView({
                     <span>Find in Chat</span>
                     {chatSearchOpen && (
                       <svg
-                        className="w-3 h-3 ml-auto text-claude-orange"
+                        className="text-claude-orange ml-auto h-3 w-3"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -505,17 +505,17 @@ export default function ConversationView({
                     )}
                   </button>
 
-                  <div className="border-t border-neutral-700/50 my-1" />
-                  <div className="px-3 py-1 text-[10px] text-neutral-500 uppercase tracking-wide">
+                  <div className="my-1 border-t border-neutral-700/50" />
+                  <div className="px-3 py-1 text-[10px] tracking-wide text-neutral-500 uppercase">
                     {exportStatus ?? "Export"}
                   </div>
 
                   <button
                     onClick={() => handleExport("markdown")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 transition-colors hover:bg-neutral-700/50"
                   >
                     <svg
-                      className="w-3.5 h-3.5"
+                      className="h-3.5 w-3.5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -531,10 +531,10 @@ export default function ConversationView({
                   </button>
                   <button
                     onClick={() => handleExport("json")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 transition-colors hover:bg-neutral-700/50"
                   >
                     <svg
-                      className="w-3.5 h-3.5"
+                      className="h-3.5 w-3.5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -550,10 +550,10 @@ export default function ConversationView({
                   </button>
                   <button
                     onClick={() => handleExport("text")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-700/50 transition-colors"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 transition-colors hover:bg-neutral-700/50"
                   >
                     <svg
-                      className="w-3.5 h-3.5"
+                      className="h-3.5 w-3.5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -592,7 +592,7 @@ export default function ConversationView({
 
       {/* Worktree Creation Form */}
       {showWorktreeForm && isWorktree && rootPath && (
-        <div className="px-4 py-3 bg-neutral-900/90 border-b border-neutral-700 backdrop-blur-sm space-y-2">
+        <div className="space-y-2 border-b border-neutral-700 bg-neutral-900/90 px-4 py-3 backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-neutral-300">
               New Worktree from{" "}
@@ -600,11 +600,11 @@ export default function ConversationView({
             </span>
             <button
               onClick={() => setShowWorktreeForm(false)}
-              className="p-1 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded transition-colors"
+              className="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200"
               title="Cancel"
             >
               <svg
-                className="w-4 h-4"
+                className="h-4 w-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -620,7 +620,7 @@ export default function ConversationView({
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-[10px] text-neutral-500 mb-1">
+              <label className="mb-1 block text-[10px] text-neutral-500">
                 Branch name
               </label>
               <input
@@ -628,12 +628,12 @@ export default function ConversationView({
                 value={wtBranch}
                 onChange={(e) => setWtBranch(e.target.value)}
                 placeholder="feature/my-branch"
-                className="w-full px-2 py-1.5 text-xs bg-neutral-800 border border-neutral-700 rounded text-neutral-200 placeholder-neutral-500 outline-none focus:border-claude-orange/50"
+                className="focus:border-claude-orange/50 w-full rounded border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-xs text-neutral-200 placeholder-neutral-500 outline-none"
                 autoFocus
               />
             </div>
             <div className="flex-1">
-              <label className="block text-[10px] text-neutral-500 mb-1">
+              <label className="mb-1 block text-[10px] text-neutral-500">
                 Path
               </label>
               <input
@@ -641,7 +641,7 @@ export default function ConversationView({
                 value={wtPath}
                 onChange={(e) => setWtPath(e.target.value)}
                 placeholder="Worktree path"
-                className="w-full px-2 py-1.5 text-xs bg-neutral-800 border border-neutral-700 rounded text-neutral-200 placeholder-neutral-500 outline-none focus:border-claude-orange/50 font-mono"
+                className="focus:border-claude-orange/50 w-full rounded border border-neutral-700 bg-neutral-800 px-2 py-1.5 font-mono text-xs text-neutral-200 placeholder-neutral-500 outline-none"
               />
             </div>
           </div>
@@ -649,18 +649,18 @@ export default function ConversationView({
             <button
               onClick={handleSubmitWorktree}
               disabled={!wtBranch.trim() || !wtPath.trim() || wtCreating}
-              className="px-3 py-1.5 text-xs font-medium text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border border-claude-orange/30 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-claude-orange bg-claude-orange/10 hover:bg-claude-orange/20 border-claude-orange/30 rounded border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
               {wtCreating ? "Creating..." : wtSuccess ? "Created!" : "Create"}
             </button>
             <button
               onClick={() => setShowWorktreeForm(false)}
-              className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+              className="px-3 py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-200"
             >
               Cancel
             </button>
             {wtError && (
-              <span className="text-xs text-red-400 truncate">{wtError}</span>
+              <span className="truncate text-xs text-red-400">{wtError}</span>
             )}
             {wtSuccess && (
               <span className="text-xs text-green-400">
@@ -739,9 +739,9 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
     };
 
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-neutral-900/90 border-b border-neutral-700 backdrop-blur-sm">
+      <div className="flex items-center gap-2 border-b border-neutral-700 bg-neutral-900/90 px-4 py-2 backdrop-blur-sm">
         <svg
-          className="w-4 h-4 text-neutral-500 shrink-0"
+          className="h-4 w-4 shrink-0 text-neutral-500"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -765,7 +765,7 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
         />
 
         {value && (
-          <span className="text-xs text-neutral-500 shrink-0 tabular-nums">
+          <span className="shrink-0 text-xs text-neutral-500 tabular-nums">
             {matchCount > 0 ? (
               <>
                 <span className="text-neutral-300">{currentMatch}</span> of{" "}
@@ -777,16 +777,16 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
           </span>
         )}
 
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex shrink-0 items-center gap-0.5">
           <button
             onClick={onPrev}
             disabled={matchCount === 0}
-            className="p-1 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
             title="Previous match (Shift+Enter)"
             aria-label="Previous match"
           >
             <svg
-              className="w-4 h-4"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -802,12 +802,12 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
           <button
             onClick={onNext}
             disabled={matchCount === 0}
-            className="p-1 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
             title="Next match (Enter)"
             aria-label="Next match"
           >
             <svg
-              className="w-4 h-4"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -824,12 +824,12 @@ const ChatSearchBar = forwardRef<HTMLInputElement, ChatSearchBarProps>(
 
         <button
           onClick={onClose}
-          className="p-1 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded transition-colors"
+          className="rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200"
           title="Close (Esc)"
           aria-label="Close search"
         >
           <svg
-            className="w-4 h-4"
+            className="h-4 w-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -910,9 +910,9 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <div className={`flex ${alignClass}`}>
       <div
-        className={`max-w-[85%] rounded-lg px-4 py-3 transition-all ${bubbleClass} ${isCurrentMessage ? "ring-2 ring-claude-orange/50" : ""}`}
+        className={`max-w-[85%] rounded-lg px-4 py-3 transition-all ${bubbleClass} ${isCurrentMessage ? "ring-claude-orange/50 ring-2" : ""}`}
       >
-        <div className="flex items-center gap-2 mb-2">
+        <div className="mb-2 flex items-center gap-2">
           <span className={`text-xs font-medium ${labelClass}`}>
             {labelText}
           </span>
@@ -924,7 +924,7 @@ const MessageBubble = memo(function MessageBubble({
           {!isToolResult &&
             message.metadata?.toolUses &&
             message.metadata.toolUses.length > 0 && (
-              <span className="text-[10px] font-mono text-neutral-500 bg-neutral-900 px-1.5 py-0.5 rounded">
+              <span className="rounded bg-neutral-900 px-1.5 py-0.5 font-mono text-[10px] text-neutral-500">
                 {message.metadata.toolUses.join(", ")}
               </span>
             )}
@@ -941,7 +941,7 @@ const MessageBubble = memo(function MessageBubble({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                className="w-3.5 h-3.5"
+                className="h-3.5 w-3.5"
               >
                 <circle cx="12" cy="12" r="10" strokeWidth="2" />
                 <path
@@ -983,7 +983,7 @@ const MessageBubble = memo(function MessageBubble({
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  className="w-3.5 h-3.5"
+                  className="h-3.5 w-3.5"
                 >
                   <path
                     strokeLinecap="round"
@@ -998,7 +998,7 @@ const MessageBubble = memo(function MessageBubble({
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  className="w-3.5 h-3.5"
+                  className="h-3.5 w-3.5"
                 >
                   <rect
                     x="9"
@@ -1123,7 +1123,7 @@ function MetadataTooltip({
   return createPortal(
     <div
       ref={tooltipRef}
-      className="fixed w-80 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl p-3 text-xs"
+      className="fixed w-80 rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-xs shadow-xl"
       style={
         pos
           ? { top: pos.top, left: pos.left, zIndex: 9999 }
@@ -1133,10 +1133,10 @@ function MetadataTooltip({
       <div className="space-y-1.5 text-neutral-300">
         {/* File info */}
         <div className="flex items-start justify-between gap-2">
-          <span className="text-neutral-500 shrink-0">File</span>
-          <div className="flex items-center gap-1 min-w-0">
+          <span className="shrink-0 text-neutral-500">File</span>
+          <div className="flex min-w-0 items-center gap-1">
             <span
-              className="font-mono truncate text-right text-[10px]"
+              className="truncate text-right font-mono text-[10px]"
               title={filePath}
             >
               {filePath}
@@ -1144,7 +1144,7 @@ function MetadataTooltip({
             <button
               type="button"
               onClick={handleCopyPath}
-              className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
+              className="shrink-0 rounded p-0.5 text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-neutral-300"
               title={
                 copiedPath
                   ? "Copied!"
@@ -1159,7 +1159,7 @@ function MetadataTooltip({
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  className="w-3 h-3"
+                  className="h-3 w-3"
                 >
                   <path
                     strokeLinecap="round"
@@ -1174,7 +1174,7 @@ function MetadataTooltip({
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  className="w-3 h-3"
+                  className="h-3 w-3"
                 >
                   <rect
                     x="9"
@@ -1203,9 +1203,9 @@ function MetadataTooltip({
         {uuid && (
           <div className="flex items-center justify-between gap-2">
             <span className="text-neutral-500">ID</span>
-            <div className="flex items-center gap-1 min-w-0">
+            <div className="flex min-w-0 items-center gap-1">
               <span
-                className="font-mono truncate text-right text-[10px]"
+                className="truncate text-right font-mono text-[10px]"
                 title={uuid}
               >
                 {uuid.slice(0, 8)}
@@ -1221,7 +1221,7 @@ function MetadataTooltip({
                     /* no-op */
                   }
                 }}
-                className="shrink-0 p-0.5 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
+                className="shrink-0 rounded p-0.5 text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-neutral-300"
                 title={copiedUuid ? "Copied!" : uuid}
               >
                 {copiedUuid ? (
@@ -1230,7 +1230,7 @@ function MetadataTooltip({
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    className="w-3 h-3"
+                    className="h-3 w-3"
                   >
                     <path
                       strokeLinecap="round"
@@ -1245,7 +1245,7 @@ function MetadataTooltip({
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    className="w-3 h-3"
+                    className="h-3 w-3"
                   >
                     <rect
                       x="9"
@@ -1280,7 +1280,7 @@ function MetadataTooltip({
               metadata.stopReason !== undefined ||
               metadata.version ||
               (metadata.toolUses && metadata.toolUses.length > 0)) && (
-                <div className="border-t border-neutral-700 my-1.5" />
+                <div className="my-1.5 border-t border-neutral-700" />
               )}
             {metadata.model && <Row label="Model" value={metadata.model} />}
             {metadata.gitBranch && (
@@ -1297,8 +1297,8 @@ function MetadataTooltip({
             )}
             {totalTokens > 0 && (
               <>
-                <div className="border-t border-neutral-700 my-1.5" />
-                <div className="text-neutral-400 font-medium mb-1">Tokens</div>
+                <div className="my-1.5 border-t border-neutral-700" />
+                <div className="mb-1 font-medium text-neutral-400">Tokens</div>
                 {metadata.inputTokens !== undefined && (
                   <Row
                     label="Input"
@@ -1345,7 +1345,7 @@ function Row({
   return (
     <div className="flex justify-between gap-2">
       <span className="text-neutral-500">{label}</span>
-      <span className="font-mono truncate text-right">{value}</span>
+      <span className="truncate text-right font-mono">{value}</span>
     </div>
   );
 }

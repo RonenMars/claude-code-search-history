@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
-import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { Terminal } from '@xterm/xterm'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { ClaudeProfile } from '../../../shared/types'
 interface ChatTerminalProps {
@@ -121,12 +121,12 @@ export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile
   }, [instanceId, cwd, resumeSessionId, profile, configDir])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Terminal Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-claude-dark border-b border-neutral-800">
+      <div className="bg-claude-dark flex items-center justify-between border-b border-neutral-800 px-4 py-2">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${exited !== null ? 'bg-neutral-500' : 'bg-green-500 animate-pulse'}`} />
-          <span className="text-xs text-neutral-400 font-mono truncate max-w-md" title={cwd}>
+          <div className={`h-2 w-2 rounded-full ${exited !== null ? 'bg-neutral-500' : 'animate-pulse bg-green-500'}`} />
+          <span className="max-w-md truncate font-mono text-xs text-neutral-400" title={cwd}>
             {cwd}
           </span>
         </div>
@@ -142,17 +142,17 @@ export default function ChatTerminal({ instanceId, cwd, resumeSessionId, profile
                 setStopping(true)
                 window.electronAPI.ptyKill(instanceId)
               }}
-              className="px-3 py-1 text-xs font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 border border-red-400/30 rounded-md transition-colors"
+              className="rounded-md border border-red-400/30 bg-red-400/10 px-3 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-400/20"
             >
               {stopping ? 'Force Stop' : 'Stop'}
             </button>
           )}
           <button
             onClick={onClose}
-            className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="p-1 text-neutral-500 transition-colors hover:text-neutral-300"
             title="Close terminal view"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

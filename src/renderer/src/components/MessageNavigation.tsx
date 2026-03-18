@@ -59,17 +59,17 @@ export default function MessageNavigation({
     }
 
     return (
-        <div className="flex items-center gap-2 px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg">
+        <div className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2">
             {/* Jump to First */}
             <button
                 onClick={onJumpToFirst}
                 disabled={!hasPrevious}
-                className="p-1.5 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded p-1.5 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
                 title="Jump to first message"
                 aria-label="Jump to first message"
             >
                 <svg
-                    className="w-4 h-4"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -87,12 +87,12 @@ export default function MessageNavigation({
             <button
                 onClick={handlePrevious}
                 disabled={!hasPrevious}
-                className="p-1.5 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded p-1.5 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
                 title="Previous message"
                 aria-label="Previous message"
             >
                 <svg
-                    className="w-4 h-4"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -120,11 +120,11 @@ export default function MessageNavigation({
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onBlur={commitEdit}
-                            className="w-12 text-center font-medium text-neutral-300 bg-neutral-800 border border-neutral-600 rounded px-1 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-12 [appearance:textfield] rounded border border-neutral-600 bg-neutral-800 px-1 text-center text-xs font-medium text-neutral-300 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                     ) : (
                         <span
-                            className="font-medium text-neutral-300 cursor-pointer hover:text-white hover:underline"
+                            className="cursor-pointer font-medium text-neutral-300 hover:text-white hover:underline"
                             onClick={handleCounterClick}
                             title="Click to jump to message"
                         >
@@ -142,12 +142,12 @@ export default function MessageNavigation({
             <button
                 onClick={handleNext}
                 disabled={!hasNext}
-                className="p-1.5 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded p-1.5 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
                 title="Next message"
                 aria-label="Next message"
             >
                 <svg
-                    className="w-4 h-4"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -165,12 +165,12 @@ export default function MessageNavigation({
             <button
                 onClick={onJumpToLast}
                 disabled={!hasNext}
-                className="p-1.5 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded p-1.5 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
                 title="Jump to last message"
                 aria-label="Jump to last message"
             >
                 <svg
-                    className="w-4 h-4"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

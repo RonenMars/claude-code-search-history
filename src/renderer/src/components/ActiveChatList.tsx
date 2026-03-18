@@ -42,18 +42,18 @@ export default function ActiveChatList({
           >
             {/* Status dot */}
             <div
-              className={`flex-shrink-0 w-2 h-2 rounded-full ${
+              className={`h-2 w-2 flex-shrink-0 rounded-full ${
                 isActive
                   ? instance.isClaudeTyping
                     ? 'bg-claude-orange animate-pulse'
-                    : 'bg-green-500 animate-pulse'
+                    : 'animate-pulse bg-green-500'
                   : 'bg-neutral-600'
               }`}
             />
 
             {/* Project name + profile */}
             <span
-              className="flex-1 truncate text-neutral-300 font-mono"
+              className="flex-1 truncate font-mono text-neutral-300"
               title={instance.cwd}
             >
               {basename(instance.cwd)}
@@ -62,7 +62,7 @@ export default function ActiveChatList({
 
             {/* Exited badge */}
             {!isActive && (
-              <span className="text-neutral-600 flex-shrink-0">
+              <span className="flex-shrink-0 text-neutral-600">
                 Exited{instance.exitCode !== null ? ` (${instance.exitCode})` : ''}
               </span>
             )}
@@ -70,7 +70,7 @@ export default function ActiveChatList({
             {/* Focus button */}
             <button
               onClick={() => onFocus(instance.instanceId)}
-              className="flex-shrink-0 text-neutral-500 hover:text-neutral-300 transition-colors px-1"
+              className="flex-shrink-0 px-1 text-neutral-500 transition-colors hover:text-neutral-300"
               title="Focus this chat"
             >
               →
@@ -79,7 +79,7 @@ export default function ActiveChatList({
             {/* Close button */}
             <button
               onClick={() => onClose(instance.instanceId)}
-              className="flex-shrink-0 text-neutral-600 hover:text-red-400 transition-colors px-1"
+              className="flex-shrink-0 px-1 text-neutral-600 transition-colors hover:text-red-400"
               title={isActive ? 'Stop and remove' : 'Remove'}
             >
               ✕

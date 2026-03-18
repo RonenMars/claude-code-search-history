@@ -46,19 +46,19 @@ interface StatBoxProps {
 
 function StatBox({ label, value, icon }: StatBoxProps): JSX.Element {
   return (
-    <div className="bg-neutral-800/60 rounded-lg px-3 py-2.5 flex flex-col gap-1 min-w-0">
+    <div className="flex min-w-0 flex-col gap-1 rounded-lg bg-neutral-800/60 px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-neutral-500">
         {icon}
-        <span className="text-[10px] uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] tracking-wider uppercase">{label}</span>
       </div>
-      <div className="text-lg font-semibold text-neutral-200 leading-none">{value}</div>
+      <div className="text-lg leading-none font-semibold text-neutral-200">{value}</div>
     </div>
   )
 }
 
 export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, onDelete }: ProfileCardProps): JSX.Element {
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-4 flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-xl border border-neutral-700 bg-neutral-900 p-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -67,20 +67,20 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-neutral-200">{profile.label}</span>
               {profile.scanHistory === false && (
-                <span className="text-[10px] text-neutral-500 bg-neutral-800 border border-neutral-700 rounded px-1.5 py-0.5">
+                <span className="rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-500">
                   scan off
                 </span>
               )}
             </div>
-            <div className="text-[10px] font-mono text-neutral-600 mt-0.5 truncate max-w-[200px]" title={profile.configDir}>
+            <div className="mt-0.5 max-w-[200px] truncate font-mono text-[10px] text-neutral-600" title={profile.configDir}>
               {profile.configDir}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-1.5">
           <button
             onClick={onEdit}
-            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors px-2 py-1 border border-neutral-700 hover:border-neutral-500 rounded"
+            className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-500 transition-colors hover:border-neutral-500 hover:text-neutral-300"
           >
             Edit
           </button>
@@ -88,7 +88,7 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
             onClick={onDelete}
             disabled={isOnly}
             title={isOnly ? 'Must have at least one profile' : 'Delete profile'}
-            className="text-xs text-neutral-500 hover:text-red-400 transition-colors px-2 py-1 border border-neutral-700 hover:border-red-800 rounded disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-neutral-500 disabled:hover:border-neutral-700"
+            className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-500 transition-colors hover:border-red-800 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-neutral-700 disabled:hover:text-neutral-500"
           >
             Delete
           </button>
@@ -97,9 +97,9 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
 
       {/* Stats grid */}
       {profile.scanHistory === false ? (
-        <div className="bg-neutral-800/40 rounded-lg px-4 py-5 text-center">
+        <div className="rounded-lg bg-neutral-800/40 px-4 py-5 text-center">
           <p className="text-xs text-neutral-500">Chat history is not scanned for this profile.</p>
-          <p className="text-[10px] text-neutral-600 mt-1">Enable "Scan chat history" in profile settings to index conversations.</p>
+          <p className="mt-1 text-[10px] text-neutral-600">Enable "Scan chat history" in profile settings to index conversations.</p>
         </div>
       ) : usage ? (
         <div className="grid grid-cols-2 gap-2">
@@ -107,7 +107,7 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
             label="Projects"
             value={formatNum(usage.projects)}
             icon={
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
               </svg>
             }
@@ -116,7 +116,7 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
             label="Sessions"
             value={formatNum(usage.conversations)}
             icon={
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             }
@@ -125,7 +125,7 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
             label="Messages"
             value={formatNum(usage.messages)}
             icon={
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h6m-6 4h4" />
               </svg>
             }
@@ -134,7 +134,7 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
             label="Tokens / mo"
             value={usage.tokensThisMonth > 0 ? formatNum(usage.tokensThisMonth) : '—'}
             icon={
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             }
@@ -143,7 +143,7 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="bg-neutral-800/60 rounded-lg px-3 py-2.5 h-14 animate-pulse" />
+            <div key={i} className="h-14 animate-pulse rounded-lg bg-neutral-800/60 px-3 py-2.5" />
           ))}
         </div>
       )}
@@ -156,7 +156,7 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
         {profile.scanHistory !== false && (
           <button
             onClick={onFilter}
-            className="text-xs text-claude-orange hover:text-orange-300 transition-colors"
+            className="text-claude-orange text-xs transition-colors hover:text-orange-300"
           >
             Filter conversations →
           </button>

@@ -15,39 +15,39 @@ export default function ProfilePickerModal({ profiles, onSelect, onCancel }: Pro
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
     >
-      <div className="bg-claude-dark border border-neutral-700 rounded-xl shadow-2xl w-[480px] p-6">
-        <h2 className="text-sm font-semibold text-neutral-200 mb-1">Start New Chat</h2>
-        <p className="text-xs text-neutral-500 mb-5">Select which Claude profile to use</p>
+      <div className="bg-claude-dark w-[480px] rounded-xl border border-neutral-700 p-6 shadow-2xl">
+        <h2 className="mb-1 text-sm font-semibold text-neutral-200">Start New Chat</h2>
+        <p className="mb-5 text-xs text-neutral-500">Select which Claude profile to use</p>
 
-        <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="mb-5 grid grid-cols-2 gap-3">
           {profiles.filter((p) => p.enabled).map((profile) => (
             <button
               key={profile.id}
               onClick={() => onSelect(profile, remember)}
-              className="flex flex-col items-start text-left p-4 bg-neutral-900 border border-neutral-700 hover:border-claude-orange hover:bg-neutral-800 rounded-lg transition-colors group"
+              className="hover:border-claude-orange group flex flex-col items-start rounded-lg border border-neutral-700 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="mb-2 flex items-center gap-2">
                 <span className="text-base">{profile.emoji}</span>
                 <span className="text-sm font-medium text-neutral-200 group-hover:text-white">{profile.label}</span>
               </div>
-              <div className="text-[10px] font-mono text-neutral-600">{profile.configDir}</div>
+              <div className="font-mono text-[10px] text-neutral-600">{profile.configDir}</div>
             </button>
           ))}
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
+          <label className="flex cursor-pointer items-center gap-2 select-none">
             <input
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-claude-orange"
+              className="accent-claude-orange h-3.5 w-3.5 rounded"
             />
             <span className="text-xs text-neutral-500">Remember my choice</span>
           </label>
           <button
             onClick={onCancel}
-            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors px-3 py-1.5"
+            className="px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:text-neutral-300"
           >
             Cancel
           </button>

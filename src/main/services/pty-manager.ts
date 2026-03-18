@@ -1,6 +1,6 @@
 import * as pty from 'node-pty'
-import { platform, homedir } from 'os'
-import { join } from 'path'
+import { platform, homedir } from 'node:os'
+import { join } from 'node:path'
 import type { PtySpawnOptions } from '../../shared/types'
 
 export class PtyManager {

@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, type ReactNode, type JSX } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface MessageContentProps {
   content: string;
@@ -88,14 +88,14 @@ function MarkdownRenderer({
       },
       th({ children }) {
         return (
-          <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-300 border-b border-neutral-700">
+          <th className="border-b border-neutral-700 px-3 py-2 text-left text-xs font-semibold text-neutral-300">
             {hl(children)}
           </th>
         );
       },
       td({ children }) {
         return (
-          <td className="px-3 py-2 text-xs text-neutral-300 border-b border-neutral-800">
+          <td className="border-b border-neutral-800 px-3 py-2 text-xs text-neutral-300">
             {hl(children)}
           </td>
         );
@@ -104,28 +104,28 @@ function MarkdownRenderer({
       // Headings
       h1({ children }) {
         return (
-          <h1 className="text-xl font-bold text-neutral-100 mt-4 mb-2 border-b border-neutral-700 pb-1">
+          <h1 className="mt-4 mb-2 border-b border-neutral-700 pb-1 text-xl font-bold text-neutral-100">
             {hl(children)}
           </h1>
         );
       },
       h2({ children }) {
         return (
-          <h2 className="text-lg font-semibold text-neutral-100 mt-4 mb-2">
+          <h2 className="mt-4 mb-2 text-lg font-semibold text-neutral-100">
             {hl(children)}
           </h2>
         );
       },
       h3({ children }) {
         return (
-          <h3 className="text-base font-semibold text-neutral-200 mt-3 mb-1">
+          <h3 className="mt-3 mb-1 text-base font-semibold text-neutral-200">
             {hl(children)}
           </h3>
         );
       },
       h4({ children }) {
         return (
-          <h4 className="text-sm font-semibold text-neutral-200 mt-2 mb-1">
+          <h4 className="mt-2 mb-1 text-sm font-semibold text-neutral-200">
             {hl(children)}
           </h4>
         );
@@ -154,7 +154,7 @@ function MarkdownRenderer({
       // Blockquotes
       blockquote({ children }) {
         return (
-          <blockquote className="my-2 border-l-3 border-claude-orange/50 pl-3 text-neutral-400 italic">
+          <blockquote className="border-claude-orange/50 my-2 border-l-3 pl-3 text-neutral-400 italic">
             {hl(children)}
           </blockquote>
         );
@@ -167,7 +167,7 @@ function MarkdownRenderer({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+            className="text-blue-400 underline underline-offset-2 hover:text-blue-300"
           >
             {hl(children)}
           </a>
@@ -188,7 +188,7 @@ function MarkdownRenderer({
         );
       },
       em({ children }) {
-        return <em className="italic text-neutral-200">{hl(children)}</em>;
+        return <em className="text-neutral-200 italic">{hl(children)}</em>;
       },
     }),
     [hl, query],
@@ -275,16 +275,16 @@ function CodeBlock({
 
   return (
     <div className="code-block-wrapper group relative my-3">
-      <div className="flex items-center justify-between px-3 py-2 bg-neutral-900 border-t border-x border-neutral-700 rounded-t-lg">
-        <span className="text-xs font-mono text-neutral-500">{language}</span>
+      <div className="flex items-center justify-between rounded-t-lg border-x border-t border-neutral-700 bg-neutral-900 px-3 py-2">
+        <span className="font-mono text-xs text-neutral-500">{language}</span>
         <button
           onClick={handleCopy}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-neutral-200 border border-neutral-600"
+          className="rounded border border-neutral-600 bg-neutral-800 px-2 py-1 text-xs text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-700 hover:text-neutral-200"
         >
           {copied ? "✓ Copied" : "Copy"}
         </button>
       </div>
-      <pre className="bg-neutral-950 border border-neutral-700 rounded-b-lg p-4 overflow-x-auto">
+      <pre className="overflow-x-auto rounded-b-lg border border-neutral-700 bg-neutral-950 p-4">
         <code
           className={`language-${language} text-sm`}
           dangerouslySetInnerHTML={{ __html: highlighted }}
@@ -332,9 +332,9 @@ function JSONBlock({
 
   return (
     <div className="json-block-wrapper group relative my-3">
-      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border-t border-x border-purple-700/50 rounded-t-lg">
+      <div className="flex items-center justify-between rounded-t-lg border-x border-t border-purple-700/50 bg-gradient-to-r from-purple-900/20 to-blue-900/20 px-3 py-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-purple-400">JSON</span>
+          <span className="font-mono text-xs text-purple-400">JSON</span>
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="text-xs text-neutral-500 hover:text-neutral-300"
@@ -344,13 +344,13 @@ function JSONBlock({
         </div>
         <button
           onClick={handleCopy}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-1 rounded bg-purple-900/30 hover:bg-purple-800/40 text-purple-300 hover:text-purple-200 border border-purple-700/50"
+          className="rounded border border-purple-700/50 bg-purple-900/30 px-2 py-1 text-xs text-purple-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-purple-800/40 hover:text-purple-200"
         >
           {copied ? "✓ Copied" : "Copy"}
         </button>
       </div>
       {!collapsed && (
-        <pre className="bg-neutral-950 border border-purple-700/50 rounded-b-lg p-4 overflow-x-auto max-h-96 overflow-y-auto">
+        <pre className="max-h-96 overflow-auto rounded-b-lg border border-purple-700/50 bg-neutral-950 p-4">
           <code
             className="language-json text-sm"
             dangerouslySetInnerHTML={{ __html: highlighted }}

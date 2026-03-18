@@ -7,17 +7,17 @@ interface ToolInvocationBadgeProps {
 
 export default memo(function ToolInvocationBadge({ blocks }: ToolInvocationBadgeProps) {
   return (
-    <div className="flex flex-wrap gap-1 mt-1.5">
+    <div className="mt-1.5 flex flex-wrap gap-1">
       {blocks.map((block) => (
         <span
           key={block.id}
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-neutral-800/80 text-neutral-400 border border-neutral-700/60"
+          className="inline-flex items-center gap-1 rounded border border-neutral-700/60 bg-neutral-800/80 px-1.5 py-0.5 font-mono text-[10px] text-neutral-400"
           title={JSON.stringify(block.input, null, 2)}
         >
           {getToolIcon(block.name)}
           <span className="text-neutral-300">{getShortToolName(block.name)}</span>
           {getKeyParam(block) && (
-            <span className="text-neutral-500 truncate max-w-[200px]">{getKeyParam(block)}</span>
+            <span className="max-w-[200px] truncate text-neutral-500">{getKeyParam(block)}</span>
           )}
         </span>
       ))}
@@ -45,7 +45,7 @@ function getKeyParam(block: ToolUseBlock): string {
 
   if (name === 'Bash') {
     const cmd = input.command as string | undefined
-    if (cmd) return cmd.length > 40 ? cmd.slice(0, 40) + '...' : cmd
+    if (cmd) return cmd.length > 40 ? `${cmd.slice(0, 40)  }...` : cmd
   }
 
   if (name === 'Glob') {

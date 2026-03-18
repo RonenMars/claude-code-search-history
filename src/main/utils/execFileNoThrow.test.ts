@@ -1,6 +1,6 @@
+import { tmpdir } from "node:os";
 import { describe, it, expect } from "vitest";
 import { execFileNoThrow } from "./execFileNoThrow";
-import { tmpdir } from "os";
 
 describe("execFileNoThrow", () => {
   const cwd = tmpdir();

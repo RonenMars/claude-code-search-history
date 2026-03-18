@@ -29,16 +29,16 @@ export default class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback
 
       return (
-        <div className="flex items-center justify-center h-full text-neutral-400">
-          <div className="text-center max-w-md">
-            <svg className="w-12 h-12 mx-auto mb-3 text-red-500/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex h-full items-center justify-center text-neutral-400">
+          <div className="max-w-md text-center">
+            <svg className="mx-auto mb-3 h-12 w-12 text-red-500/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-sm mb-1">Something went wrong rendering this view.</p>
-            <p className="text-xs text-neutral-500 mb-4 font-mono">{this.state.error?.message}</p>
+            <p className="mb-1 text-sm">Something went wrong rendering this view.</p>
+            <p className="mb-4 font-mono text-xs text-neutral-500">{this.state.error?.message}</p>
             <button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 text-xs font-medium bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md transition-colors"
+              className="rounded-md border border-neutral-700 bg-neutral-800 px-4 py-2 text-xs font-medium transition-colors hover:bg-neutral-700"
             >
               Try Again
             </button>

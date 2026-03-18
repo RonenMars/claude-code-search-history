@@ -1,4 +1,6 @@
+import * as ptyMod from 'node-pty'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { PtyManager } from './pty-manager'
 
 // ─── Mock node-pty ──────────────────────────────────────────────────
 
@@ -39,10 +41,6 @@ function createMockProc(): MockProc {
 vi.mock('node-pty', () => ({
   spawn: vi.fn(() => createMockProc()),
 }))
-
-// Import after mock is set up
-import { PtyManager } from './pty-manager'
-import * as ptyMod from 'node-pty'
 
 const baseOptions = { instanceId: 'test-1', cwd: '/tmp' }
 

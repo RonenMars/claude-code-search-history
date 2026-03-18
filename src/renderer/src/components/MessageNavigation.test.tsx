@@ -15,11 +15,11 @@ const defaultProps = {
 function renderNav(overrides = {}) {
   const props = { ...defaultProps, ...overrides }
   // Reset all mocks for fresh assertions
-  Object.values(props).forEach((v) => {
+  for (const v of Object.values(props)) {
     if (typeof v === 'function' && 'mockClear' in v) {
       (v as ReturnType<typeof vi.fn>).mockClear()
     }
-  })
+  }
   return render(<MessageNavigation {...props} />)
 }
 
