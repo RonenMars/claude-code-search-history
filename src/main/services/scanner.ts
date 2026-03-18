@@ -16,7 +16,7 @@ export class ConversationScanner {
   constructor(profiles: Profile[]) {
     const home = homedir()
     this.configDirs = profiles
-      .filter((p) => p.enabled)
+      .filter((p) => p.enabled && p.scanHistory !== false)
       .map((p) => ({
         projectsDir: join(p.configDir.replace(/^~/, home), 'projects'),
         account: p.id

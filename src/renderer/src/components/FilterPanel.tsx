@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, Fragment, type JSX } from 'react'
 import type { SortOption, DateRangeOption, Profile } from '../../../shared/types'
 
 interface FilterPanelProps {
@@ -30,7 +30,7 @@ export default function FilterPanel({
   onAccountFilterChange,
   disabled
 }: FilterPanelProps): JSX.Element {
-  const enabledProfiles = profiles.filter((p) => p.enabled)
+  const enabledProfiles = profiles.filter((p) => p.enabled && p.scanHistory !== false)
   const activeProfile = accountFilter ? enabledProfiles.find((p) => p.id === accountFilter) : null
 
   return (

@@ -7,6 +7,7 @@ import {
   useMemo,
   forwardRef,
   memo,
+  type JSX,
 } from "react";
 import { createPortal } from "react-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";

@@ -15,7 +15,7 @@ export function useSearch(projectFilter?: string, enabled = true): UseSearchRetu
   const [results, setResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(true)
   const [hasSearched, setHasSearched] = useState(false)
-  const debounceRef = useRef<NodeJS.Timeout>()
+  const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   const performSearch = useCallback(
     async (searchQuery: string) => {

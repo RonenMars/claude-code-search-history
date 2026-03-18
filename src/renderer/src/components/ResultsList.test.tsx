@@ -301,7 +301,7 @@ describe('ResultsList', () => {
       const results = [buildSearchResult({ sessionName: 'something' })]
       const { container } = renderList({ results })
 
-      const listContainer = container.querySelector('[tabindex="0"]')!
+      container.querySelector('[tabindex="0"]')!
       // Cmd+F should not append 'f' to speed search
       await userEvent.keyboard('{Meta>}f{/Meta}')
 

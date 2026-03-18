@@ -557,6 +557,16 @@ export default function App(): JSX.Element {
       setProjects(projectList);
       setStats(statsData);
       refresh();
+
+      // Clear account filter if the selected profile is no longer scannable,
+      // or if only one scannable profile remains (filter becomes hidden)
+      const scannableProfiles = updated.filter((p) => p.enabled && p.scanHistory !== false);
+      setAccountFilter((prev) => {
+        if (!prev) return prev;
+        const stillScannable = scannableProfiles.some((p) => p.id === prev);
+        if (!stillScannable || scannableProfiles.length <= 1) return null;
+        return prev;
+      });
     },
     [refresh],
   );
@@ -685,6 +695,7 @@ export default function App(): JSX.Element {
               value={query}
               onChange={setQuery}
               isSearching={searching}
+              disabled={isLoading}
             />
             <FilterPanel
               projects={projects}

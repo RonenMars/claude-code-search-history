@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import type { ElectronAPI } from '../preload/index'
 
 // Mock window.electronAPI for renderer tests
 if (typeof window !== 'undefined') {
@@ -36,5 +37,7 @@ if (typeof window !== 'undefined') {
     isIndexReady: vi.fn().mockResolvedValue(true),
     getGitInfo: vi.fn().mockResolvedValue({}),
     createWorktree: vi.fn().mockResolvedValue({ success: true }),
+    showContextMenu: vi.fn(noop) as unknown as ElectronAPI['showContextMenu'],
+    onContinueChatFromMenu: vi.fn(() => noop) as unknown as ElectronAPI['onContinueChatFromMenu'],
   }
 }

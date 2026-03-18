@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type JSX } from 'react'
 import type { Profile } from '../../../shared/types'
 import ProfileCard from './ProfileCard'
 import ProfileEditModal from './ProfileEditModal'
@@ -29,6 +29,7 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
   }, [profiles])
 
   const enabledCount = profiles.filter((p) => p.enabled).length
+  const scannableCount = profiles.filter((p) => p.enabled && p.scanHistory !== false).length
 
   const handleSaveEdit = async (updated: Profile): Promise<void> => {
     // Prevent disabling the last enabled profile
@@ -106,6 +107,7 @@ export default function ProfilesPanel({ profiles, onFilterByProfile, onProfilesS
         <ProfileEditModal
           profile={editingProfile === 'new' ? null : editingProfile}
           isOnlyEnabled={editingProfile !== 'new' && editingProfile !== null && enabledCount <= 1 && editingProfile.enabled}
+          isOnlyScannable={editingProfile !== 'new' && editingProfile !== null && scannableCount <= 1 && editingProfile.scanHistory !== false}
           onSave={handleSaveEdit}
           onCancel={() => setEditingProfile(null)}
         />

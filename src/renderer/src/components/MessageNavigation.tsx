@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type JSX } from 'react'
 
 interface MessageNavigationProps {
     currentIndex: number

@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import ProfilesPanel from './ProfilesPanel'
 import { buildProfile, buildWorkProfile } from '../../../test/factories'
-import type { Profile } from '../../../shared/types'
 
 describe('ProfilesPanel', () => {
   const defaultProfile = buildProfile()

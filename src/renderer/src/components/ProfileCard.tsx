@@ -1,3 +1,4 @@
+import type { JSX } from 'react'
 import type { Profile } from '../../../shared/types'
 
 interface ProfileUsage {
@@ -63,7 +64,14 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
         <div className="flex items-center gap-3">
           <span className="text-2xl">{profile.emoji}</span>
           <div>
-            <div className="text-sm font-semibold text-neutral-200">{profile.label}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-neutral-200">{profile.label}</span>
+              {profile.scanHistory === false && (
+                <span className="text-[10px] text-neutral-500 bg-neutral-800 border border-neutral-700 rounded px-1.5 py-0.5">
+                  scan off
+                </span>
+              )}
+            </div>
             <div className="text-[10px] font-mono text-neutral-600 mt-0.5 truncate max-w-[200px]" title={profile.configDir}>
               {profile.configDir}
             </div>
@@ -88,7 +96,12 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
       </div>
 
       {/* Stats grid */}
-      {usage ? (
+      {profile.scanHistory === false ? (
+        <div className="bg-neutral-800/40 rounded-lg px-4 py-5 text-center">
+          <p className="text-xs text-neutral-500">Chat history is not scanned for this profile.</p>
+          <p className="text-[10px] text-neutral-600 mt-1">Enable "Scan chat history" in profile settings to index conversations.</p>
+        </div>
+      ) : usage ? (
         <div className="grid grid-cols-2 gap-2">
           <StatBox
             label="Projects"
@@ -138,14 +151,16 @@ export default function ProfileCard({ profile, usage, isOnly, onFilter, onEdit, 
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-neutral-800 pt-3">
         <span className="text-[11px] text-neutral-600">
-          {usage ? formatLastUsed(usage.lastUsed) : '—'}
+          {profile.scanHistory === false ? 'Scan disabled' : usage ? formatLastUsed(usage.lastUsed) : '—'}
         </span>
-        <button
-          onClick={onFilter}
-          className="text-xs text-claude-orange hover:text-orange-300 transition-colors"
-        >
-          Filter conversations →
-        </button>
+        {profile.scanHistory !== false && (
+          <button
+            onClick={onFilter}
+            className="text-xs text-claude-orange hover:text-orange-300 transition-colors"
+          >
+            Filter conversations →
+          </button>
+        )}
       </div>
     </div>
   )

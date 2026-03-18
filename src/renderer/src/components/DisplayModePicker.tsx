@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type JSX } from 'react'
 import type { DisplayMode } from '../../../shared/types'
 
 const MODES: { value: DisplayMode; label: string; icon: JSX.Element }[] = [

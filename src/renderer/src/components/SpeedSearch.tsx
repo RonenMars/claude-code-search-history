@@ -1,10 +1,12 @@
+import type { JSX } from 'react'
+
 interface SpeedSearchProps {
   query: string
   onQueryChange: (q: string) => void
   onDismiss: () => void
 }
 
-export default function SpeedSearch({ query, onQueryChange, onDismiss }: SpeedSearchProps): JSX.Element | null {
+export default function SpeedSearch({ query, onDismiss }: SpeedSearchProps): JSX.Element | null {
   if (!query) return null
 
   return (

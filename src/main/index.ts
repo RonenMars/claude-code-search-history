@@ -326,7 +326,7 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle("rebuild-index", async () => {
     const config = await loadProfilesConfig();
-    const enabledProfiles = config.profiles.filter((p) => p.enabled);
+    const enabledProfiles = config.profiles.filter((p) => p.enabled && p.scanHistory !== false);
     await initializeSearch(enabledProfiles);
     return true;
   });
@@ -413,7 +413,7 @@ function setupIpcHandlers(): void {
       if (settings.profilesDir !== undefined) {
         activeProfilesDir = settings.profilesDir || DEFAULT_PROFILES_DIR;
         const profilesConfig = await ensureProfilesExist();
-        const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled);
+        const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled && p.scanHistory !== false);
         await initializeSearch(enabledProfiles);
         mainWindow?.webContents.send("index-ready");
       }
@@ -506,7 +506,7 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle("get-profiles-usage", async () => {
     const config = await loadProfilesConfig();
-    const enabledProfiles = config.profiles.filter((p) => p.enabled);
+    const enabledProfiles = config.profiles.filter((p) => p.enabled && p.scanHistory !== false);
     const indexerStats = indexer?.getStatsByAccount() ?? {};
     const results = await Promise.all(
       enabledProfiles.map(async (p) => {
@@ -530,7 +530,7 @@ function setupIpcHandlers(): void {
   ipcMain.handle("save-profiles", async (_event, profiles: Profile[]) => {
     const config: ProfilesConfig = { profiles };
     await saveProfilesConfig(config);
-    const enabledProfiles = profiles.filter((p) => p.enabled);
+    const enabledProfiles = profiles.filter((p) => p.enabled && p.scanHistory !== false);
     await initializeSearch(enabledProfiles);
     mainWindow?.webContents.send("index-ready");
     return true;
@@ -794,7 +794,7 @@ app.whenReady().then(async () => {
 
   // Load profiles (or write defaults), then initialize search
   const profilesConfig = await ensureProfilesExist();
-  const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled);
+  const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled && p.scanHistory !== false);
 
   initializeSearch(enabledProfiles)
     .then(() => {

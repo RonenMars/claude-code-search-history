@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, type JSX } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClaudeProfile, DisplayMode, GitInfo, Profile, SearchResult } from '../../../shared/types'
 import SpeedSearch from './SpeedSearch'

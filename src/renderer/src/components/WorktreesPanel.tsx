@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, type JSX } from "react";
 import type { Worktree } from "../../../shared/types";
 
 interface WorktreesPanelProps {

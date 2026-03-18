@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type JSX } from 'react'
 import type { Profile } from '../../../shared/types'
 
 interface ProfilePickerModalProps {

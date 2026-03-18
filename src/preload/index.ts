@@ -56,7 +56,7 @@ export interface ElectronAPI {
   setSettings: (settings: Partial<AppSettings>) => Promise<boolean>
   selectDirectory: () => Promise<string | null>
   getDailyStats: (granularity: StatsGranularity, limit: number) => Promise<PeriodStat[]>
-  getProfilesUsage: () => Promise<Record<string, { conversations: number; lastUsed: string | null; tokensThisMonth: number }>>
+  getProfilesUsage: () => Promise<Record<string, { conversations: number; lastUsed: string | null; tokensThisMonth: number; messages: number; projects: number }>>
   getProfiles: () => Promise<Profile[]>
   saveProfiles: (profiles: Profile[]) => Promise<boolean>
   getWorktrees: () => Promise<Worktree[]>

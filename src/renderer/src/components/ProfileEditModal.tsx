@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type JSX } from 'react'
 import type { Profile } from '../../../shared/types'
 
 const PRESET_EMOJIS = ['🤖', '💼', '🏠', '🎯', '🔬', '🎨', '⚡', '🌍', '🛠️', '📚', '🚀', '🎮']
@@ -6,6 +6,7 @@ const PRESET_EMOJIS = ['🤖', '💼', '🏠', '🎯', '🔬', '🎨', '⚡', '�
 interface ProfileEditModalProps {
   profile: Profile | null  // null = creating new
   isOnlyEnabled?: boolean  // when true, disable the enabled toggle
+  isOnlyScannable?: boolean  // when true, disable the scan history checkbox
   onSave: (profile: Profile) => void
   onCancel: () => void
 }
@@ -14,12 +15,13 @@ function generateId(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.random().toString(36).slice(2, 6)
 }
 
-export default function ProfileEditModal({ profile, isOnlyEnabled, onSave, onCancel }: ProfileEditModalProps): JSX.Element {
+export default function ProfileEditModal({ profile, isOnlyEnabled, isOnlyScannable, onSave, onCancel }: ProfileEditModalProps): JSX.Element {
   const isNew = profile === null
   const [label, setLabel] = useState(profile?.label ?? '')
   const [emoji, setEmoji] = useState(profile?.emoji ?? '🤖')
   const [configDir, setConfigDir] = useState(profile?.configDir ?? '~/.claude')
   const [enabled, setEnabled] = useState(profile?.enabled ?? true)
+  const [scanHistory, setScanHistory] = useState(profile?.scanHistory ?? true)
 
   const handleBrowse = async (): Promise<void> => {
     const dir = await window.electronAPI.selectDirectory()
@@ -33,7 +35,8 @@ export default function ProfileEditModal({ profile, isOnlyEnabled, onSave, onCan
       label: label.trim(),
       emoji,
       configDir: configDir.trim(),
-      enabled
+      enabled,
+      scanHistory
     })
   }
 
@@ -100,7 +103,7 @@ export default function ProfileEditModal({ profile, isOnlyEnabled, onSave, onCan
         </div>
 
         {/* Enabled toggle */}
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-3 flex items-center gap-3">
           <button
             onClick={() => !isOnlyEnabled && setEnabled((v) => !v)}
             disabled={isOnlyEnabled}
@@ -116,6 +119,21 @@ export default function ProfileEditModal({ profile, isOnlyEnabled, onSave, onCan
           <span className="text-xs text-neutral-400">
             Profile enabled{isOnlyEnabled ? ' (required — only active profile)' : ''}
           </span>
+        </div>
+
+        {/* Scan history checkbox */}
+        <div className="mb-6 flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="scan-history"
+            checked={scanHistory}
+            onChange={(e) => !isOnlyScannable && setScanHistory(e.target.checked)}
+            disabled={isOnlyScannable}
+            className={`w-4 h-4 rounded border border-neutral-700 bg-neutral-900 accent-claude-orange ${isOnlyScannable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+          />
+          <label htmlFor="scan-history" className={`text-xs text-neutral-400 select-none ${isOnlyScannable ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+            Scan chat history for search{isOnlyScannable ? ' (required — only scannable profile)' : ''}
+          </label>
         </div>
 
         {/* Actions */}

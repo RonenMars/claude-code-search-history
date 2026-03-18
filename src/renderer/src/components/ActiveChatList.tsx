@@ -1,3 +1,4 @@
+import type { JSX } from 'react'
 import type { ChatInstance, ClaudeProfile } from '../../../shared/types'
 
 function basename(p: string): string {

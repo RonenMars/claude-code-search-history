@@ -1,12 +1,13 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, type JSX } from 'react'
 
 interface SearchBarProps {
   value: string
   onChange: (value: string) => void
   isSearching: boolean
+  disabled?: boolean
 }
 
-export default function SearchBar({ value, onChange, isSearching }: SearchBarProps): JSX.Element {
+export default function SearchBar({ value, onChange, isSearching, disabled }: SearchBarProps): JSX.Element {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -74,7 +75,8 @@ export default function SearchBar({ value, onChange, isSearching }: SearchBarPro
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search conversations... (⌘⇧F)"
-        className="w-full pl-10 pr-4 py-2.5 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-claude-orange focus:ring-1 focus:ring-claude-orange transition-colors"
+        disabled={disabled}
+        className="w-full pl-10 pr-4 py-2.5 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-claude-orange focus:ring-1 focus:ring-claude-orange transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       />
       {value && (
         <button

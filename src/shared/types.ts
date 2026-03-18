@@ -202,6 +202,7 @@ export interface Profile {
   emoji: string     // single emoji character
   configDir: string // absolute or ~-prefixed path to CLAUDE_CONFIG_DIR
   enabled: boolean  // soft-disable without deleting
+  scanHistory?: boolean  // when false, exclude from history scanning/indexing (default: true)
 }
 
 export interface ProfilesConfig {

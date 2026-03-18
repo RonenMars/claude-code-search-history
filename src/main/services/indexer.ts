@@ -1,4 +1,4 @@
-import FlexSearch from 'flexsearch'
+import { Document } from 'flexsearch'
 import type { Account, ConversationMeta, SearchResult } from '../../shared/types'
 
 interface IndexedDocument {
@@ -16,11 +16,12 @@ interface IndexedDocument {
 }
 
 export class SearchIndexer {
-  private index: FlexSearch.Document<IndexedDocument>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private index: Document<any>
   private documents: Map<string, IndexedDocument> = new Map()
 
   constructor() {
-    this.index = new FlexSearch.Document<IndexedDocument>({
+    this.index = new Document({
       document: {
         id: 'id',
         index: ['content', 'projectName', 'sessionId', 'sessionName'],

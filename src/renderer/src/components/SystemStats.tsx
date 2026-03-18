@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type JSX } from 'react'
 import type { StatsGranularity, PeriodStat } from '../../../shared/types'
 
 type Metric = 'conversations' | 'messages'

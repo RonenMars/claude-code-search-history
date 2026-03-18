@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type JSX } from 'react'
 import type { AppSettings, Profile } from '../../../shared/types'
 import ProfilesPanel from './ProfilesPanel'
 import SystemStats from './SystemStats'
