@@ -6,7 +6,6 @@ out/
 dist/
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
