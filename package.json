@@ -41,6 +41,10 @@
       "electron",
       "esbuild",
       "node-pty"
+    ],
+    "ignoredBuiltDependencies": [
+      "electron-winstaller",
+      "unrs-resolver"
     ]
   },
   "devDependencies": {
