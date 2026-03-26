@@ -58,7 +58,7 @@
 
 **Goal:** Establish the provider pattern with the first non-Claude provider (OpenAI Codex CLI), validating the architecture before adding more providers.
 
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 03-01-PLAN.md — Provider types (AssistantProvider interface, ProviderSession/Message types) + Wave 0 failing test stubs
