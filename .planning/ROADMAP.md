@@ -61,7 +61,7 @@
 **Plans:** 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Provider types (AssistantProvider interface, ProviderSession/Message types) + Wave 0 failing test stubs
+- [x] 03-01-PLAN.md — Provider types (AssistantProvider interface, ProviderSession/Message types) + Wave 0 failing test stubs
 - [ ] 03-02-PLAN.md — Core provider implementations (ClaudeProvider, CodexProvider, ProviderRegistry) — makes Wave 0 tests GREEN
 - [ ] 03-03-PLAN.md — Main process integration (refactor initializeSearch, update IPC handlers, extend shared types and indexer)
 - [ ] 03-04-PLAN.md — UI layer (provider badge in ResultsList, provider filter in FilterPanel, Providers section in SettingsModal)
