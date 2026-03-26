@@ -12,7 +12,7 @@ export class ClaudeProvider implements AssistantProvider {
 
   private scanner: ConversationScanner
 
-  constructor(private profiles: Profile[]) {
+  constructor(profiles: Profile[]) {
     this.scanner = new ConversationScanner(profiles)
   }
 

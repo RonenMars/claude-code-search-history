@@ -8,7 +8,10 @@ import { SearchIndexer } from "./services/indexer";
 import { ElectronNotificationService, DEFAULT_NOTIFICATION_SETTINGS } from "./services/notification-service";
 import * as queueService from "./services/queue-service";
 import { PtyManager } from "./services/pty-manager";
-import { ConversationScanner } from "./services/scanner";
+import { ClaudeProvider } from "./providers/claude";
+import { CodexProvider } from "./providers/codex";
+import { ProviderRegistry } from "./providers/registry";
+import type { ProviderInfo } from "./providers/types";
 import type {
   PtySpawnOptions,
   Profile,
@@ -26,7 +29,7 @@ import { parseWorktrees } from "./worktree-parser";
 app.commandLine.appendSwitch("remote-debugging-port", "9222");
 
 let mainWindow: BrowserWindow | null = null;
-let scanner: ConversationScanner | null = null;
+let registry: ProviderRegistry | null = null;
 let indexer: SearchIndexer | null = null;
 let indexerReady = false;
 const ptyManagers = new Map<string, PtyManager>();
@@ -280,16 +283,40 @@ function createWindow(): void {
 }
 
 async function initializeSearch(profiles: Profile[]): Promise<void> {
-  scanner = new ConversationScanner(profiles);
+  const settings = await loadSettings();
+  const claudeProvider = new ClaudeProvider(profiles);
+  const codexProvider = new CodexProvider();
+  registry = new ProviderRegistry([claudeProvider, codexProvider], settings);
   indexer = new SearchIndexer();
   indexerReady = false;
 
-  scanner.setProgressCallback((scanned, total) => {
+  registry.setProgressCallback((scanned, total) => {
     mainWindow?.webContents.send("scan-progress", { scanned, total });
   });
 
+  registry.setDiscoveryCallback((newProviders: ProviderInfo[]) => {
+    if (newProviders.length > 0) {
+      mainWindow?.webContents.send("provider-detected", newProviders);
+    }
+  });
+
   console.log("Scanning for conversations...");
-  const metas = await scanner.scanAllMeta();
+  const sessions = await registry.scanAll();
+  const metas = sessions.map((s) => ({
+    id: s.id,
+    filePath: s.id,
+    projectPath: s.projectPath,
+    projectName: basename(s.projectPath),
+    sessionId: s.sessionId ?? s.id,
+    sessionName: s.title,
+    timestamp: s.lastModified,
+    messageCount: s.messageCount,
+    preview: '',
+    contentSnippet: '',
+    lastMessageSender: 'assistant' as const,
+    account: s.provider === 'claude' ? (s as any).account ?? 'default' : s.provider ?? s.provider,
+    provider: s.provider,
+  }));
   console.log(`Found ${metas.length} conversations`);
 
   console.log("Building search index...");
@@ -305,26 +332,26 @@ function setupIpcHandlers(): void {
     async (
       _event,
       query: string,
-      filters?: { project?: string; limit?: number },
+      filters?: { project?: string; limit?: number; providers?: string[] },
     ) => {
       if (!indexer) return [];
-      return indexer.search(query, filters?.limit || 10000, filters?.project);
+      return indexer.search(query, filters?.limit || 10000, filters?.project, filters?.providers);
     },
   );
 
   ipcMain.handle("get-conversation", async (_event, id: string) => {
-    if (!scanner) return null;
-    return scanner.getConversation(id);
+    if (!registry) return null;
+    return registry.getConversation(id);
   });
 
   ipcMain.handle("get-projects", async () => {
-    if (!scanner) return [];
-    return scanner.getProjects();
+    if (!registry) return [];
+    return registry.getProjects();
   });
 
   ipcMain.handle("get-stats", async () => {
-    if (!scanner || !indexer) return { conversations: 0, projects: 0 };
-    const projects = scanner.getProjects();
+    if (!registry || !indexer) return { conversations: 0, projects: 0 };
+    const projects = registry.getProjects();
     return {
       conversations: indexer.getDocumentCount(),
       projects: projects.length,
@@ -341,20 +368,20 @@ function setupIpcHandlers(): void {
   ipcMain.handle(
     "get-latest-conversation",
     async (_event, projectPath: string) => {
-      if (!scanner) return null;
-      const meta = scanner.getLatestForProject(projectPath);
+      if (!registry) return null;
+      const meta = registry.getLatestForProject(projectPath);
       if (!meta) return null;
-      return scanner.getConversation(meta.id);
+      return registry.getConversation(meta.id);
     },
   );
 
   ipcMain.handle(
     "export-conversation",
     async (_event, id: string, format: "markdown" | "json" | "text") => {
-      if (!scanner || !mainWindow)
+      if (!registry || !mainWindow)
         return { success: false, error: "Not initialized" };
 
-      const conversation = await scanner.getConversation(id);
+      const conversation = await registry.getConversation(id);
       if (!conversation)
         return { success: false, error: "Conversation not found" };
 
@@ -609,9 +636,9 @@ function setupIpcHandlers(): void {
   });
 
   ipcMain.handle("get-worktrees", async (): Promise<Worktree[]> => {
-    if (!scanner) return [];
+    if (!registry) return [];
 
-    const projectPaths = scanner.getProjects();
+    const projectPaths = registry.getProjects();
 
     const results = await Promise.all(
       projectPaths.map(async (projectPath) => {
@@ -647,9 +674,9 @@ function setupIpcHandlers(): void {
   });
 
   ipcMain.handle("get-git-info", async (): Promise<Record<string, GitInfo>> => {
-    if (!scanner) return {};
+    if (!registry) return {};
 
-    const projectPaths = scanner.getProjects();
+    const projectPaths = registry.getProjects();
     const result: Record<string, GitInfo> = {};
 
     await Promise.all(
@@ -737,6 +764,25 @@ function setupIpcHandlers(): void {
     },
   );
 
+  ipcMain.handle("get-providers", async () => {
+    const settings = await loadSettings();
+    if (!registry) return [];
+    return registry.getProviderInfoList(settings.enabledProviders ?? ['claude']);
+  });
+
+  ipcMain.handle("set-provider-enabled", async (_event, providerId: string, enabled: boolean) => {
+    const settings = await loadSettings();
+    const current = settings.enabledProviders ?? ['claude'];
+    const updated = enabled
+      ? [...new Set([...current, providerId])]
+      : current.filter((id) => id !== providerId);
+    await saveSettings({ ...settings, enabledProviders: updated });
+    const profilesConfig = await loadProfilesConfig();
+    const enabledProfiles = profilesConfig.profiles.filter((p) => p.enabled && p.scanHistory !== false);
+    await initializeSearch(enabledProfiles);
+    return true;
+  });
+
   // ─── Context Menu Handler ──────────────────────────────────────────
 
   ipcMain.on(
@@ -756,8 +802,8 @@ function setupIpcHandlers(): void {
       if (!win) return;
 
       const doExport = async (format: "markdown" | "json" | "text"): Promise<void> => {
-        if (!scanner) return;
-        const conversation = await scanner.getConversation(data.id);
+        if (!registry) return;
+        const conversation = await registry.getConversation(data.id);
         if (!conversation) return;
 
         const extensions: Record<string, string> = {

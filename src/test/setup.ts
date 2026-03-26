@@ -39,5 +39,8 @@ if (typeof window !== 'undefined') {
     createWorktree: vi.fn().mockResolvedValue({ success: true }),
     showContextMenu: vi.fn(noop) as unknown as ElectronAPI['showContextMenu'],
     onContinueChatFromMenu: vi.fn(() => noop) as unknown as ElectronAPI['onContinueChatFromMenu'],
+    getProviders: vi.fn().mockResolvedValue([]),
+    setProviderEnabled: vi.fn().mockResolvedValue(true),
+    onProviderDetected: vi.fn(() => noop),
   }
 }

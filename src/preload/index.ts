@@ -77,6 +77,9 @@ export interface ElectronAPI {
   queueClear: (sessionId: string) => Promise<import('../shared/types').SessionQueue>
   queueSetPaused: (sessionId: string, paused: boolean) => Promise<import('../shared/types').SessionQueue>
   queueSendNext: (sessionId: string) => Promise<import('../shared/types').QueuedPrompt | null>
+  getProviders: () => Promise<Array<{ id: string; displayName: string; enabled: boolean; available: boolean }>>
+  setProviderEnabled: (providerId: string, enabled: boolean) => Promise<boolean>
+  onProviderDetected: (callback: (providers: Array<{ id: string; displayName: string }>) => void) => () => void
 }
 
 const api: ElectronAPI = {
@@ -151,6 +154,15 @@ const api: ElectronAPI = {
   queueClear: (sessionId) => ipcRenderer.invoke('queue-clear', sessionId),
   queueSetPaused: (sessionId, paused) => ipcRenderer.invoke('queue-set-paused', sessionId, paused),
   queueSendNext: (sessionId) => ipcRenderer.invoke('queue-send-next', sessionId),
+  getProviders: () => ipcRenderer.invoke('get-providers'),
+  setProviderEnabled: (providerId, enabled) => ipcRenderer.invoke('set-provider-enabled', providerId, enabled),
+  onProviderDetected: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, providers: Array<{ id: string; displayName: string }>): void => {
+      callback(providers)
+    }
+    ipcRenderer.on('provider-detected', handler)
+    return () => ipcRenderer.removeListener('provider-detected', handler)
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

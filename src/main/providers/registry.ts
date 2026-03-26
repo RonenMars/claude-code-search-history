@@ -1,3 +1,4 @@
+import type { Conversation, ConversationMeta } from '../../shared/types'
 import type { AssistantProvider, ProviderInfo, ProviderSession } from './types'
 
 interface RegistrySettings {
@@ -9,14 +10,14 @@ export class ProviderRegistry {
   private providers: Map<string, AssistantProvider>
   private settings: RegistrySettings
   private sessionCache: Map<string, ProviderSession> = new Map()
-  private discoveryCallback?: (newProviders: string[]) => void
+  private discoveryCallback?: (newProviders: ProviderInfo[]) => void
 
   constructor(providers: AssistantProvider[], settings: RegistrySettings = {}) {
     this.providers = new Map(providers.map((p) => [p.id, p]))
     this.settings = settings
   }
 
-  setDiscoveryCallback(cb: (newProviders: string[]) => void): void {
+  setDiscoveryCallback(cb: (newProviders: ProviderInfo[]) => void): void {
     this.discoveryCallback = cb
   }
 
@@ -57,7 +58,11 @@ export class ProviderRegistry {
     // Check for newly available providers not yet in enabledProviders
     const newlyDiscovered = await this.discoverNewProviders()
     if (newlyDiscovered.length > 0 && this.discoveryCallback) {
-      this.discoveryCallback(newlyDiscovered)
+      const providerInfos: ProviderInfo[] = newlyDiscovered.map((id) => {
+        const provider = this.providers.get(id)
+        return { id, displayName: provider?.displayName ?? id, enabled: false, available: true }
+      })
+      this.discoveryCallback(providerInfos)
     }
 
     return allSessions
@@ -105,6 +110,56 @@ export class ProviderRegistry {
       }
     }
     return Array.from(projectPaths)
+  }
+
+  async getConversation(id: string): Promise<Conversation | null> {
+    const session = await this.getSession(id)
+    if (!session) return null
+
+    return {
+      id: session.id,
+      filePath: session.id,
+      projectPath: session.projectPath,
+      projectName: session.projectPath.split('/').pop() ?? '',
+      sessionId: session.sessionId ?? session.id,
+      sessionName: session.title,
+      messages: session.messages.map((m) => ({
+        type: m.role === 'user' ? 'user' : 'assistant',
+        content: m.content,
+        timestamp: session.lastModified,
+      })),
+      fullText: session.messages.map((m) => m.content).join('\n'),
+      timestamp: session.lastModified,
+      messageCount: session.messageCount,
+      account: session.provider ?? 'default',
+    }
+  }
+
+  getLatestForProject(projectPath: string): ConversationMeta | null {
+    let latest: ProviderSession | null = null
+    for (const session of this.sessionCache.values()) {
+      if (session.projectPath === projectPath || session.projectPath === `${projectPath}/`) {
+        if (!latest || session.lastModified > latest.lastModified) {
+          latest = session
+        }
+      }
+    }
+    if (!latest) return null
+    return {
+      id: latest.id,
+      filePath: latest.id,
+      projectPath: latest.projectPath,
+      projectName: latest.projectPath.split('/').pop() ?? '',
+      sessionId: latest.sessionId ?? latest.id,
+      sessionName: latest.title,
+      timestamp: latest.lastModified,
+      messageCount: latest.messageCount,
+      preview: '',
+      contentSnippet: '',
+      lastMessageSender: 'assistant',
+      account: latest.provider ?? 'default',
+      provider: latest.provider,
+    }
   }
 
   async getProviderInfoList(enabledProviders: string[]): Promise<ProviderInfo[]> {
