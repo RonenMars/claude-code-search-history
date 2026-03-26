@@ -65,6 +65,10 @@ export default function App(): JSX.Element {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [accountFilter, setAccountFilter] = useState<string | null>(null);
   const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
+  const [providerFilter, setProviderFilter] = useState<string[] | null>(null)
+  const [enabledProviders, setEnabledProviders] = useState<string[]>(['claude'])
+  const [availableProviders, setAvailableProviders] = useState<Array<{ id: string; displayName: string; available: boolean }>>([])
+  const [newlyDetectedProviders, setNewlyDetectedProviders] = useState<Array<{ id: string; displayName: string }>>([])
   const [gitInfo, setGitInfo] = useState<Record<string, GitInfo>>({});
 
   // Sidebar resize state
@@ -110,6 +114,7 @@ export default function App(): JSX.Element {
           profileList,
           settings,
           indexReady,
+          providerList,
         ] = await Promise.all([
           window.electronAPI.getProjects(),
           window.electronAPI.getStats(),
@@ -117,11 +122,14 @@ export default function App(): JSX.Element {
           window.electronAPI.getProfiles(),
           window.electronAPI.getSettings(),
           window.electronAPI.isIndexReady(),
+          window.electronAPI.getProviders(),
         ]);
         setProjects(projectList);
         setStats(statsData);
         setProfiles(profileList);
         setAppSettings(settings);
+        setEnabledProviders(providerList.filter(p => p.enabled).map(p => p.id))
+        setAvailableProviders(providerList.map(p => ({ id: p.id, displayName: p.displayName, available: p.available })))
         if (indexReady) {
           setIsIndexing(false);
           window.electronAPI.getGitInfo().then(setGitInfo).catch(console.error);
@@ -152,8 +160,16 @@ export default function App(): JSX.Element {
       setScanProgress(progress);
     });
 
-    return cleanupProgress;
-     
+    // Listen for newly detected providers
+    const cleanupProviderDetected = window.electronAPI.onProviderDetected((providers) => {
+      setNewlyDetectedProviders(providers)
+    })
+
+    return () => {
+      cleanupProgress()
+      cleanupProviderDetected()
+    }
+
   }, []);
 
   // Filter and sort results
@@ -206,8 +222,12 @@ export default function App(): JSX.Element {
         break;
     }
 
-    return sorted;
-  }, [results, sortBy, dateRange]);
+    // Provider filter (after sort)
+    const providerFiltered = providerFilter && providerFilter.length > 0
+      ? sorted.filter(r => providerFilter.includes(r.provider ?? 'claude'))
+      : sorted
+    return providerFiltered
+  }, [results, sortBy, dateRange, providerFilter]);
 
   // Persist preferences on change (debounced)
   useEffect(() => {
@@ -530,6 +550,17 @@ export default function App(): JSX.Element {
     [selectedConversation],
   );
 
+  const handleProviderFilterChange = useCallback((filter: string[] | null) => {
+    setProviderFilter(filter)
+  }, [])
+
+  const handleToggleProvider = useCallback(async (providerId: string, enabled: boolean) => {
+    await window.electronAPI.setProviderEnabled(providerId, enabled)
+    const providerList = await window.electronAPI.getProviders()
+    setEnabledProviders(providerList.filter(p => p.enabled).map(p => p.id))
+    setAvailableProviders(providerList.map(p => ({ id: p.id, displayName: p.displayName, available: p.available })))
+  }, [])
+
   const handleSaveSettings = useCallback(
     async (partial: Partial<AppSettings>) => {
       const updated = { ...appSettings, ...partial };
@@ -715,6 +746,18 @@ export default function App(): JSX.Element {
             onFocus={handleFocusInstance}
             onClose={handleCloseInstance}
           />
+          {/* Provider discovery notification */}
+          {newlyDetectedProviders.length > 0 && (
+            <div className="mx-2 mb-2 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-300">
+              <span>New provider detected: {newlyDetectedProviders.map(p => p.displayName).join(', ')}</span>
+              <button
+                onClick={() => setNewlyDetectedProviders([])}
+                className="ml-2 text-neutral-500 hover:text-neutral-300"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {/* Search */}
           <div className="border-b border-neutral-800 p-4">
             <SearchBar
@@ -736,6 +779,9 @@ export default function App(): JSX.Element {
               accountFilter={accountFilter}
               onAccountFilterChange={setAccountFilter}
               disabled={isLoading}
+              enabledProviders={enabledProviders}
+              providerFilter={providerFilter}
+              onProviderFilterChange={handleProviderFilterChange}
             />
           </div>
 
@@ -853,6 +899,7 @@ export default function App(): JSX.Element {
                 accountFilter={accountFilter}
                 profiles={profiles}
                 displayMode={appSettings.displayMode}
+                enabledProviders={enabledProviders}
               />
             )}
           </div>
@@ -902,6 +949,9 @@ export default function App(): JSX.Element {
                   }
                   defaultProfileId={defaultProfileId}
                   onClearDefaultProfile={handleClearDefaultProfile}
+                  enabledProviders={enabledProviders}
+                  availableProviders={availableProviders}
+                  onToggleProvider={handleToggleProvider}
                 />
               );
             }
