@@ -25,6 +25,7 @@ export interface ConversationMeta {
   contentSnippet: string
   lastMessageSender: 'user' | 'assistant'
   account: Account
+  provider?: string   // "claude" | "codex" | ... — undefined = claude for legacy data
 }
 
 export interface Conversation {
@@ -53,6 +54,7 @@ export interface SearchResult {
   score: number
   lastMessageSender: 'user' | 'assistant'
   account: Account
+  provider?: string
 }
 
 export type ExportFormat = 'markdown' | 'json' | 'text'
@@ -72,6 +74,7 @@ export interface UserPreferences {
   dateRange: DateRangeOption
   selectedProject: string
   defaultProfileId?: string
+  providerFilter?: string[] | null  // null = show all
   sidebarWidth?: number
 }
 
@@ -272,6 +275,8 @@ export interface AppSettings {
   displayMode: DisplayMode
   profilesDir?: string  // custom folder containing profiles.json; defaults to ~/.config/threadbase
   notifications?: NotificationSettings
+  enabledProviders?: string[]              // default ["claude"] applied in loadSettings()
+  providerPaths?: Record<string, string[]> // custom scan paths per provider id
 }
 
 // ─── Prompt Queue Types ───────────────────────────────────────────────────────

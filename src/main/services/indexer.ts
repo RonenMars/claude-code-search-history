@@ -13,6 +13,7 @@ interface IndexedDocument {
   preview: string
   lastMessageSender: 'user' | 'assistant'
   account: Account
+  provider?: string
 }
 
 export class SearchIndexer {
@@ -25,7 +26,7 @@ export class SearchIndexer {
       document: {
         id: 'id',
         index: ['content', 'projectName', 'sessionId', 'sessionName'],
-        store: ['id', 'projectName', 'projectPath', 'sessionId', 'sessionName', 'timestamp', 'messageCount', 'lastMessageSender', 'account']
+        store: ['id', 'projectName', 'projectPath', 'sessionId', 'sessionName', 'timestamp', 'messageCount', 'lastMessageSender', 'account', 'provider']
       },
       tokenize: 'forward',
       resolution: 9,
@@ -49,6 +50,7 @@ export class SearchIndexer {
         preview: meta.preview,
         lastMessageSender: meta.lastMessageSender,
         account: meta.account,
+        provider: meta.provider,
       }
 
       this.documents.set(meta.id, doc)
@@ -56,10 +58,10 @@ export class SearchIndexer {
     }
   }
 
-  search(query: string, limit: number = 50, projectFilter?: string): SearchResult[] {
+  search(query: string, limit: number = 50, projectFilter?: string, providerFilter?: string[]): SearchResult[] {
     if (!query.trim()) {
       // Return most recent conversations if no query
-      return this.getRecent(limit, projectFilter)
+      return this.getRecent(limit, projectFilter, providerFilter)
     }
 
     const results = this.index.search(query, {
@@ -87,6 +89,11 @@ export class SearchIndexer {
           continue
         }
 
+        // Apply provider filter
+        if (providerFilter && providerFilter.length > 0 && !providerFilter.includes(doc.provider ?? 'claude')) {
+          continue
+        }
+
         const preview = this.generatePreview(doc.content, query)
 
         searchResults.push({
@@ -101,6 +108,7 @@ export class SearchIndexer {
           score: 1,
           lastMessageSender: doc.lastMessageSender,
           account: doc.account,
+          provider: doc.provider,
         })
 
         if (searchResults.length >= limit) break
@@ -112,11 +120,15 @@ export class SearchIndexer {
     return searchResults
   }
 
-  private getRecent(limit: number, projectFilter?: string): SearchResult[] {
+  private getRecent(limit: number, projectFilter?: string, providerFilter?: string[]): SearchResult[] {
     let docs = Array.from(this.documents.values())
 
     if (projectFilter) {
       docs = docs.filter((d) => d.projectPath === projectFilter)
+    }
+
+    if (providerFilter && providerFilter.length > 0) {
+      docs = docs.filter((d) => providerFilter.includes(d.provider ?? 'claude'))
     }
 
     // Sort by timestamp descending
@@ -136,6 +148,7 @@ export class SearchIndexer {
       score: 1,
       lastMessageSender: doc.lastMessageSender,
       account: doc.account,
+      provider: doc.provider,
     }))
   }
 
