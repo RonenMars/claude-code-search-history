@@ -45,3 +45,74 @@
 - Backspace and Escape behave correctly
 - Overlay auto-dismisses after 1.5 s of inactivity
 - Speed search does not interfere with existing search bar (Cmd/Ctrl+F) or other keyboard shortcuts
+
+---
+
+## Milestone 2: Multi-Assistant Support
+
+**Goal:** Extend the session browser to index, search, and display sessions from multiple AI coding assistants (Codex CLI, Continue.dev, OpenCode, Amazon Q, Aider) alongside Claude Code sessions.
+
+---
+
+### Phase 3: Provider Abstraction + Codex CLI Provider
+
+**Goal:** Establish the provider pattern with the first non-Claude provider (OpenAI Codex CLI), validating the architecture before adding more providers.
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Provider types (AssistantProvider interface, ProviderSession/Message types) + Wave 0 failing test stubs
+- [ ] 03-02-PLAN.md — Core provider implementations (ClaudeProvider, CodexProvider, ProviderRegistry) — makes Wave 0 tests GREEN
+- [ ] 03-03-PLAN.md — Main process integration (refactor initializeSearch, update IPC handlers, extend shared types and indexer)
+- [ ] 03-04-PLAN.md — UI layer (provider badge in ResultsList, provider filter in FilterPanel, Providers section in SettingsModal)
+
+**Success Criteria:**
+- Codex sessions appear alongside Claude sessions in the list
+- Provider badge distinguishes them visually
+- Provider filter works correctly
+- Claude behavior unchanged when Codex is disabled or not installed
+- All existing tests pass
+
+---
+
+### Phase 4: Continue.dev + OpenCode Providers
+
+**Goal:** Add the two next-priority providers (Continue.dev JSON format and OpenCode SQLite).
+
+**Tasks:**
+- Create `src/main/providers/continue.ts`:
+  - Scan `~/.continue/sessions/sessions.json` index for session metadata
+  - Load individual `~/.continue/sessions/<uuid>.json` for full message content
+  - Map `ChatHistoryItem[]` → `Message[]`
+  - No CLI resume — show "Open in IDE" notification
+- Create `src/main/providers/opencode.ts`:
+  - Locate `~/.local/share/opencode/<project-hash>/sessions.db`
+  - Use `better-sqlite3` (already available in Electron) to query `session`, `message`, `part` tables
+  - Reconstruct message content from `part.data` discriminated union
+  - Fail gracefully if `sessions.db` absent
+- Register both providers in `ProviderRegistry`
+
+**Success Criteria:**
+- Continue and OpenCode sessions indexed and searchable
+- SQLite reader fails gracefully when no DB present
+- Provider badges and filters work for all 3 providers
+
+---
+
+### Phase 5: Amazon Q + Aider Providers (Optional)
+
+**Goal:** Cover the Tier 2/3 tools for completeness.
+
+**Tasks:**
+- Create `src/main/providers/amazonq.ts`:
+  - Query `~/.local/share/amazon-q/data.sqlite3` → `conversations` table
+  - Deserialize `history: HistoryEntry[]` into messages
+  - `resumeCommand`: `q chat --resume`
+- Create `src/main/providers/aider.ts`:
+  - Walk workspace paths for `.aider.chat.history.md` files
+  - Parse markdown: split on `# aider chat started at <datetime>` headers → sessions
+  - Split on `> ` prefix → user messages; remainder → assistant
+
+**Success Criteria:**
+- Q sessions and Aider transcripts browsable in the app
+- Aider parser handles append-only multi-session files correctly
