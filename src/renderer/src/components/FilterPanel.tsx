@@ -14,6 +14,9 @@ interface FilterPanelProps {
   accountFilter: string | null
   onAccountFilterChange: (profileId: string | null) => void
   disabled?: boolean
+  enabledProviders?: string[]
+  providerFilter?: string[] | null
+  onProviderFilterChange?: (filter: string[] | null) => void
 }
 
 export default function FilterPanel({
@@ -28,7 +31,10 @@ export default function FilterPanel({
   profiles,
   accountFilter,
   onAccountFilterChange,
-  disabled
+  disabled,
+  enabledProviders = [],
+  providerFilter = null,
+  onProviderFilterChange,
 }: FilterPanelProps): JSX.Element {
   const enabledProfiles = profiles.filter((p) => p.enabled && p.scanHistory !== false)
   const activeProfile = accountFilter ? enabledProfiles.find((p) => p.id === accountFilter) : null
@@ -109,6 +115,35 @@ export default function FilterPanel({
               </svg>
             </button>
           )}
+        </div>
+      )}
+
+      {/* Provider Filter */}
+      {enabledProviders.length > 1 && onProviderFilterChange && (
+        <div className="space-y-1">
+          <p className="text-xs text-neutral-500">Providers</p>
+          {enabledProviders.map((providerId) => (
+            <label key={providerId} className="flex cursor-pointer items-center gap-2 text-sm text-neutral-300">
+              <input
+                type="checkbox"
+                checked={providerFilter === null || providerFilter.includes(providerId)}
+                onChange={() => {
+                  if (providerFilter === null) {
+                    // Currently all selected — deselect this one (keep others)
+                    onProviderFilterChange(enabledProviders.filter(id => id !== providerId))
+                  } else if (providerFilter.includes(providerId)) {
+                    const next = providerFilter.filter(id => id !== providerId)
+                    onProviderFilterChange(next.length === 0 ? null : next)
+                  } else {
+                    const next = [...providerFilter, providerId]
+                    onProviderFilterChange(next.length === enabledProviders.length ? null : next)
+                  }
+                }}
+                className="accent-claude-orange"
+              />
+              {providerId === 'claude' ? 'Claude Code' : providerId === 'codex' ? 'Codex CLI' : providerId}
+            </label>
+          ))}
         </div>
       )}
     </div>

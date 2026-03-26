@@ -19,9 +19,12 @@ interface SettingsModalProps {
   onClose: () => void
   defaultProfileId: string | null
   onClearDefaultProfile: () => void
+  enabledProviders?: string[]
+  availableProviders?: Array<{ id: string; displayName: string; available: boolean }>
+  onToggleProvider?: (providerId: string, enabled: boolean) => void
 }
 
-export default function SettingsModal({ settings, onSave, profiles, onFilterByProfile, onProfilesSaved, onClose, defaultProfileId, onClearDefaultProfile }: SettingsModalProps): JSX.Element {
+export default function SettingsModal({ settings, onSave, profiles, onFilterByProfile, onProfilesSaved, onClose, defaultProfileId, onClearDefaultProfile, enabledProviders, availableProviders, onToggleProvider }: SettingsModalProps): JSX.Element {
   const [maxChatInstances, setMaxChatInstances] = useState(settings.maxChatInstances)
   const [profilesDir, setProfilesDir] = useState(settings.profilesDir ?? '')
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(
@@ -205,6 +208,39 @@ export default function SettingsModal({ settings, onSave, profiles, onFilterByPr
         <h3 className="mb-4 text-xs font-semibold tracking-wider text-neutral-400 uppercase">System Stats</h3>
         <SystemStats />
       </div>
+
+      {/* Providers section */}
+      {availableProviders && availableProviders.length > 0 && (
+        <div className="border-b border-neutral-800 px-8 py-5">
+          <h3 className="mb-4 text-xs font-semibold tracking-wider text-neutral-400 uppercase">Providers</h3>
+          <div className="space-y-3">
+            {availableProviders.map((provider) => {
+              const isEnabled = enabledProviders?.includes(provider.id) ?? (provider.id === 'claude')
+              return (
+                <div key={provider.id} className="flex max-w-xl items-center justify-between">
+                  <div>
+                    <p className="text-sm text-neutral-200">{provider.displayName}</p>
+                    <p className="text-xs text-neutral-500">
+                      {provider.available ? 'Detected on this system' : 'Not detected'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onToggleProvider?.(provider.id, !isEnabled)}
+                    disabled={provider.id === 'claude' || !provider.available}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      isEnabled
+                        ? 'bg-claude-orange/20 text-claude-orange hover:bg-claude-orange/30'
+                        : 'bg-neutral-800 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-300'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {isEnabled ? 'Enabled' : 'Enable'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Profiles section */}
       <div>

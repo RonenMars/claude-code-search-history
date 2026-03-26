@@ -796,6 +796,7 @@ function setupIpcHandlers(): void {
         title: string;
         projectPath: string;
         account?: string;
+        provider?: string;
       },
     ) => {
       const win = BrowserWindow.fromWebContents(event.sender);
@@ -843,6 +844,7 @@ function setupIpcHandlers(): void {
         }
       };
 
+      const isClaudeSession = data.provider === undefined || data.provider === 'claude'
       const menu = Menu.buildFromTemplate([
         {
           label: "Copy Session ID",
@@ -865,7 +867,7 @@ function setupIpcHandlers(): void {
           label: "Reveal in Finder",
           click: () => shell.showItemInFolder(data.sessionPath),
         },
-        {
+        ...(isClaudeSession ? [{
           label: "Open in New Chat",
           click: () => {
             event.sender.send("context-menu:continue-chat", {
@@ -874,7 +876,7 @@ function setupIpcHandlers(): void {
               account: data.account,
             });
           },
-        },
+        }] : []),
       ]);
 
       menu.popup({ window: win });

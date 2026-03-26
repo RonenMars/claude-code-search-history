@@ -10,6 +10,7 @@ interface ContextMenuData {
   title: string
   projectPath: string
   account?: string
+  provider?: string
 }
 
 interface ResultsListProps {
@@ -27,6 +28,7 @@ interface ResultsListProps {
   accountFilter: string | null
   profiles: Profile[]
   displayMode: DisplayMode
+  enabledProviders?: string[]
 }
 
 export default function ResultsList({
@@ -43,10 +45,12 @@ export default function ResultsList({
   activeChatProfile,
   accountFilter,
   profiles,
-  displayMode
+  displayMode,
+  enabledProviders = [],
 }: ResultsListProps): JSX.Element {
   const enabledProfiles = profiles.filter((p) => p.enabled)
   const showProfileBadge = enabledProfiles.length > 1
+  const showProviderBadge = enabledProviders.length > 1 || (enabledProviders.length === 1 && enabledProviders[0] !== 'claude')
 
   const [speedSearchQuery, setSpeedSearchQuery] = useState('')
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -134,6 +138,7 @@ export default function ResultsList({
             activeChatProfile,
             showProfileBadge,
             enabledProfiles,
+            showProviderBadge,
           }
 
           if (displayMode === 'tree') return <FileTreeResultsList {...internalProps} />
@@ -169,6 +174,7 @@ interface InternalListProps {
   activeChatProfile: ClaudeProfile | null
   showProfileBadge: boolean
   enabledProfiles: Profile[]
+  showProviderBadge: boolean
 }
 
 function FlatResultsList({
@@ -184,7 +190,8 @@ function FlatResultsList({
   isClaudeTyping,
   activeChatProfile,
   showProfileBadge,
-  enabledProfiles
+  enabledProfiles,
+  showProviderBadge,
 }: InternalListProps): JSX.Element {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -227,6 +234,7 @@ function FlatResultsList({
                 isClaudeTyping={isClaudeTyping}
                 activeChatProfile={activeChatProfile}
                 profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === results[virtualRow.index].account) : undefined}
+                showProviderBadge={showProviderBadge}
               />
             </div>
           ))}
@@ -264,7 +272,8 @@ function GroupedResultsList({
   isClaudeTyping,
   activeChatProfile,
   showProfileBadge,
-  enabledProfiles
+  enabledProfiles,
+  showProviderBadge,
 }: InternalListProps): JSX.Element {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -400,6 +409,7 @@ function GroupedResultsList({
                         isClaudeTyping={isClaudeTyping}
                         activeChatProfile={activeChatProfile}
                         profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === item.result.account) : undefined}
+                        showProviderBadge={showProviderBadge}
                       />
                     </div>
                   )}
@@ -519,7 +529,8 @@ function FileTreeResultsList({
   isClaudeTyping,
   activeChatProfile,
   showProfileBadge,
-  enabledProfiles
+  enabledProfiles,
+  showProviderBadge,
 }: InternalListProps): JSX.Element {
   const [selectedDir, setSelectedDir] = useState<string | null>(null)
 
@@ -611,6 +622,7 @@ function FileTreeResultsList({
                     isClaudeTyping={isClaudeTyping}
                     activeChatProfile={activeChatProfile}
                     profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === dirConversations[virtualRow.index].account) : undefined}
+                    showProviderBadge={showProviderBadge}
                   />
                 </div>
               ))}
@@ -739,9 +751,10 @@ interface ResultItemProps {
   isClaudeTyping: boolean
   activeChatProfile: ClaudeProfile | null
   profileBadge: Profile | undefined
+  showProviderBadge: boolean
 }
 
-function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge }: ResultItemProps): JSX.Element {
+function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge, showProviderBadge }: ResultItemProps): JSX.Element {
   // Note: dangerouslySetInnerHTML is safe here — content passes through
   // escapeHtml() which sanitizes all HTML entities before highlightText()
   // wraps matched terms in <span> tags using the escaped content.
@@ -777,6 +790,7 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
           title: result.sessionName || result.projectName,
           projectPath: result.projectPath,
           account: result.account,
+          provider: result.provider,
         })
       }}
       className={`group/item w-full border-b border-neutral-800 p-4 text-left transition-colors hover:bg-neutral-800/50 ${isSelected ? 'border-claude-orange border-l-2 bg-neutral-800' : ''
@@ -793,6 +807,11 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
               {profileBadge.emoji}
             </span>
           )}
+          {showProviderBadge && result.provider && result.provider !== 'claude' && (
+            <span className="text-xs text-muted-foreground shrink-0 rounded border px-1 ml-1">
+              {result.provider}
+            </span>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {isTyping ? (
@@ -804,18 +823,20 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
           ) : null}
           {isActive && activeChatProfile && <LiveProfileBadge profile={activeChatProfile} />}
           <span className="text-xs whitespace-nowrap text-neutral-500">{formattedDate}</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onNewChat(result.projectPath)
-            }}
-            className="hover:text-claude-orange p-0.5 text-neutral-500 opacity-0 transition-all group-hover/item:opacity-100"
-            title={`New chat in ${result.projectName}`}
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
+          {(result.provider === undefined || result.provider === 'claude') && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onNewChat(result.projectPath)
+              }}
+              className="hover:text-claude-orange p-0.5 text-neutral-500 opacity-0 transition-all group-hover/item:opacity-100"
+              title={`New chat in ${result.projectName}`}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       {result.sessionName && (
