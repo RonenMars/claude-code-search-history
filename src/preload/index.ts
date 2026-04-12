@@ -9,6 +9,7 @@ import type {
   PtyStatus,
   Profile,
   AppSettings,
+  NotificationSettings,
   StatsGranularity,
   PeriodStat,
   Worktree,
@@ -17,7 +18,7 @@ import type {
   CreateWorktreeResult
 } from '../shared/types'
 
-export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, StatsGranularity, PeriodStat, Worktree, GitInfo, CreateWorktreeOptions, CreateWorktreeResult }
+export type { SearchResult, Conversation, ExportFormat, ExportResult, UserPreferences, PtySpawnOptions, PtyStatus, Profile, AppSettings, NotificationSettings, StatsGranularity, PeriodStat, Worktree, GitInfo, CreateWorktreeOptions, CreateWorktreeResult }
 
 export interface ContextMenuData {
   id: string
@@ -64,6 +65,18 @@ export interface ElectronAPI {
   isIndexReady: () => Promise<boolean>
   getGitInfo: () => Promise<Record<string, GitInfo>>
   createWorktree: (options: CreateWorktreeOptions) => Promise<CreateWorktreeResult>
+  // Notifications
+  getNotificationSettings: () => Promise<NotificationSettings>
+  setNotificationSettings: (settings: NotificationSettings) => Promise<boolean>
+  testNotification: () => Promise<boolean>
+  // Prompt Queue
+  queueLoad: (sessionId: string) => Promise<import('../shared/types').SessionQueue>
+  queueAdd: (sessionId: string, text: string) => Promise<import('../shared/types').SessionQueue>
+  queueRemove: (sessionId: string, promptId: string) => Promise<import('../shared/types').SessionQueue>
+  queueReorder: (sessionId: string, ids: string[]) => Promise<import('../shared/types').SessionQueue>
+  queueClear: (sessionId: string) => Promise<import('../shared/types').SessionQueue>
+  queueSetPaused: (sessionId: string, paused: boolean) => Promise<import('../shared/types').SessionQueue>
+  queueSendNext: (sessionId: string) => Promise<import('../shared/types').QueuedPrompt | null>
 }
 
 const api: ElectronAPI = {
@@ -126,6 +139,18 @@ const api: ElectronAPI = {
   isIndexReady: () => ipcRenderer.invoke('is-index-ready'),
   getGitInfo: () => ipcRenderer.invoke('get-git-info'),
   createWorktree: (options) => ipcRenderer.invoke('create-worktree', options),
+  // Notifications
+  getNotificationSettings: () => ipcRenderer.invoke('get-notification-settings'),
+  setNotificationSettings: (settings) => ipcRenderer.invoke('set-notification-settings', settings),
+  testNotification: () => ipcRenderer.invoke('test-notification'),
+  // Prompt Queue
+  queueLoad: (sessionId) => ipcRenderer.invoke('queue-load', sessionId),
+  queueAdd: (sessionId, text) => ipcRenderer.invoke('queue-add', sessionId, text),
+  queueRemove: (sessionId, promptId) => ipcRenderer.invoke('queue-remove', sessionId, promptId),
+  queueReorder: (sessionId, ids) => ipcRenderer.invoke('queue-reorder', sessionId, ids),
+  queueClear: (sessionId) => ipcRenderer.invoke('queue-clear', sessionId),
+  queueSetPaused: (sessionId, paused) => ipcRenderer.invoke('queue-set-paused', sessionId, paused),
+  queueSendNext: (sessionId) => ipcRenderer.invoke('queue-send-next', sessionId),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

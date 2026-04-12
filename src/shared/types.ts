@@ -258,12 +258,54 @@ export interface ChatInstance {
   isClaudeTyping: boolean
 }
 
-export type DisplayMode = 'list' | 'grouped' | 'tree'
+export type DisplayMode = 'list' | 'grouped' | 'tree' | 'board'
+
+export interface NotificationSettings {
+  session_complete: boolean
+  waiting_input: boolean
+  session_failed: boolean
+  diff_ready: boolean
+}
 
 export interface AppSettings {
   maxChatInstances: number
   displayMode: DisplayMode
   profilesDir?: string  // custom folder containing profiles.json; defaults to ~/.config/threadbase
+  notifications?: NotificationSettings
+}
+
+// ─── Prompt Queue Types ───────────────────────────────────────────────────────
+
+export interface QueuedPrompt {
+  id: string
+  text: string
+  addedAt: string   // ISO timestamp
+  status: 'pending' | 'running' | 'completed' | 'cancelled'
+}
+
+export interface SessionQueue {
+  sessionId: string
+  prompts: QueuedPrompt[]
+  paused: boolean
+}
+
+// ─── Kanban / Session State Types ────────────────────────────────────────
+
+export type SessionStatus = 'running' | 'waiting_input' | 'completed' | 'failed' | 'idle'
+
+export interface ActiveSession {
+  id: string
+  instanceId: string
+  projectPath: string
+  projectName: string
+  status: SessionStatus
+  branch?: string        // from worktree
+  machineName?: string   // for multi-machine setups
+  lastOutput: string     // last N chars of terminal output
+  elapsedMs: number
+  promptCount: number
+  startedAt: Date
+  completedAt?: Date
 }
 
 // ─── Git Worktree Types ──────────────────────────────────────────────

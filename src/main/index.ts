@@ -5,6 +5,8 @@ import { homedir } from "node:os";
 import { join, basename } from "node:path";
 import { formatAsMarkdown, formatAsText } from "./formatters";
 import { SearchIndexer } from "./services/indexer";
+import { ElectronNotificationService, DEFAULT_NOTIFICATION_SETTINGS } from "./services/notification-service";
+import * as queueService from "./services/queue-service";
 import { PtyManager } from "./services/pty-manager";
 import { ConversationScanner } from "./services/scanner";
 import type {
@@ -12,6 +14,7 @@ import type {
   Profile,
   ProfilesConfig,
   AppSettings,
+  NotificationSettings,
   Worktree,
   GitInfo,
   CreateWorktreeOptions,
@@ -27,6 +30,10 @@ let scanner: ConversationScanner | null = null;
 let indexer: SearchIndexer | null = null;
 let indexerReady = false;
 const ptyManagers = new Map<string, PtyManager>();
+const ptyStartTimes = new Map<string, number>();
+const ptyLastOutput = new Map<string, string>();
+
+const notificationService = new ElectronNotificationService();
 
 function getPrefsPath(): string {
   return join(app.getPath("userData"), "preferences.json");
@@ -444,12 +451,25 @@ function setupIpcHandlers(): void {
           data,
         });
       }
+      // Track last output for notifications
+      const prev = ptyLastOutput.get(options.instanceId) ?? '';
+      ptyLastOutput.set(options.instanceId, (prev + data).slice(-500));
     });
     manager.setExitHandler((code) => {
       // Only clean up and notify if this manager is still the active one for this instanceId.
       // A stale manager (killed by a StrictMode re-mount) must not remove or notify for its replacement.
       if (ptyManagers.get(options.instanceId) !== manager) return;
       ptyManagers.delete(options.instanceId);
+      const startTime = ptyStartTimes.get(options.instanceId) ?? Date.now();
+      ptyStartTimes.delete(options.instanceId);
+      ptyLastOutput.delete(options.instanceId);
+      const durationMs = Date.now() - startTime;
+      const project = basename(options.cwd);
+      if (code === 0 || code === null) {
+        notificationService.notify({ type: 'session_complete', sessionId: options.instanceId, project, durationMs });
+      } else {
+        notificationService.notify({ type: 'session_failed', sessionId: options.instanceId, project, error: `exit code ${code}` });
+      }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("pty-exit", {
           instanceId: options.instanceId,
@@ -459,6 +479,7 @@ function setupIpcHandlers(): void {
     });
 
     ptyManagers.set(options.instanceId, manager);
+    ptyStartTimes.set(options.instanceId, Date.now());
     return manager.spawn(options);
   });
 
@@ -547,6 +568,45 @@ function setupIpcHandlers(): void {
   });
 
   ipcMain.handle("is-index-ready", () => indexerReady);
+
+  // ─── Notification Settings ─────────────────────────────────────────
+  ipcMain.handle("get-notification-settings", async () => {
+    const settings = await loadSettings();
+    return settings.notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
+  });
+
+  ipcMain.handle("set-notification-settings", async (_event, ns: NotificationSettings) => {
+    await saveSettings({ notifications: ns });
+    notificationService.setSettings(ns);
+    return true;
+  });
+
+  ipcMain.handle("test-notification", async () => {
+    notificationService.notify({
+      type: 'session_complete',
+      sessionId: 'test',
+      project: 'test-project',
+      durationMs: 10_000,
+    });
+    return true;
+  });
+
+  // ─── Prompt Queue Handlers ─────────────────────────────────────────
+  ipcMain.handle("queue-load", (_e, sessionId: string) => queueService.loadQueue(sessionId));
+  ipcMain.handle("queue-add", (_e, sessionId: string, text: string) => queueService.addToQueue(sessionId, text));
+  ipcMain.handle("queue-remove", (_e, sessionId: string, promptId: string) => queueService.removeFromQueue(sessionId, promptId));
+  ipcMain.handle("queue-reorder", (_e, sessionId: string, ids: string[]) => queueService.reorderQueue(sessionId, ids));
+  ipcMain.handle("queue-clear", (_e, sessionId: string) => queueService.clearQueue(sessionId));
+  ipcMain.handle("queue-set-paused", (_e, sessionId: string, paused: boolean) => queueService.setPaused(sessionId, paused));
+  ipcMain.handle("queue-send-next", async (_e, sessionId: string) => {
+    const queue = await queueService.loadQueue(sessionId);
+    const next = queue.prompts.find((p) => p.status === 'pending');
+    if (!next || queue.paused) return null;
+    await queueService.markPromptStatus(sessionId, next.id, 'running');
+    const manager = ptyManagers.get(sessionId);
+    if (manager) manager.write(next.text + '\n');
+    return next;
+  });
 
   ipcMain.handle("get-worktrees", async (): Promise<Worktree[]> => {
     if (!scanner) return [];

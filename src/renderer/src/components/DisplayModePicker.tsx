@@ -30,6 +30,19 @@ const MODES: { value: DisplayMode; label: string; icon: JSX.Element }[] = [
       </svg>
     ),
   },
+  {
+    value: 'board',
+    label: 'Board',
+    icon: (
+      // Four vertical columns — Kanban board icon
+      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <rect x="2" y="3" width="4" height="14" rx="1" strokeWidth={1.8} />
+        <rect x="8" y="3" width="4" height="9" rx="1" strokeWidth={1.8} />
+        <rect x="14" y="3" width="4" height="11" rx="1" strokeWidth={1.8} />
+        <rect x="20" y="3" width="2" height="6" rx="1" strokeWidth={1.8} />
+      </svg>
+    ),
+  },
 ]
 
 interface DisplayModePickerProps {

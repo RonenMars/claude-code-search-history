@@ -274,3 +274,92 @@ select.custom-select {
 .terminal-body pre {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
 }
+
+/* ─── Responsive Layout (Web Client / M1) ─────────────────────────── */
+
+/* Minimum touch target size for interactive elements */
+@media (pointer: coarse) {
+  button, [role="button"], a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Mobile (≤768px): sidebar collapses, full-screen conversation */
+@media (max-width: 768px) {
+  body {
+    overflow: auto;
+  }
+
+  /* Sidebar becomes a full-width bottom-anchored nav strip */
+  .app-sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    border-right: none !important;
+    border-top: 1px solid #262626;
+    z-index: 40;
+    flex-direction: row;
+    overflow: hidden;
+  }
+
+  .app-sidebar .sidebar-results {
+    display: none;
+  }
+
+  .app-sidebar .sidebar-search {
+    display: none;
+  }
+
+  /* Active conversation takes up full screen on mobile */
+  .app-main-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    overflow: auto;
+  }
+
+  /* Kanban board: horizontal scroll-snap on mobile */
+  .kanban-board {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 1rem;
+    padding: 1rem;
+    height: 100%;
+  }
+
+  .kanban-column {
+    min-width: 280px;
+    max-width: 85vw;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+
+  .kanban-column-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #0d0d0d;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* Tablet (≤1024px): narrower sidebar, collapsible panels */
+@media (max-width: 1024px) {
+  .app-sidebar {
+    min-width: 240px !important;
+  }
+}
+
+/* Kanban cards — touch-friendly minimum height */
+.kanban-card {
+  min-height: 64px;
+  touch-action: manipulation;
+}

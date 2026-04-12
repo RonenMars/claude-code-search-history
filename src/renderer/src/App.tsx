@@ -6,6 +6,7 @@ import ConversationView from "./components/ConversationView";
 import DisplayModePicker from "./components/DisplayModePicker";
 import ErrorBoundary from "./components/ErrorBoundary";
 import FilterPanel from "./components/FilterPanel";
+import KanbanBoard from "./components/KanbanBoard";
 import ProfilePickerModal from "./components/ProfilePickerModal";
 import ProfilesPanel from "./components/ProfilesPanel";
 import ResultsList from "./components/ResultsList";
@@ -18,7 +19,7 @@ import type {
   SortOption,
   DateRangeOption,
   Profile,
-  GitInfo, ChatInstance, AppSettings 
+  GitInfo, ChatInstance, AppSettings, ActiveSession
 } from "../../shared/types";
 
 type RightPanelView =
@@ -544,6 +545,32 @@ export default function App(): JSX.Element {
     !hasSearched ||
     (searching && results.length === 0);
 
+  // Derive ActiveSession[] from ChatInstance[] for the Kanban board.
+  const boardSessions = useMemo<ActiveSession[]>(() => {
+    const now = Date.now();
+    return chatInstances.map((inst) => {
+      let status: ActiveSession['status'] = 'idle';
+      if (inst.status === 'exited') {
+        status = inst.exitCode === 0 || inst.exitCode === null ? 'completed' : 'failed';
+      } else if (inst.isClaudeTyping) {
+        status = 'running';
+      } else if (inst.status === 'active') {
+        status = 'waiting_input';
+      }
+      return {
+        id: inst.resumeSessionId ?? inst.instanceId,
+        instanceId: inst.instanceId,
+        projectPath: inst.cwd,
+        projectName: inst.cwd.split('/').filter(Boolean).pop() ?? inst.cwd,
+        status,
+        lastOutput: '',
+        elapsedMs: now - now, // placeholder — no start time tracked on ChatInstance yet
+        promptCount: 0,
+        startedAt: new Date(),
+      };
+    });
+  }, [chatInstances]);
+
   const handleProfilesSaved = useCallback(
     async (updated: Profile[]) => {
       setProfiles(updated);
@@ -746,8 +773,21 @@ export default function App(): JSX.Element {
             />
           </div>
 
+          {/* Board mode — replaces the results list with a full kanban view */}
+          {appSettings.displayMode === 'board' && (
+            <div className="flex-1 overflow-hidden">
+              <KanbanBoard
+                sessions={boardSessions}
+                onSelectSession={(instanceId) => {
+                  setActiveChatInstanceId(instanceId);
+                  setSelectedConversation(null);
+                }}
+              />
+            </div>
+          )}
+
           {/* Results */}
-          <div className="flex-1 overflow-hidden">
+          <div className={`flex-1 overflow-hidden ${appSettings.displayMode === 'board' ? 'hidden' : ''}`}>
             {isScanning ? (
               <div className="flex h-full flex-col">
                 {scanProgress ? (

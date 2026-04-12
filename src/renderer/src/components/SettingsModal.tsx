@@ -1,7 +1,14 @@
-import { useState, useCallback, type JSX } from 'react'
+import { useState, useCallback, useEffect, type JSX } from 'react'
 import ProfilesPanel from './ProfilesPanel'
 import SystemStats from './SystemStats'
-import type { AppSettings, Profile } from '../../../shared/types'
+import type { AppSettings, NotificationSettings, Profile } from '../../../shared/types'
+
+const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  session_complete: true,
+  waiting_input: true,
+  session_failed: true,
+  diff_ready: false,
+}
 
 interface SettingsModalProps {
   settings: AppSettings
@@ -17,6 +24,26 @@ interface SettingsModalProps {
 export default function SettingsModal({ settings, onSave, profiles, onFilterByProfile, onProfilesSaved, onClose, defaultProfileId, onClearDefaultProfile }: SettingsModalProps): JSX.Element {
   const [maxChatInstances, setMaxChatInstances] = useState(settings.maxChatInstances)
   const [profilesDir, setProfilesDir] = useState(settings.profilesDir ?? '')
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings>(
+    settings.notifications ?? DEFAULT_NOTIFICATION_SETTINGS
+  )
+  const [testSent, setTestSent] = useState(false)
+
+  useEffect(() => {
+    window.electronAPI.getNotificationSettings().then(setNotifSettings).catch(() => {})
+  }, [])
+
+  const handleNotifToggle = useCallback(async (key: keyof NotificationSettings) => {
+    const updated = { ...notifSettings, [key]: !notifSettings[key] }
+    setNotifSettings(updated)
+    await window.electronAPI.setNotificationSettings(updated)
+  }, [notifSettings])
+
+  const handleTestNotification = useCallback(async () => {
+    await window.electronAPI.testNotification()
+    setTestSent(true)
+    setTimeout(() => setTestSent(false), 2000)
+  }, [])
 
   const handleMaxChange = useCallback((value: number) => {
     const clamped = Math.min(10, Math.max(1, value))
@@ -123,6 +150,52 @@ export default function SettingsModal({ settings, onSave, profiles, onFilterByPr
                 Reset
               </button>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Notifications section */}
+      <div className="border-b border-neutral-800 px-8 py-5">
+        <h3 className="mb-4 text-xs font-semibold tracking-wider text-neutral-400 uppercase">Notifications</h3>
+        <div className="max-w-xl space-y-3">
+          {(
+            [
+              { key: 'session_complete', label: 'Session complete', desc: 'When a session finishes successfully' },
+              { key: 'waiting_input', label: 'Waiting for input', desc: 'When Claude is blocked and needs a response' },
+              { key: 'session_failed', label: 'Session failed', desc: 'When a session exits with an error' },
+              { key: 'diff_ready', label: 'Diff ready', desc: 'When file changes are detected in a session' },
+            ] as { key: keyof NotificationSettings; label: string; desc: string }[]
+          ).map(({ key, label, desc }) => (
+            <div key={key} className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-neutral-200">{label}</p>
+                <p className="mt-0.5 text-xs text-neutral-500">{desc}</p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={notifSettings[key]}
+                onClick={() => handleNotifToggle(key)}
+                className={[
+                  'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors',
+                  notifSettings[key] ? 'bg-claude-orange' : 'bg-neutral-700',
+                ].join(' ')}
+              >
+                <span
+                  className={[
+                    'inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform',
+                    notifSettings[key] ? 'translate-x-4' : 'translate-x-0.5',
+                  ].join(' ')}
+                />
+              </button>
+            </div>
+          ))}
+          <div className="pt-1">
+            <button
+              onClick={handleTestNotification}
+              className="rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 transition-colors hover:bg-neutral-700"
+            >
+              {testSent ? 'Notification sent!' : 'Test notification'}
+            </button>
           </div>
         </div>
       </div>
