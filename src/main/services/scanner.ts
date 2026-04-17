@@ -90,6 +90,8 @@ export class ConversationScanner {
           this.projects.add(meta.projectPath)
           metas.push(meta)
           this.metadataCache.set(meta.id, meta)
+        } else if (meta === null) {
+          // Already logged in parseConversationMeta or catch handler
         }
       }
 
@@ -114,8 +116,8 @@ export class ConversationScanner {
     const previewParts: string[] = []
     const snippetParts: string[] = []
     let snippetLength = 0
-    const SNIPPET_MAX = 5000
-    const PREVIEW_MAX = 200
+    const SNIPPET_MAX = 50_000
+    const PREVIEW_MAX = 1200
 
     const fileStream = createReadStream(filePath)
     const rl = createInterface({ input: fileStream, crlfDelay: Infinity })
@@ -161,7 +163,10 @@ export class ConversationScanner {
       }
     }
 
-    if (messageCount === 0) return null
+    if (messageCount === 0) {
+      console.warn(`[scanner] Skipping (0 messages): ${filePath}`)
+      return null
+    }
 
     const projectPath = cwd || fallbackProjectName
     const preview = previewParts.join(' ').slice(0, PREVIEW_MAX)

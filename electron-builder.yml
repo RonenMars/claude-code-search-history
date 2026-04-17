@@ -13,6 +13,7 @@ asarUnpack:
   - resources/**
   - node_modules/node-pty/**
 mac:
+  identity: null
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     NSDocumentsFolderUsageDescription: Application requires access to documents folder

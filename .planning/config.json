@@ -1,0 +1,9 @@
+{
+  "milestone_version": "v2.0",
+  "milestone_name": "Multi-Assistant Support",
+  "executor_model": "sonnet",
+  "planner_model": "inherit",
+  "commit_docs": true,
+  "current_phase": "3",
+  "phases": ["3", "4", "5"]
+}
