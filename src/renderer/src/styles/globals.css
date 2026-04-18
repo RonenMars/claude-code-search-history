@@ -1,9 +1,29 @@
 @import "tailwindcss";
+@import "./threadbase-theme.css";
 
 @theme {
   --color-claude-orange: #D97706;
   --color-claude-dark: #1a1a1a;
   --color-claude-darker: #0d0d0d;
+}
+
+@theme {
+  --color-tb-text: var(--tb-text);
+  --color-tb-text-muted: var(--tb-text-muted);
+  --color-tb-bg: var(--tb-bg);
+  --color-tb-bg-surface: var(--tb-bg-surface);
+  --color-tb-bg-surface-hover: var(--tb-bg-surface-hover);
+  --color-tb-border: var(--tb-border);
+  --color-tb-diff-added-bg: var(--tb-diff-added-bg);
+  --color-tb-diff-added-text: var(--tb-diff-added-text);
+  --color-tb-diff-removed-bg: var(--tb-diff-removed-bg);
+  --color-tb-diff-removed-text: var(--tb-diff-removed-text);
+  --color-tb-code-bg: var(--tb-code-bg);
+  --color-tb-code-text: var(--tb-code-text);
+  --color-tb-accent: var(--tb-accent);
+  --color-tb-success: var(--tb-success);
+  --color-tb-error: var(--tb-error);
+  --color-tb-warning: var(--tb-warning);
 }
 
 @layer base {
