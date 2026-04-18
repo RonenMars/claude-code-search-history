@@ -14,6 +14,12 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.13.22
         version: 3.13.23(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@threadbase/core':
+        specifier: github:RonenMars/threadbase-core
+        version: git+https://git@github.com:RonenMars/threadbase-core.git#d150181d40e0f3fd06467df1fbca363991f99614
+      '@threadbase/ui':
+        specifier: github:RonenMars/threadbase-ui
+        version: git+https://git@github.com:RonenMars/threadbase-ui.git#18852579455daf0f6e23cd72ac38dd5d4b195c32(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
@@ -1094,6 +1100,17 @@ packages:
     engines: {node: '>=12', npm: '>=6'}
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
+
+  '@threadbase/core@git+https://git@github.com:RonenMars/threadbase-core.git#d150181d40e0f3fd06467df1fbca363991f99614':
+    resolution: {commit: d150181d40e0f3fd06467df1fbca363991f99614, repo: git@github.com:RonenMars/threadbase-core.git, type: git}
+    version: 0.1.0
+
+  '@threadbase/ui@git+https://git@github.com:RonenMars/threadbase-ui.git#18852579455daf0f6e23cd72ac38dd5d4b195c32':
+    resolution: {commit: 18852579455daf0f6e23cd72ac38dd5d4b195c32, repo: git@github.com:RonenMars/threadbase-ui.git, type: git}
+    version: 0.1.0
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -4924,6 +4941,19 @@ snapshots:
   '@testing-library/user-event@14.6.1(@testing-library/dom@10.4.1)':
     dependencies:
       '@testing-library/dom': 10.4.1
+
+  '@threadbase/core@git+https://git@github.com:RonenMars/threadbase-core.git#d150181d40e0f3fd06467df1fbca363991f99614': {}
+
+  '@threadbase/ui@git+https://git@github.com:RonenMars/threadbase-ui.git#18852579455daf0f6e23cd72ac38dd5d4b195c32(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@threadbase/core': git+https://git@github.com:RonenMars/threadbase-core.git#d150181d40e0f3fd06467df1fbca363991f99614
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-markdown: 10.1.0(@types/react@19.2.14)(react@19.2.4)
+      remark-gfm: 4.0.1
+    transitivePeerDependencies:
+      - '@types/react'
+      - supports-color
 
   '@tybys/wasm-util@0.10.1':
     dependencies:

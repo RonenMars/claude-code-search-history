@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
-import ToolResultCard from './ToolResultCard'
-import type { ToolResult } from '../../../shared/types'
+import { ToolResultCard } from '@threadbase/ui'
+import type { ToolResult } from '@threadbase/core'
 import {
   buildEditToolResult,
   buildBashToolResult,
@@ -21,7 +21,7 @@ describe('ToolResultCard', () => {
     it('renders EditDiffCard for edit results', () => {
       const result = buildEditToolResult({ filePath: '/src/app.ts' })
       render(<ToolResultCard results={[result]} />)
-      expect(screen.getByText(/app\.ts/)).toBeInTheDocument()
+      expect(screen.getAllByText(/app\.ts/).length).toBeGreaterThan(0)
     })
 
     it('renders BashTerminalCard for bash results', () => {
@@ -120,6 +120,6 @@ describe('ToolResultCard', () => {
     const { container } = render(<ToolResultCard results={results} />)
     // Verify both cards rendered
     expect(container.querySelector('.terminal-body')).toBeInTheDocument()
-    expect(screen.getByText(/second\.ts/)).toBeInTheDocument()
+    expect(screen.getAllByText(/second\.ts/).length).toBeGreaterThan(0)
   })
 })

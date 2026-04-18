@@ -4,7 +4,7 @@ import ActiveChatList from "./components/ActiveChatList";
 import ChatTerminal from "./components/ChatTerminal";
 import ConversationView from "./components/ConversationView";
 import DisplayModePicker from "./components/DisplayModePicker";
-import ErrorBoundary from "./components/ErrorBoundary";
+import { ErrorBoundary } from "@threadbase/ui";
 import FilterPanel from "./components/FilterPanel";
 import KanbanBoard from "./components/KanbanBoard";
 import ProfilePickerModal from "./components/ProfilePickerModal";

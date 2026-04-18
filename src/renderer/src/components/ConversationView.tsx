@@ -11,10 +11,7 @@ import {
   type JSX,
 } from "react";
 import { createPortal } from "react-dom";
-import MessageContent from "./MessageContent";
-import MessageNavigation from "./MessageNavigation";
-import ToolInvocationBadge from "./ToolInvocationBadge";
-import ToolResultCard from "./ToolResultCard";
+import { MessageContent, MessageNavigation, ToolInvocationBadge, ToolResultCard } from "@threadbase/ui";
 import type {
   Conversation,
   ConversationMessage,

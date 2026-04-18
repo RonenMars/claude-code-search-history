@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
-import ToolInvocationBadge from './ToolInvocationBadge'
-import type { ToolUseBlock } from '../../../shared/types'
+import { ToolInvocationBadge } from '@threadbase/ui'
+import type { ToolUseBlock } from '@threadbase/core'
 
 function makeBlock(
   name: string,
