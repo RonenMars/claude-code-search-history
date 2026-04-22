@@ -900,6 +900,7 @@ export default function App(): JSX.Element {
                 profiles={profiles}
                 displayMode={appSettings.displayMode}
                 enabledProviders={enabledProviders}
+                historyMessageDisplay={appSettings.historyMessageDisplay || 'first'}
               />
             )}
           </div>

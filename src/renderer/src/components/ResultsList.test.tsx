@@ -36,6 +36,7 @@ const defaultProps = {
   accountFilter: null as string | null,
   profiles: [buildProfile()],
   displayMode: 'list' as const,
+  historyMessageDisplay: 'first' as const,
 }
 
 function renderList(overrides = {}) {

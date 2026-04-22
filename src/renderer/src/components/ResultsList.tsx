@@ -29,6 +29,7 @@ interface ResultsListProps {
   profiles: Profile[]
   displayMode: DisplayMode
   enabledProviders?: string[]
+  historyMessageDisplay: 'first' | 'last'
 }
 
 export default function ResultsList({
@@ -47,6 +48,7 @@ export default function ResultsList({
   profiles,
   displayMode,
   enabledProviders = [],
+  historyMessageDisplay,
 }: ResultsListProps): JSX.Element {
   const enabledProfiles = profiles.filter((p) => p.enabled)
   const showProfileBadge = enabledProfiles.length > 1
@@ -139,6 +141,7 @@ export default function ResultsList({
             showProfileBadge,
             enabledProfiles,
             showProviderBadge,
+            historyMessageDisplay,
           }
 
           if (displayMode === 'tree') return <FileTreeResultsList {...internalProps} />
@@ -175,6 +178,7 @@ interface InternalListProps {
   showProfileBadge: boolean
   enabledProfiles: Profile[]
   showProviderBadge: boolean
+  historyMessageDisplay: 'first' | 'last'
 }
 
 function FlatResultsList({
@@ -192,6 +196,7 @@ function FlatResultsList({
   showProfileBadge,
   enabledProfiles,
   showProviderBadge,
+  historyMessageDisplay,
 }: InternalListProps): JSX.Element {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -235,6 +240,7 @@ function FlatResultsList({
                 activeChatProfile={activeChatProfile}
                 profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === results[virtualRow.index].account) : undefined}
                 showProviderBadge={showProviderBadge}
+                historyMessageDisplay={historyMessageDisplay}
               />
             </div>
           ))}
@@ -274,6 +280,7 @@ function GroupedResultsList({
   showProfileBadge,
   enabledProfiles,
   showProviderBadge,
+  historyMessageDisplay,
 }: InternalListProps): JSX.Element {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -410,6 +417,7 @@ function GroupedResultsList({
                         activeChatProfile={activeChatProfile}
                         profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === item.result.account) : undefined}
                         showProviderBadge={showProviderBadge}
+                        historyMessageDisplay={historyMessageDisplay}
                       />
                     </div>
                   )}
@@ -531,6 +539,7 @@ function FileTreeResultsList({
   showProfileBadge,
   enabledProfiles,
   showProviderBadge,
+  historyMessageDisplay,
 }: InternalListProps): JSX.Element {
   const [selectedDir, setSelectedDir] = useState<string | null>(null)
 
@@ -623,6 +632,7 @@ function FileTreeResultsList({
                     activeChatProfile={activeChatProfile}
                     profileBadge={showProfileBadge ? enabledProfiles.find((p) => p.id === dirConversations[virtualRow.index].account) : undefined}
                     showProviderBadge={showProviderBadge}
+                    historyMessageDisplay={historyMessageDisplay}
                   />
                 </div>
               ))}
@@ -752,9 +762,10 @@ interface ResultItemProps {
   activeChatProfile: ClaudeProfile | null
   profileBadge: Profile | undefined
   showProviderBadge: boolean
+  historyMessageDisplay: 'first' | 'last'
 }
 
-function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge, showProviderBadge }: ResultItemProps): JSX.Element {
+function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, query, gitInfo, activeCwd, activeChatSessionId, isClaudeTyping, activeChatProfile, profileBadge, showProviderBadge, historyMessageDisplay }: ResultItemProps): JSX.Element {
   // Note: dangerouslySetInnerHTML is safe here — content passes through
   // escapeHtml() which sanitizes all HTML entities before highlightText()
   // wraps matched terms in <span> tags using the escaped content.
@@ -772,6 +783,18 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
   const formattedDate = useMemo(() => {
     return formatDate(result.timestamp)
   }, [result.timestamp])
+
+  const preferredMsg = useMemo(() => {
+    if (historyMessageDisplay === 'last') return result.lastMessage ?? result.firstMessage
+    return result.firstMessage ?? result.lastMessage
+  }, [historyMessageDisplay, result.firstMessage, result.lastMessage])
+
+  const msgTimestamp = useMemo(() => {
+    if (!preferredMsg?.timestamp) return ''
+    const d = new Date(preferredMsg.timestamp)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
+  }, [preferredMsg?.timestamp])
 
   const isActive = activeCwd === result.projectPath &&
     (activeChatSessionId === undefined || result.sessionId === activeChatSessionId)
@@ -848,10 +871,18 @@ function ResultItem({ result, isSelected, onSelect, onNewChat, onContextMenu, qu
           dangerouslySetInnerHTML={{ __html: highlightedSessionId }}
         />
       )}
-      <p
-        className="line-clamp-2 text-sm text-neutral-300"
-        dangerouslySetInnerHTML={{ __html: highlightedPreview }}
-      />
+      {preferredMsg ? (
+        <p className="line-clamp-2 text-sm text-neutral-300">
+          <span className="text-neutral-500">{msgTimestamp}</span>
+          {msgTimestamp && ' \u2014 '}
+          {preferredMsg.text}
+        </p>
+      ) : (
+        <p
+          className="line-clamp-2 text-sm text-neutral-300"
+          dangerouslySetInnerHTML={{ __html: highlightedPreview }}  /* eslint-disable-line react/no-danger -- content is sanitized via escapeHtml() */
+        />
+      )}
       <div className="mt-2 text-xs text-neutral-500">{result.messageCount} messages</div>
     </button>
   )
