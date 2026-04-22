@@ -79,6 +79,8 @@ export function buildConversationMeta(overrides: Partial<ConversationMeta> = {})
     contentSnippet: 'Full content snippet for indexing purposes with more text here',
     lastMessageSender: 'assistant',
     account: 'default',
+    firstMessage: null,
+    lastMessage: null,
     ...overrides,
   }
 }
@@ -120,6 +122,8 @@ export function buildSearchResult(overrides: Partial<SearchResult> = {}): Search
     score: 1,
     lastMessageSender: 'assistant',
     account: 'default',
+    firstMessage: null,
+    lastMessage: null,
     ...overrides,
   }
 }

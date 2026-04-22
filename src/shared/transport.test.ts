@@ -81,6 +81,8 @@ describe('MockTransport', () => {
         score: 1,
         lastMessageSender: 'assistant',
         account: 'default',
+        firstMessage: null,
+        lastMessage: null,
       },
     ]
     const mock = makeMockTransport({

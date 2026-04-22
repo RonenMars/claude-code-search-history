@@ -12,6 +12,11 @@ export interface ConversationMessage {
 
 export type Account = string  // profile id, e.g. "default", "work", custom uuid
 
+export interface MessageSnapshot {
+  text: string
+  timestamp: string
+}
+
 export interface ConversationMeta {
   id: string
   filePath: string
@@ -25,6 +30,8 @@ export interface ConversationMeta {
   contentSnippet: string
   lastMessageSender: 'user' | 'assistant'
   account: Account
+  firstMessage: MessageSnapshot | null
+  lastMessage: MessageSnapshot | null
   provider?: string   // "claude" | "codex" | ... — undefined = claude for legacy data
 }
 
@@ -54,6 +61,8 @@ export interface SearchResult {
   score: number
   lastMessageSender: 'user' | 'assistant'
   account: Account
+  firstMessage: MessageSnapshot | null
+  lastMessage: MessageSnapshot | null
   provider?: string
 }
 

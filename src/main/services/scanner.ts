@@ -3,7 +3,7 @@ import { readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import type { Account, ConversationMeta, Conversation, ConversationMessage, MessageMetadata, ToolResult, ToolUseBlock, StructuredPatchHunk, Profile } from '../../shared/types'
+import type { Account, ConversationMeta, Conversation, ConversationMessage, MessageMetadata, MessageSnapshot, ToolResult, ToolUseBlock, StructuredPatchHunk, Profile } from '../../shared/types'
 
 export class ConversationScanner {
   private configDirs: Array<{ projectsDir: string; account: Account }>
@@ -113,6 +113,8 @@ export class ConversationScanner {
     let cwd = ''
     let messageCount = 0
     let lastMessageSender: 'user' | 'assistant' = 'user'
+    let firstMessage: MessageSnapshot | null = null
+    let lastMessage: MessageSnapshot | null = null
     const previewParts: string[] = []
     const snippetParts: string[] = []
     let snippetLength = 0
@@ -142,6 +144,11 @@ export class ConversationScanner {
             if (entry.type === 'user' || entry.type === 'assistant') {
               lastMessageSender = entry.type
             }
+            const ts = entry.timestamp || ''
+            if (!firstMessage) {
+              firstMessage = { text: content.slice(0, 200), timestamp: ts }
+            }
+            lastMessage = { text: content.slice(0, 200), timestamp: ts }
             if (previewParts.join(' ').length < PREVIEW_MAX) {
               previewParts.push(content)
             }
@@ -184,6 +191,8 @@ export class ConversationScanner {
       contentSnippet: snippetParts.join(' '),
       lastMessageSender,
       account,
+      firstMessage,
+      lastMessage,
     }
   }
 

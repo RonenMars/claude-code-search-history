@@ -158,6 +158,8 @@ export class ProviderRegistry {
       contentSnippet: '',
       lastMessageSender: 'assistant',
       account: latest.provider ?? 'default',
+      firstMessage: null,
+      lastMessage: null,
       provider: latest.provider,
     }
   }

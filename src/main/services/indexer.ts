@@ -1,5 +1,5 @@
 import { Document } from 'flexsearch'
-import type { Account, ConversationMeta, SearchResult } from '../../shared/types'
+import type { Account, ConversationMeta, MessageSnapshot, SearchResult } from '../../shared/types'
 
 interface IndexedDocument {
   id: string
@@ -13,6 +13,8 @@ interface IndexedDocument {
   preview: string
   lastMessageSender: 'user' | 'assistant'
   account: Account
+  firstMessage: MessageSnapshot | null
+  lastMessage: MessageSnapshot | null
   provider?: string
 }
 
@@ -50,6 +52,8 @@ export class SearchIndexer {
         preview: meta.preview,
         lastMessageSender: meta.lastMessageSender,
         account: meta.account,
+        firstMessage: meta.firstMessage,
+        lastMessage: meta.lastMessage,
         provider: meta.provider,
       }
 
@@ -108,6 +112,8 @@ export class SearchIndexer {
           score: 1,
           lastMessageSender: doc.lastMessageSender,
           account: doc.account,
+          firstMessage: doc.firstMessage,
+          lastMessage: doc.lastMessage,
           provider: doc.provider,
         })
 
@@ -148,6 +154,8 @@ export class SearchIndexer {
       score: 1,
       lastMessageSender: doc.lastMessageSender,
       account: doc.account,
+      firstMessage: doc.firstMessage,
+      lastMessage: doc.lastMessage,
       provider: doc.provider,
     }))
   }

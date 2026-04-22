@@ -315,6 +315,8 @@ async function initializeSearch(profiles: Profile[]): Promise<void> {
     contentSnippet: '',
     lastMessageSender: 'assistant' as const,
     account: s.provider === 'claude' ? (s as any).account ?? 'default' : s.provider ?? s.provider,
+    firstMessage: null,
+    lastMessage: null,
     provider: s.provider,
   }));
   console.log(`Found ${metas.length} conversations`);
