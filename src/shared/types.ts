@@ -286,6 +286,7 @@ export interface AppSettings {
   notifications?: NotificationSettings
   enabledProviders?: string[]              // default ["claude"] applied in loadSettings()
   providerPaths?: Record<string, string[]> // custom scan paths per provider id
+  historyMessageDisplay?: 'first' | 'last' // which message to show as preview; default 'first'
 }
 
 // ─── Prompt Queue Types ───────────────────────────────────────────────────────

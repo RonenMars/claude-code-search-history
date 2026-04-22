@@ -26,6 +26,7 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ settings, onSave, profiles, onFilterByProfile, onProfilesSaved, onClose, defaultProfileId, onClearDefaultProfile, enabledProviders, availableProviders, onToggleProvider }: SettingsModalProps): JSX.Element {
   const [maxChatInstances, setMaxChatInstances] = useState(settings.maxChatInstances)
+  const [historyMessageDisplay, setHistoryMessageDisplay] = useState<'first' | 'last'>(settings.historyMessageDisplay ?? 'first')
   const [profilesDir, setProfilesDir] = useState(settings.profilesDir ?? '')
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(
     settings.notifications ?? DEFAULT_NOTIFICATION_SETTINGS
@@ -108,6 +109,31 @@ export default function SettingsModal({ settings, onSave, profiles, onFilterByPr
           ) : (
             <span className="text-xs text-neutral-600">None — picker shown each time</span>
           )}
+        </div>
+        <div className="mt-4 flex max-w-xl items-center justify-between">
+          <div>
+            <p className="text-sm text-neutral-200">History message preview</p>
+            <p className="mt-0.5 text-xs text-neutral-500">Show the first or last message as the conversation preview</p>
+          </div>
+          <div className="flex overflow-hidden rounded-md border border-neutral-700">
+            {(['first', 'last'] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => {
+                  setHistoryMessageDisplay(option)
+                  onSave({ historyMessageDisplay: option })
+                }}
+                className={[
+                  'px-3 py-1.5 text-xs font-medium transition-colors',
+                  historyMessageDisplay === option
+                    ? 'bg-claude-orange text-white'
+                    : 'bg-neutral-900 text-neutral-400 hover:text-neutral-200',
+                ].join(' ')}
+              >
+                {option === 'first' ? 'First Message' : 'Last Message'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
